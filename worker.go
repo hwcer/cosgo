@@ -2,6 +2,7 @@ package rooms
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 )
 
@@ -36,7 +37,7 @@ func NewWorker(name string, num int32, handle func(interface{})) *Worker {
 }
 
 func (this *workerThread) start(ctx context.Context) {
-	logger.DEBUG("CREATE WORKER %v[%v]", this.name, this.id)
+	fmt.Printf("CREATE WORKER %v[%v]\n", this.name, this.id)
 	for this.stop == 0 && !IsStop() {
 		select {
 		case <-ctx.Done():
@@ -49,20 +50,20 @@ func (this *workerThread) start(ctx context.Context) {
 			}
 		}
 	}
-	logger.DEBUG("CLOSE WORKER %v[%v]", this.name, this.id)
+	fmt.Printf("CLOSE WORKER %v[%v]\n", this.name, this.id)
 }
 
 //关闭房间
 func (this *workerThread) close() {
 	if !atomic.CompareAndSwapInt32(&this.stop, 0, 1) {
-		logger.ERROR("workerThread Stop error")
+		fmt.Printf("workerThread Stop error\n")
 	}
 }
 
 func (this *Worker) Emit(msg interface{}) (ret bool) {
 	defer func() {
 		if err := recover(); err != nil {
-			logger.DEBUG("workerThread[%v].emit error:%v", this.name, err)
+			fmt.Printf("workerThread[%v].emit error:%v\n", this.name, err)
 			ret = false
 		}
 	}()
@@ -70,7 +71,7 @@ func (this *Worker) Emit(msg interface{}) (ret bool) {
 	select {
 	case this.cwrite <- msg:
 	default:
-		logger.WARN("workerThread[%v] channel full and discard:%v", this.name, msg)
+		fmt.Printf("workerThread[%v] channel full and discard:%v\n", this.name, msg)
 	}
 	return true
 }

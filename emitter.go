@@ -2,7 +2,7 @@ package rooms
 
 import (
 	"context"
-	""
+	"fmt"
 	"sync"
 	"sync/atomic"
 )
@@ -104,7 +104,6 @@ func (this *Emitter) Close(name string) {
 }
 
 func (this *Event) start(ctx context.Context) {
-	logger.DEBUG("CREATE ROOM:%+v", this.name)
 	//注册事件
 	this.handle[eventMessageType_Emit] = this.emit
 	this.handle[eventMessageType_Join] = this.join
@@ -121,7 +120,6 @@ func (this *Event) start(ctx context.Context) {
 		}
 	}
 	close(this.cwrite)
-	logger.DEBUG("CLOSE ROOM:%+v", this.name)
 }
 
 func (this *Event) emit(msg *eventMessage) {
@@ -144,14 +142,14 @@ func (this *Event) leave(msg *eventMessage) {
 func (this *Event) writeMsg(msg *eventMessage) (ret bool) {
 	defer func() {
 		if err := recover(); err != nil {
-			logger.DEBUG("Event.emit err:%v", err)
+			fmt.Printf("Event.emit err:%v\n", err)
 			ret = false
 		}
 	}()
 	select {
 	case this.cwrite <- msg:
 	default:
-		logger.WARN("event channel full and discard:%v", msg)
+		fmt.Printf("event channel full and discard:%v\n", msg)
 	}
 	return true
 }
@@ -177,6 +175,6 @@ func (this *Event) Leave(listenerId string) bool {
 //Close 关闭房间，如果使用Emitter来管理房间时，请使用Emitter.Close来关闭
 func (this *Event) Close() {
 	if !atomic.CompareAndSwapInt32(&this.stop, 0, 1) {
-		logger.ERROR("Event Stop error:%v", this.name)
+		fmt.Printf("Event Stop error:%v\n", this.name)
 	}
 }
