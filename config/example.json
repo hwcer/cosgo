@@ -1,0 +1,18 @@
+{
+    "rate": 12345,
+    "host": {
+        "address": "localhost",
+        "port": 5799
+    },
+    "datastore": {
+        "metric": {
+            "host": "127.0.0.1",
+            "vals":["aaa", "bbb", "ccc"],
+            "port": 3099
+        },
+        "warehouse": {
+            "host": "198.0.0.1",
+            "port": 2112
+        }
+    }
+}
