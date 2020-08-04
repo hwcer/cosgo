@@ -1,4 +1,4 @@
-package handler
+package server
 
 import (
 	"fmt"
@@ -90,17 +90,17 @@ func (s *Router)Register( handle interface{}) *nsp{
 			continue
 		}
 		// First arg must be context.Context
-		ctxType := mtype.In(1)
-		if !ctxType.ConvertibleTo(typeOfContext) {
-			fmt.Printf("Register Method args error,Method:%v.%v()\n",nsp.name,mname)
-			continue
-		}
-		//
-		outType := mtype.Out(0)
-		if !outType.ConvertibleTo(typeOfMessage) {
-			fmt.Printf("Register Method return error,Method:%v.%v()\n",nsp.name,mname)
-			continue
-		}
+		//ctxType := mtype.In(1)
+		//if !ctxType.ConvertibleTo(typeOfContext) {
+		//	fmt.Printf("Register Method args error,Method:%v.%v()\n",nsp.name,mname)
+		//	continue
+		//}
+		////
+		//outType := mtype.Out(0)
+		//if !outType.ConvertibleTo(typeOfMessage) {
+		//	fmt.Printf("Register Method return error,Method:%v.%v()\n",nsp.name,mname)
+		//	continue
+		//}
 
 		//service.method[mname] = method.Func.Interface().(handlerMethod)
 		//fmt.Printf("Register Method；%v\n",mname)
@@ -160,28 +160,24 @@ func (s *Router) Handle(c *gin.Context) {
 		return
 	}
 	//fmt.Printf("router handle reply；%+v",reply)
-	//使用头信息错误码模式，忽略MSG
-	var status int
-	if reply.Status >0{
-		status = reply.Status
-	}else{
-		status = http.StatusOK
-	}
+	status := reply.GetHttpStatus()
+	dataType := reply.GetDataType()
+
 	if Config.ErrHeaderName !="" {
 		c.Header(Config.ErrHeaderName, strconv.Itoa(reply.Code))
 	}
 	if reply.HasError(){
 		c.String(status, reply.Error)
-	}else if reply.DataType == MessageDataTypeString{
+	}else if dataType == MessageDataType_String{
 		c.String(status,reply.Data.(string))
-	}else if reply.DataType == MessageDataTypeJson{
+	}else if dataType == MessageDataType_Json{
 		c.JSON(status,reply.Data)
-	}else if reply.DataType == MessageDataTypeXml{
+	}else if dataType == MessageDataType_Xml{
 		c.XML(status,reply.Data)
-	}else if reply.DataType == MessageDataTypeProtobuf{
+	}else if dataType == MessageDataType_Protobuf{
 		c.ProtoBuf(status,reply.Data)
 	}else{
-		c.JSON(http.StatusOK, reply)
+		c.JSON(status, reply)
 	}
 }
 

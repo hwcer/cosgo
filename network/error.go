@@ -1,4 +1,4 @@
-package antnet
+package network
 
 import (
 	"sync"

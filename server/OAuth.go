@@ -1,4 +1,4 @@
-package handler
+package server
 
 import (
 	"bytes"
@@ -58,15 +58,15 @@ func (this *oauth) Signature(method, url string, oauth map[string]string,body st
 }
 
 //Verify http(s)验签
-func (this *oauth) Verify(ctX *gin.Context) error {
-	signature := ctX.GetHeader(OAuth_Signature_Name)
+func (this *oauth) Verify(ctx *gin.Context) error {
+	signature := ctx.GetHeader(OAuth_Signature_Name)
 	if signature == ""{
 		return errors.New("OAuth Signature empty")
 	}
 
 	OAuthMap := make(map[string]string)
 	for _, k := range oauthParams {
-		v := ctX.GetHeader(k)
+		v := ctx.GetHeader(k)
 		if v == "" {
 			return errors.New("OAuth Params empty")
 		}
@@ -88,11 +88,15 @@ func (this *oauth) Verify(ctX *gin.Context) error {
 	var arrUrl []string
 	var strBody string
 	if this.Strict{
-		//TODO
+		byteBody,err:= ioutil.ReadAll(ctx.Request.Body)
+		if err!=nil{
+			return err
+		}
+		strBody = string(byteBody)
 	}
-	proto := strings.Split(ctX.Request.Proto, "/")
-	arrUrl = append(arrUrl, strings.ToLower(proto[0]), "://", ctX.Request.Host, ctX.Request.URL.Path)
-	newSignature := this.Signature(ctX.Request.Method, strings.Join(arrUrl, ""), OAuthMap,strBody)
+	proto := strings.Split(ctx.Request.Proto, "/")
+	arrUrl = append(arrUrl, strings.ToLower(proto[0]), "://", ctx.Request.Host, ctx.Request.URL.Path)
+	newSignature := this.Signature(ctx.Request.Method, strings.Join(arrUrl, ""), OAuthMap,strBody)
 
 	if signature != newSignature {
 		return errors.New("oauth signature error")
@@ -110,7 +114,7 @@ func (this *oauth) request(method, url string, data []byte, header map[string]st
 	)
 	req, err = http.NewRequest(method, url, bytes.NewBuffer(data))
 	if err != nil {
-		return NewErrMsgReply(err.Error())
+		return NewErrMsgFromError(err)
 	}
 	defer req.Body.Close()
 
@@ -140,27 +144,27 @@ func (this *oauth) request(method, url string, data []byte, header map[string]st
 	client := &http.Client{Timeout: time.Duration(this.Timeout) * time.Second}
 	res, err = client.Do(req)
 	if err != nil {
-		return NewMsgError(err)
+		return NewErrMsgFromError(err)
 	}
 	defer res.Body.Close()
 
 	reply, err = ioutil.ReadAll(res.Body)
 	if err != nil {
-		return NewMsgError(err)
+		return NewErrMsgFromError(err)
 	} else if res.StatusCode != http.StatusOK {
-		return NewErrMsgReply(res.Status)
+		return NewErrMsg(res.Status)
 	}
 
 	if Config.ErrHeaderName != "" {
 		var code int
 		code, err = strconv.Atoi(res.Header.Get(Config.ErrHeaderName))
 		if err != nil {
-			return NewMsgError(err)
+			return NewErrMsgFromError(err)
 		} else if code != GetErrCode(ErrMsg_NAME_SUCCESS) {
-			return NewErrMsgReply(string(reply), code)
+			return NewErrMsg(string(reply), code)
 		}
 	}
-	return NewMsgReply(reply)
+	return NewMsg(reply)
 }
 
 func (this *oauth) GET(url string, data []byte, header map[string]string) *Message {
@@ -174,7 +178,7 @@ func (this *oauth) POST(url string, data []byte, header map[string]string) *Mess
 func (this *oauth) PostJson(url string, query interface{}) *Message {
 	data,err := json.Marshal(query)
 	if err!=nil{
-		return NewErrMsgReply(err.Error())
+		return NewErrMsgFromError(err)
 	}
 	return this.request("POST", url, data, nil)
 }
