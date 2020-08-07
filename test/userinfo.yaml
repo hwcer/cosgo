@@ -1,0 +1,8 @@
+userName: "xiaoming"
+address: "广州市XXX"
+sex: 1
+company:
+  name: "xxx"
+  employeeId: 1000
+  department:
+    - "技术部"

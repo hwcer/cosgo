@@ -7,7 +7,7 @@ replace github.com/hwclegend/cosgo v0.0.0 => ../cosgo
 require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/alexflint/go-arg v1.3.0
-	github.com/coreos/etcd v3.3.22+incompatible // indirect
+	github.com/coreos/etcd v3.3.22+incompatible
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/gin-gonic/gin v1.6.3
 	github.com/go-ole/go-ole v1.2.4 // indirect
@@ -18,6 +18,7 @@ require (
 	github.com/hwclegend/cosgo v0.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/shirou/gopsutil v2.20.7+incompatible
+	github.com/spf13/pflag v1.0.3
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.4.0
 	github.com/yuin/gopher-lua v0.0.0-20200603152657-dc2b0ca8b37e
