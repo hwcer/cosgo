@@ -1,19 +1,13 @@
 package app
 
 import (
-	"cosgo/logger"
 	"fmt"
 	"github.com/coreos/etcd/pkg/fileutil"
+	"github.com/shirou/gopsutil/process"
 	"os"
 	"strconv"
 	"strings"
-	"github.com/shirou/gopsutil/process"
 )
-
-func init()  {
-	logger.Debug("app pidfile init")
-}
-
 
 
 func initPidFile() error  {

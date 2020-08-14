@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -85,7 +86,6 @@ func (this *oauth) Verify(ctx *gin.Context) error {
 		return errors.New("oauth request timeout")
 	}
 
-	var arrUrl []string
 	var strBody string
 	if this.Strict{
 		byteBody,err:= ioutil.ReadAll(ctx.Request.Body)
@@ -94,9 +94,9 @@ func (this *oauth) Verify(ctx *gin.Context) error {
 		}
 		strBody = string(byteBody)
 	}
-	proto := strings.Split(ctx.Request.Proto, "/")
-	arrUrl = append(arrUrl, strings.ToLower(proto[0]), "://", ctx.Request.Host, ctx.Request.URL.Path)
-	newSignature := this.Signature(ctx.Request.Method, strings.Join(arrUrl, ""), OAuthMap,strBody)
+
+	baseUrl := strings.Join([]string{ctx.Request.URL.Scheme, "://", ctx.Request.URL.Host, ctx.Request.URL.EscapedPath()}, "")
+	newSignature := this.Signature(ctx.Request.Method, baseUrl, OAuthMap,strBody)
 
 	if signature != newSignature {
 		return errors.New("oauth signature error")
@@ -105,14 +105,24 @@ func (this *oauth) Verify(ctx *gin.Context) error {
 }
 
 //args
-func (this *oauth) request(method, url string, data []byte, header map[string]string) *Message {
+func (this *oauth) request(method, rawurl string, data []byte, header map[string]string) *Message {
 	var (
 		err   error
 		req   *http.Request
 		res   *http.Response
 		reply []byte
 	)
-	req, err = http.NewRequest(method, url, bytes.NewBuffer(data))
+	//添加随机参数
+	var urlPase *url.URL
+	urlPase, err = url.Parse(rawurl)
+	if err != nil {
+		return NewErrMsgFromError(err)
+	}
+	query := urlPase.Query()
+	query.Set("_", strconv.Itoa(int(time.Now().Unix())))
+	urlPase.RawQuery = query.Encode()
+
+	req, err = http.NewRequest(method, urlPase.String(), bytes.NewBuffer(data))
 	if err != nil {
 		return NewErrMsgFromError(err)
 	}
@@ -133,12 +143,14 @@ func (this *oauth) request(method, url string, data []byte, header map[string]st
 	for k, v := range OAuthMap {
 		req.Header.Add(k, v)
 	}
-	arrUrl := strings.Split(url,"?")
+
+
 	var strBody string
 	if this.Strict{
 		strBody = string(data)
 	}
-	signature := this.Signature(method, arrUrl[0], OAuthMap,strBody)
+	baseUrl := strings.Join([]string{urlPase.Scheme, "://", urlPase.Host, urlPase.EscapedPath()}, "")
+	signature := this.Signature(method, baseUrl, OAuthMap,strBody)
 	req.Header.Add(OAuth_Signature_Name, signature)
 
 	client := &http.Client{Timeout: time.Duration(this.Timeout) * time.Second}
