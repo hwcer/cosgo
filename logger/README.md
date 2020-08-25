@@ -3,8 +3,6 @@ convenient log package
 
 # 1. 使用说明
 ```go
-    import  "github.com/hwclegend/cosgo/logger"
-
     // 配置logger，如果不配置时默认为控制台输出，等级为DEBG
     logger.SetLogger(`{"Console": {"level": "DEBG"}`)
     // 配置说明见下文

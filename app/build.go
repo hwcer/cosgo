@@ -13,17 +13,18 @@ var (
 	BuildVersion string
 )
 
+func init()  {
+	pflag.BoolP("help","h",false,"Show App helps")
+	pflag.BoolP("version","v",false,"Show Build Version")
+}
+
 func buildInit() error {
-	args := os.Args
-	if nil == args || len(args) < 2 {
-		return nil
-	}
-	if "-v" == args[1] {
+	if Flag.IsSet("version") {
 		fmt.Printf("BuildName:%v\n", BuildName)
 		fmt.Printf("BuildTime:%v\n",BuildTime)
 		fmt.Printf("BuildVersion:%v\n", BuildVersion)
 		os.Exit(0)
-	}else if "-h" == args[1]{
+	}else if Flag.IsSet("help") {
 		pflag.Usage()
 		os.Exit(0)
 	}

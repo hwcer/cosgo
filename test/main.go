@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/pflag"
 	"net/url"
 	"sync"
+	"time"
 )
 
 func init()  {
@@ -48,6 +49,11 @@ func (this *test)Start(cx context.Context, wgp *sync.WaitGroup) error {
 
 	logger.Debug("URL STR:%v",p.String())
 	logger.Debug("URL PATH:%v",p.EscapedPath())
+	logger.Debug("=========================很严肃的分界线=======================")
+
+	t:= time.Now()
+	logger.Debug("时间:%v",t.Format("20060102"))
+
 	return nil
 }
 

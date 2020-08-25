@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 )
+//系统信号监控
 
 //报告性能摘要时间间隔
 var gcSummaryTime time.Duration
@@ -24,7 +25,7 @@ func SetGCSummaryTime(ms int)  {
 }
 
 
-//系统信号
+
 func waitForSystemExit(c context.Context)  {
 	ch := make(chan os.Signal, 1)
 	tick := time.NewTicker(gcSummaryTime)

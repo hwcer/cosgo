@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cosgo/logger"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"os"
@@ -15,7 +16,6 @@ var Flag *viper.Viper
 func init() {
 	Flag =  viper.New()
 	pflag.Bool("debug",false,"developer model")
-	pflag.String("name","cosjs","app name")
 	pflag.String("logdir","","log path")
 	pflag.String("pidfile","","app pid file")
 	pflag.String("profile","","profile address")
@@ -51,6 +51,8 @@ func init() {
 	Flag.SetDefault("appBinDir",appBinDir)
 	Flag.SetDefault("appWorkDir",appWorkDir)
 	Flag.SetDefault("appExecFile", appExecFile)
+	//设置日志
+	logger.SetLogger()
 
 }
 

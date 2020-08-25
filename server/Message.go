@@ -9,11 +9,11 @@ import (
 type MessageDataType int
 
 const (
-	MessageDataType_String MessageDataType = iota
+	MessageDataType_Unknown MessageDataType = iota
+	MessageDataType_String
 	MessageDataType_Json
 	MessageDataType_Xml
 	MessageDataType_Protobuf
-	MessageDataType_Unknown  //输出完整的Message信息
 )
 
 
