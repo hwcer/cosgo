@@ -3,43 +3,101 @@ package network
 import (
 	"io"
 	"net"
-	"sync"
 	"sync/atomic"
 	"time"
 )
-
-type tcpMsgQue struct {
-	msgQue
-	wait     sync.WaitGroup
-	conn     net.Conn     //连接
+type tcpMsgServer struct {
+	defMsgServer
 	listener net.Listener //监听
-	network  string
-	address  string
 }
 
-func (r *tcpMsgQue) GetNetType() NetType {
-	return NetTypeTcp
-}
-func (r *tcpMsgQue) Stop() {
-	if atomic.CompareAndSwapInt32(&r.stop, 0, 1) {
-		Go(func() {
-			if r.init {
-				r.handler.OnDelMsgQue(r)
+
+func (r *tcpMsgServer) listen() {
+	r.wgp.Add(1)
+	defer r.wgp.Done()
+	defer r.listener.Close()
+	for r.loop() {
+		c, err := r.listener.Accept()
+		if err != nil {
+			if stop == 0 && r.stop == 0 {
+				Logger.Error("tcp server accept failed:%v",err)
 			}
-			r.available = false
-			r.baseStop()
-		})
-	}
-}
-
-func (r *tcpMsgQue) IsStop() bool {
-	if r.stop == 0 {
-		if IsStop() {
-			r.Stop()
+			break
+		} else {
+			Go(func() {
+				msgque := newTcpMsgQue(r,c)
+				if r.handler.OnNewMsgQue(msgque) {
+					msgque.init = true
+					msgque.available = true
+					Go(func() {
+						Logger.Debug("process read for msgque:%d", msgque.id)
+						msgque.read()
+						Logger.Debug("process read end for msgque:%d", msgque.id)
+					})
+					Go(func() {
+						Logger.Debug("process write for msgque:%d", msgque.id)
+						msgque.write()
+						Logger.Debug("process write end for msgque:%d", msgque.id)
+					})
+				} else {
+					msgque.Stop()
+				}
+			})
 		}
 	}
-	return r.stop == 1
+	r.Stop()
 }
+
+
+func NewTcpServer(addr string, msgTyp MsgType, handler IMsgHandler) (*tcpMsgServer,error) {
+	listener, err := net.Listen("tcp", addr)
+	if err !=nil{
+		return nil,err
+	}
+	srv := &tcpMsgServer{
+		listener: listener,
+	}
+	srv.defMsgServer.init(msgTyp,NetTypeTcp,handler)
+
+	Go(func() {
+		srv.listen()
+	})
+	return srv,nil
+}
+
+
+
+
+type tcpMsgQue struct {
+	defMsgQue
+	conn     net.Conn     //连接
+	msgSrv *tcpMsgServer
+	network  string
+	address  string
+	listener net.Listener //监听
+
+}
+
+func newTcpMsgQue(msgServer *tcpMsgServer,  conn net.Conn) *tcpMsgQue {
+	msgque := tcpMsgQue{
+		defMsgQue: defMsgQue{
+			id:        atomic.AddUint32(&msgqueId, 1),
+			cwrite:    make(chan *Message, 500),
+			lastTick:  Timestamp,
+			msgServer: msgServer,
+		},
+		conn: conn,
+	}
+	msgqueMapSync.Lock()
+	msgqueMap[msgque.id] = &msgque
+	msgqueMapSync.Unlock()
+	Logger.Debug("new msgque id:%d from addr:%s", msgque.id, conn.RemoteAddr().String())
+	return &msgque
+}
+
+
+
+
 
 func (r *tcpMsgQue) LocalAddr() string {
 	if r.conn != nil {
@@ -65,7 +123,7 @@ func (r *tcpMsgQue) readMsg() {
 	var data []byte
 	var head *MsgHead
 
-	for !r.IsStop() {
+	for r.loop() {
 		if head == nil {
 			_, err := io.ReadFull(r.conn, headData)
 			if err != nil {
@@ -109,8 +167,8 @@ func (r *tcpMsgQue) writeMsg() {
 	var m *Message
 	var data []byte
 	writeCount := 0
-	tick := time.NewTimer(time.Second * time.Duration(r.timeout))
-	for !r.IsStop() || m != nil {
+	tick := time.NewTimer(time.Second * time.Duration(r.msgServer.GetTimeout()))
+	for r.loop() || m != nil {
 		if m == nil {
 			select {
 			case <-stopChanForGo:
@@ -119,9 +177,7 @@ func (r *tcpMsgQue) writeMsg() {
 					data = m.Bytes()
 				}
 			case <-tick.C:
-				if r.isTimeout(tick) {
-					r.Stop()
-				}
+				r.isTimeout(tick)
 			}
 		}
 
@@ -149,100 +205,24 @@ func (r *tcpMsgQue) writeMsg() {
 
 func (r *tcpMsgQue) read() {
 	defer func() {
-		r.wait.Done()
 		if err := recover(); err != nil {
-			Logger.Error("msgque read panic id:%v err:%v", r.id, err.(error))
+			Logger.Error("msgque read panic id:%v err:%v", r.id, err)
 		}
 		r.Stop()
 	}()
-
-	r.wait.Add(1)
 	r.readMsg()
 }
 
 func (r *tcpMsgQue) write() {
 	defer func() {
-		r.wait.Done()
 		if err := recover(); err != nil {
-			Logger.Error("msgque write panic id:%v err:%v", r.id, err.(error))
+			Logger.Error("msgque write panic id:%v err:%v", r.id, err)
 		}
 		if r.conn != nil {
 			r.conn.Close()
 		}
 		r.Stop()
 	}()
-	r.wait.Add(1)
 	r.writeMsg()
 }
 
-func (r *tcpMsgQue) listen() {
-	defer r.listener.Close()
-	for !r.IsStop() {
-		c, err := r.listener.Accept()
-		if err != nil {
-			if stop == 0 && r.stop == 0 {
-				Logger.Error("accept failed msgque:%v err:%v", r.id, err)
-			}
-			break
-		} else {
-			Go(func() {
-				msgque := newTcpAccept(c, r.msgTyp, r.handler)
-				if r.handler.OnNewMsgQue(msgque) {
-					msgque.init = true
-					msgque.available = true
-					Go(func() {
-						Logger.Debug("process read for msgque:%d", msgque.id)
-						msgque.read()
-						Logger.Debug("process read end for msgque:%d", msgque.id)
-					})
-					Go(func() {
-						Logger.Debug("process write for msgque:%d", msgque.id)
-						msgque.write()
-						Logger.Debug("process write end for msgque:%d", msgque.id)
-					})
-				} else {
-					msgque.Stop()
-				}
-			})
-		}
-	}
-	r.Stop()
-}
-
-func newTcpAccept(conn net.Conn, msgtyp MsgType, handler IMsgHandler) *tcpMsgQue {
-	msgque := tcpMsgQue{
-		msgQue: msgQue{
-			id:       atomic.AddUint32(&msgqueId, 1),
-			cwrite:   make(chan *Message, 500),
-			msgTyp:   msgtyp,
-			handler:  handler,
-			timeout:  DefMsgQueTimeout,
-			connTyp:  ConnTypeAccept,
-			lastTick: Timestamp,
-		},
-		conn: conn,
-	}
-	msgqueMapSync.Lock()
-	msgqueMap[msgque.id] = &msgque
-	msgqueMapSync.Unlock()
-	Logger.Debug("new msgque id:%d from addr:%s", msgque.id, conn.RemoteAddr().String())
-	return &msgque
-}
-
-func newTcpListen(listener net.Listener, msgtyp MsgType, handler IMsgHandler, addr string) *tcpMsgQue {
-	msgque := tcpMsgQue{
-		msgQue: msgQue{
-			id:      atomic.AddUint32(&msgqueId, 1),
-			msgTyp:  msgtyp,
-			handler: handler,
-			connTyp: ConnTypeListen,
-		},
-		listener: listener,
-	}
-
-	msgqueMapSync.Lock()
-	msgqueMap[msgque.id] = &msgque
-	msgqueMapSync.Unlock()
-	Logger.Debug("new tcp listen id:%d addr:%s", msgque.id, addr)
-	return &msgque
-}

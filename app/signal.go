@@ -29,7 +29,7 @@ func SetGCSummaryTime(ms int)  {
 func waitForSystemExit(c context.Context)  {
 	ch := make(chan os.Signal, 1)
 	tick := time.NewTicker(gcSummaryTime)
-	signal.Notify(ch, syscall.SIGHUP, syscall.SIGQUIT,syscall.SIGINT,syscall.SIGKILL)
+	signal.Notify(ch, syscall.SIGHUP, syscall.SIGQUIT,syscall.SIGINT,syscall.SIGKILL,syscall.SIGTERM)
 
 	for {
 		select {

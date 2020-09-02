@@ -4,41 +4,25 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/signal"
-	"runtime"
-	"strings"
 	"sync/atomic"
 	"syscall"
 )
-
+//关闭所有服务器
 func Stop() {
 	if !atomic.CompareAndSwapInt32(&stop, 0, 1) {
 		Logger.Error("Server Stop error")
 		return
 	}
-
-	close(stopChanForGo)
-	for sc := 0; !waitAll.TryWait(); sc++ {
-		Sleep(1)
-		if sc >= Config.StopTimeout {
-			Logger.Error("Server Stop Timeout")
-			break
-		}
-	}
-	Logger.Debug("Server Stop")
+	//所有服务器STOP
+	Logger.Debug("ALL Server Stop")
 }
-
-func IsStop() bool {
-	return stop == 1
-}
-
-func IsRuning() bool {
+//FOR循环体中检查模块是否Runing
+func loop() bool {
 	return stop == 0
 }
-
 
 
 func WaitForSystemExit() {
@@ -51,66 +35,17 @@ func WaitForSystemExit() {
 	close(stopChanForSys)
 }
 
-func Try(fun func(), handler func(interface{})) {
+func Try(fun func(), handler ...func(interface{})) {
 	defer func() {
 		if err := recover(); err != nil {
-			if handler == nil {
+			if len(handler) ==0 {
 				Logger.Error("error catch:%v", err)
 			} else {
-				handler(err)
+				handler[0](err)
 			}
 		}
 	}()
 	fun()
-}
-
-
-
-func Go(fn func()) {
-	pc := Config.PoolSize + 1
-	select {
-	case poolChan <- fn:
-		return
-	default:
-		pc = atomic.AddInt32(&poolGoCount, 1)
-		if pc > Config.PoolSize {
-			atomic.AddInt32(&poolGoCount, -1)
-		}
-	}
-
-	waitAll.Add(1)
-	debugStr := simpleStack()
-	id := atomic.AddUint32(&goid, 1)
-	c := atomic.AddInt32(&gocount, 1)
-	Logger.Debug("goroutine start id:%d count:%d from:%s", id, c, debugStr)
-	go func() {
-		Try(fn, nil)
-		for pc <= Config.PoolSize {
-			select {
-			case <-stopChanForGo:
-				pc = Config.PoolSize + 1
-			case nfn := <-poolChan:
-				Try(nfn, nil)
-			}
-		}
-		waitAll.Done()
-		c = atomic.AddInt32(&gocount, -1)
-		Logger.Debug("goroutine end id:%d count:%d from:%s", id, c, debugStr)
-	}()
-}
-
-func Go2(fn func(cstop chan struct{})) {
-	Go(func() {
-		Try(func() { fn(stopChanForGo) }, nil)
-	})
-}
-
-func simpleStack() string {
-	_, file, line, _ := runtime.Caller(2)
-	i := strings.LastIndex(file, "/") + 1
-	i = strings.LastIndex((string)(([]byte(file))[:i-1]), "/") + 1
-
-	return fmt.Sprintf("%s:%d", (string)(([]byte(file))[i:]), line)
 }
 
 

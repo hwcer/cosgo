@@ -10,7 +10,7 @@ import (
 )
 
 type wsMsgQue struct {
-	msgQue
+	defMsgQue
 	conn       *websocket.Conn
 	upgrader   *websocket.Upgrader
 	addr       string
@@ -190,7 +190,7 @@ func (r *wsMsgQue) listen() {
 
 func newWsAccept(conn *websocket.Conn, msgtyp MsgType, handler IMsgHandler) *wsMsgQue {
 	msgque := wsMsgQue{
-		msgQue: msgQue{
+		defMsgQue: defMsgQue{
 			id:       atomic.AddUint32(&msgqueId, 1),
 			cwrite:   make(chan *Message, 64),
 			msgTyp:   msgtyp,
@@ -210,7 +210,7 @@ func newWsAccept(conn *websocket.Conn, msgtyp MsgType, handler IMsgHandler) *wsM
 
 func newWsListen(addr, url string, msgtyp MsgType, handler IMsgHandler) *wsMsgQue {
 	msgque := wsMsgQue{
-		msgQue: msgQue{
+		defMsgQue: defMsgQue{
 			id:      atomic.AddUint32(&msgqueId, 1),
 			msgTyp:  msgtyp,
 			handler: handler,
