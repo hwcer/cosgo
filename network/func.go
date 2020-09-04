@@ -4,24 +4,44 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/signal"
+	"strings"
 	"sync/atomic"
 	"syscall"
 )
+
+//启动服务器,根据
+func Start(addr string, typ MsgType, handler IMsgHandler) (Server,error) {
+	addrs := strings.Split(addr, "://")
+	if addrs[0] == "tcp"  {
+		return NewTcpServer(addrs[1],typ,handler)
+	}else if addrs[0] == "udp" {
+		//TODO UDP
+	}else if addrs[0] == "ws" || addrs[0] == "wss" {
+		//TODO wss
+	}
+	return nil,errors.New(fmt.Sprintf("server address error:%v",addr))
+}
+
+
 //关闭所有服务器
 func Stop() {
 	if !atomic.CompareAndSwapInt32(&stop, 0, 1) {
 		Logger.Error("Server Stop error")
 		return
 	}
+	wgp.Done()
+	wgp.Wait()
 	//所有服务器STOP
 	Logger.Debug("ALL Server Stop")
 }
-//FOR循环体中检查模块是否Runing
-func loop() bool {
-	return stop == 0
+
+func IsStop() bool {
+	return stop == 1
 }
 
 
@@ -39,7 +59,7 @@ func Try(fun func(), handler ...func(interface{})) {
 	defer func() {
 		if err := recover(); err != nil {
 			if len(handler) ==0 {
-				Logger.Error("error catch:%v", err)
+				Logger.Error("%v", err)
 			} else {
 				handler[0](err)
 			}
@@ -48,6 +68,17 @@ func Try(fun func(), handler ...func(interface{})) {
 	fun()
 }
 
+func Go(fun func(),unSafeGo ...bool)  {
+	go func() {
+		wgp.Add(1)
+		defer wgp.Done()
+		if len(unSafeGo) >0 && unSafeGo[0]{
+			fun()
+		}else {
+			Try(fun)
+		}
+	}()
+}
 
 func ZlibCompress(data []byte) []byte {
 	var in bytes.Buffer

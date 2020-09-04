@@ -55,7 +55,7 @@ func (this *test)Start(ctx context.Context, wgp *sync.WaitGroup) error {
 	t:= time.Now()
 	logger.Debug("时间:%v",t.Format("20060102"))
 	logger.Debug("=========================启动个网关试试=======================")
-	network.StartServer("tcp://0.0.0.0:8201",network.MsgTypeMsg,&network.DefMsgHandler{})
+	network.Start("tcp://0.0.0.0:8201",network.MsgTypeMsg,&network.DefMsgHandler{})
 
 	return nil
 }
