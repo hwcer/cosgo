@@ -1,4 +1,4 @@
-package network
+package xnet
 
 import "fmt"
 

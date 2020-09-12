@@ -1,9 +1,12 @@
-package network
+package xnet
 
 import (
 	"errors"
 	"unsafe"
 )
+
+
+const MsgHeadSize = 12
 
 var MaxMsgDataSize uint32 = 1024 * 1024
 
@@ -21,11 +24,10 @@ const (
 
 
 type MsgHead struct {
-	Len   	uint32 //数据长度 4
-	Act   	uint16 //协议号   2
-	Sid   	uint16 //服务器发包序号 2
-
-	Flags   uint16 //标记
+	Len   	uint32 //数据长度 4294967295 4
+	Act   	uint16 //协议号 65535   2
+	Index   uint32  //消息报序号 2
+	Flags   uint16 //标记    2
 }
 
 type Message struct {
@@ -34,13 +36,8 @@ type Message struct {
 }
 
 
-type MsgSliceMock struct {
-	addr uintptr
-	len  int
-	cap  int
-}
 
-const MsgHeadSize = int(unsafe.Sizeof(MsgHead{}))
+
 
 //Bytes 生成成byte类型head
 func (m *MsgHead) Bytes() []byte {
@@ -48,7 +45,7 @@ func (m *MsgHead) Bytes() []byte {
 	phead := (*MsgHead)(unsafe.Pointer(&data[0]))
 	phead.Len = m.Len
 	phead.Act = m.Act
-	phead.Sid = m.Sid
+	phead.Index = m.Index
 	phead.Flags = m.Flags
 	return data
 }
@@ -60,7 +57,7 @@ func (m *MsgHead) FromBytes(head []byte) error{
 	phead := (*MsgHead)(unsafe.Pointer(&head[0]))
 	m.Len = phead.Len
 	m.Act = phead.Act
-	m.Sid = phead.Sid
+	m.Index = phead.Index
 	m.Flags = phead.Flags
 	return nil
 }

@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+
 func init()  {
 	pflag.String("hwc","","test pflag")
 	app.Flag.SetDefault("proAddr","0.0.0.0:8080")  //开启性能分析工具
@@ -55,22 +56,45 @@ func (this *test)Start(ctx context.Context, wgp *sync.WaitGroup) error {
 	t:= time.Now()
 	logger.Debug("时间:%v",t.Format("20060102"))
 	logger.Debug("=========================启动个网关试试=======================")
-	network.Start("tcp://0.0.0.0:8201",network.MsgTypeMsg,&network.DefMsgHandler{})
+	xnet.Start("tcp://0.0.0.0:8201", xnet.MsgTypeMsg,&xnet.DefMsgHandler{})
+
+	str := "12345678"
+	keys := []byte(str)
+	i := int(0)
+
+	ss :=  0xff & keys[i % len(keys)]
+
+	logger.Debug("TEST:%T,%v,%b", ss, ss, ss)
 
 	return nil
 }
 
 func (this *test)Stop()error  {
-	network.Stop()
+	xnet.Stop()
 	return nil
 }
 
 
 
 func main() {
-	app.SetMain(func() {
-		logger.Debug("程序启动啦")
-	})
+
+app.SetMain(func() {
+			logo := `
+	.----------------.   .----------------. 
+	| .--------------. | | .--------------. |
+	| | _____  _____ | | | | _____  _____ | |
+	| ||_   _||_   _|| | | ||_   _||_   _|| |
+	| |  | |    | |  | | | |  | | /\ | |  | |
+	| |  | '    ' |  | | | |  | |/  \| |  | |
+	| |   \ '--' /   | | | |  |   /\   |  | |
+	| |    '.__.'    | | | |  |__/  \__|  | |
+	| |              | | | |              | |
+	| '--------------' | | '--------------' |
+	'----------------'   '----------------' 
+ `
+			logger.Debug(logo)
+		})
+
 
 	app.Start(&test{name:"testMod"})
 }

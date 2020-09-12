@@ -1,4 +1,4 @@
-package network
+package xnet
 
 type HandlerFunc func(msgque Socket, msg *Message) bool
 
