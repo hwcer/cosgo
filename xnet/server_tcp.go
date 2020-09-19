@@ -6,35 +6,35 @@ import (
 	"sync/atomic"
 	"time"
 )
+
 type tcpServer struct {
 	defServer
 	listener net.Listener //监听
 }
-
 
 func (r *tcpServer) listen() {
 	defer r.listener.Close()
 	for !IsStop() {
 		c, err := r.listener.Accept()
 		if err != nil {
-			if stop == 0  {
-				Logger.Error("tcp server accept failed:%v",err)
+			if stop == 0 {
+				Logger.Error("tcp server accept failed:%v", err)
 			}
 			break
 		}
 		Go(func() {
-			sock := newTcpSocket(r,c)
+			sock := newTcpSocket(r, c)
 			if r.handler.OnNewMsgQue(sock) {
 				Go(func() {
 					Logger.Debug("process read for msgque:%d", sock.id)
 					sock.read()
 					Logger.Debug("process read end for msgque:%d", sock.id)
-				},true)
+				}, true)
 				Go(func() {
 					Logger.Debug("process write for msgque:%d", sock.id)
 					sock.write()
 					Logger.Debug("process write end for msgque:%d", sock.id)
-				},true)
+				}, true)
 			} else {
 				sock.Stop()
 			}
@@ -42,39 +42,35 @@ func (r *tcpServer) listen() {
 	}
 }
 
-
-func NewTcpServer(addr string, msgTyp MsgType, handler IMsgHandler) (*tcpServer,error) {
+func NewTcpServer(addr string, msgTyp MsgType, handler IMsgHandler) (*tcpServer, error) {
 	listener, err := net.Listen("tcp", addr)
-	if err !=nil{
-		return nil,err
+	if err != nil {
+		return nil, err
 	}
 	srv := &tcpServer{
-		defServer : defServer{msgTyp:msgTyp,netType:NetTypeTcp,handler:handler},
-		listener: listener,
+		defServer: defServer{msgTyp: msgTyp, netType: NetTypeTcp, handler: handler},
+		listener:  listener,
 	}
 	Go(func() {
 		srv.listen()
 	})
-	return srv,nil
+	return srv, nil
 }
-
-
-
 
 type tcpSocket struct {
 	defSocket
-	conn     net.Conn     //连接
+	conn     net.Conn //连接
 	address  string
 	listener net.Listener //监听
 }
 
-func newTcpSocket(srv *tcpServer,  conn net.Conn) *tcpSocket {
+func newTcpSocket(srv *tcpServer, conn net.Conn) *tcpSocket {
 	sock := &tcpSocket{
 		defSocket: defSocket{
-			id:       atomic.AddUint32(&msgqueId, 1),
-			cwrite:   make(chan *Message, Config.WriteChanSize),
+			id:        atomic.AddUint32(&msgqueId, 1),
+			cwrite:    make(chan *Message, Config.WriteChanSize),
 			heartbeat: timestamp,
-			server:   srv,
+			server:    srv,
 		},
 		conn: conn,
 	}
@@ -124,7 +120,7 @@ func (r *tcpSocket) readMsg() {
 			}
 			if head.Len == 0 {
 				if !r.processMsg(r, &Message{Head: head}) {
-					Logger.Debug("msgque:%v process msg act:%v", r.id, head.Act)
+					Logger.Debug("msgque:%v process msg act:%v", r.id, head.Proto)
 					break
 				}
 				head = nil
@@ -138,7 +134,7 @@ func (r *tcpSocket) readMsg() {
 				break
 			}
 			if !r.processMsg(r, &Message{Head: head, Data: data}) {
-				Logger.Debug("msgque:%v process msg act:%v ", r.id, head.Act)
+				Logger.Debug("msgque:%v process msg act:%v ", r.id, head.Proto)
 				break
 			}
 
@@ -162,7 +158,7 @@ func (r *tcpSocket) writeMsg() {
 					data = m.Bytes()
 				}
 			case <-tick.C:
-				if r.isTimeout(tick){
+				if r.isTimeout(tick) {
 					r.Stop()
 				}
 			}
@@ -212,4 +208,3 @@ func (r *tcpSocket) write() {
 	}()
 	r.writeMsg()
 }
-

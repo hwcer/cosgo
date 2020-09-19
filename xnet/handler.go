@@ -10,14 +10,14 @@ type IMsgHandler interface {
 }
 
 type DefMsgHandler struct {
-	msgMap  map[int]HandlerFunc
+	msgMap map[int]HandlerFunc
 }
 
 func (r *DefMsgHandler) OnNewMsgQue(socket Socket) bool                { return true }
 func (r *DefMsgHandler) OnDelMsgQue(socket Socket)                     {}
 func (r *DefMsgHandler) OnProcessMsg(socket Socket, msg *Message) bool { return true }
 func (r *DefMsgHandler) GetHandlerFunc(socket Socket, msg *Message) HandlerFunc {
-	if f, ok := r.msgMap[int(msg.Head.Act)]; ok {
+	if f, ok := r.msgMap[int(msg.Head.Proto)]; ok {
 		return f
 	}
 	return nil
