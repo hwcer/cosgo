@@ -1,2 +1,6 @@
 
 *.mod
+.idea
+*.iml
+*.out
+go.sum
