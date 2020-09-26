@@ -1,6 +1,5 @@
 package app
 
-
 import (
 	"context"
 	"cosgo/debug"
@@ -14,11 +13,8 @@ import (
 //系统信号监控
 
 //报告性能摘要时间间隔
-var gcSummaryTime time.Duration
+var gcSummaryTime time.Duration  = time.Second * 300
 
-func init()  {
-	gcSummaryTime = time.Second * 300
-}
 
 func SetGCSummaryTime(ms int)  {
 	gcSummaryTime = time.Second * time.Duration(ms)
@@ -35,14 +31,10 @@ func waitForSystemExit(c context.Context)  {
 		select {
 		case sig := <-ch:
 			signalNotify(sig)
+		case <-tick.C:
+			gcSummaryLogger()
 		case <-c.Done():
 			return
-		case <-tick.C:
-			{
-				runtime.GC()
-				logger.Info("GOROUTINE:%v", runtime.NumGoroutine())
-				logger.Info("GC Summory \n%v", debug.GCSummary())
-			}
 		}
 	}
 }
@@ -65,3 +57,8 @@ func signalNotify(sig os.Signal)  {
 	}
 }
 
+func gcSummaryLogger()  {
+	runtime.GC()
+	logger.Info("GOROUTINE:%v", runtime.NumGoroutine())
+	logger.Info("GC Summory \n%v", debug.GCSummary())
+}

@@ -1,4 +1,4 @@
-package xnet
+package antnet
 
 type HandlerFunc func(msgque Socket, msg *Message) bool
 
