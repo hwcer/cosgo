@@ -6,25 +6,24 @@ import (
 	"os"
 )
 
-
 var (
-	BuildName    string
-	BuildTime    string
-	BuildVersion string
+	BUIND_GO   = "unknown"
+	BUIND_VER  = "unknown"
+	BUIND_TIME = "unknown"
 )
 
-func init()  {
-	pflag.BoolP("help","h",false,"Show App helps")
-	pflag.BoolP("version","v",false,"Show Build Version")
+func init() {
+	pflag.BoolP("help", "h", false, "Show App helps")
+	pflag.BoolP("version", "v", false, "Show Build Version")
 }
 
-func buildInit() error {
+func initBuild() error {
 	if Flag.IsSet("version") {
-		fmt.Printf("BuildName:%v\n", BuildName)
-		fmt.Printf("BuildTime:%v\n",BuildTime)
-		fmt.Printf("BuildVersion:%v\n", BuildVersion)
+		fmt.Printf("BUIND GO:%v\n", BUIND_GO)
+		fmt.Printf("BUIND VER:%v\n", BUIND_VER)
+		fmt.Printf("BUIND TIME:%v\n", BUIND_TIME)
 		os.Exit(0)
-	}else if Flag.IsSet("help") {
+	} else if Flag.IsSet("help") {
 		pflag.Usage()
 		os.Exit(0)
 	}

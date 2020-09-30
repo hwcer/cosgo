@@ -9,13 +9,10 @@ import (
 
 func initProfile() error {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	profile:= Flag.GetString("profile")
+	profile := Flag.GetString("profile")
 	if profile != "" {
 		debug.StartPprofSrv(profile)
 	}
 
 	return nil
 }
-
-
-

@@ -67,6 +67,10 @@ type Logger interface {
 	Destroy()
 }
 
+func DefaultLogger() *LocalLogger {
+	return defaultLogger
+}
+
 // 日志输出适配器注册，log需要实现Init，LogWrite，Destroy方法
 func Register(name string, log Logger) {
 	if log == nil {
@@ -231,9 +235,7 @@ func (this *LocalLogger) writeMsg(logLevel int, msg string, v ...interface{}) er
 		strim = this.usePath
 	}
 	if ok {
-
-		src = strings.Replace(
-			fmt.Sprintf("%s:%d", stringTrim(file, strim), lineno), "%2e", ".", -1)
+		src = strings.Replace(fmt.Sprintf("%s:%d", stringTrim(file, strim), lineno), "%2e", ".", -1)
 	}
 
 	msgSt.Level = levelPrefix[logLevel]

@@ -14,11 +14,11 @@ import (
 var Flag *viper.Viper
 
 func init() {
-	Flag =  viper.New()
-	pflag.Bool("debug",false,"developer model")
-	pflag.String("logdir","","log path")
-	pflag.String("pidfile","","app pid file")
-	pflag.String("profile","","profile address")
+	Flag = viper.New()
+	pflag.Bool("debug", false, "developer model")
+	pflag.String("logdir", "", "app logs dir")
+	pflag.String("pidfile", "", "app pid file")
+	pflag.String("profile", "", "profile address")
 	var (
 		tmpDir      string
 		appName     string
@@ -41,23 +41,28 @@ func init() {
 	}
 
 	ext := filepath.Ext(appExecFile)
-	if ext!=""{
-		appName = strings.TrimRight(appName,ext)
+	if ext != "" {
+		appName = strings.TrimRight(appName, ext)
 	}
 
-	Flag.SetDefault("name",appName)
-	Flag.SetDefault("logdir",filepath.Join(appWorkDir,"logs"))
-	Flag.SetDefault("pidfile",filepath.Join(appWorkDir,appName+".pid"))
-	Flag.SetDefault("appBinDir",appBinDir)
-	Flag.SetDefault("appWorkDir",appWorkDir)
+	Flag.SetDefault("name", appName)
+	Flag.SetDefault("logdir", filepath.Join(appWorkDir, "logs"))
+	Flag.SetDefault("pidfile", filepath.Join(appBinDir, appName+".pid"))
+	Flag.SetDefault("appBinDir", appBinDir)
+	Flag.SetDefault("appWorkDir", appWorkDir)
 	Flag.SetDefault("appExecFile", appExecFile)
-	//设置日志
-	logger.SetLogger()
 
 }
 
-func initFlag() error  {
+func initFlag() error {
 	pflag.Parse()
 	Flag.BindPFlags(pflag.CommandLine)
+	//设置日志
+	logdir := Flag.GetString("logdir")
+	if logdir != "" {
+		logger.SetLogPathTrim(Flag.GetString(""))
+	}
+
+	Debug = Flag.GetBool("debug")
 	return nil
 }

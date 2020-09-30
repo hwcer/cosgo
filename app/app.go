@@ -6,30 +6,46 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
+	"strings"
 	"sync/atomic"
 	"time"
 )
 
-
 var (
-	mainFun func()
+	appMain func()
 	modules []Module
 )
 
-
-
 func assert(err error, s string) {
 	if err != nil {
-		logger.Fatal("app boot failed, %v: %v", s, err)
+		logger.Fatal("app failed, %v: %v", s, err)
 	} else {
-		logger.Info("app boot %v done", s)
+		logger.Info("app %v done", s)
 	}
 }
 
-func SetMain(m func()) {
-	mainFun = m
+func defaultAppMain() {
+	banner := `
+  _________  _____________ 
+ / ___/ __ \/ __/ ___/ __ \
+/ /__/ /_/ /\ \/ (_ / /_/ /
+\___/\____/___/\___/\____/
+____________________________________O/_______
+                                    O\
+`
+	logger.Info(banner)
 }
 
+//设置默认启动界面，启动完所有MOD后执行
+func SetMain(m func()) {
+	appMain = m
+}
+
+func Use(mods ...Module) {
+	for _, mod := range mods {
+		modules = append(modules, mod)
+	}
+}
 
 /**
  * 应用程序启动
@@ -38,78 +54,78 @@ func SetMain(m func()) {
  * @param iFlag  自定义的flag配置，可以为空
  * @param m 需注册的模块
  */
-func Start( m ...Module) {
-	modules = m
-	assert(appInit(), fmt.Sprintf("init main"))
-	for _, v := range m {
-		assert(v.Init(), fmt.Sprintf("mod [%v] init", v.ID()))
+func Start(mods ...Module) {
+	for _, mod := range mods {
+		modules = append(modules, mod)
 	}
-	assert(appStart(), fmt.Sprintf("main start"))
-	for _, v := range m {
-		assert(v.Start(ctx, &wgp), fmt.Sprintf("mod [%v] start", v.ID()))
+	rand.Seed(time.Now().UnixNano())
+	//=========================加载模块=============================
+	initFlag()
+	initBuild()
+	initProfile()
+
+	for _, v := range modules {
+		assert(v.Load(), fmt.Sprintf("mod [%v] init", v.ID()))
 	}
-	// pid
-	assert(initPidFile(), "init pidfile")
-	if mainFun != nil {
-		mainFun()
+	//=========================启动信息=============================
+	showConfig()
+	//=========================启动模块=============================
+	for _, v := range modules {
+		assert(v.Start(&wgp), fmt.Sprintf("mod [%v] start", v.ID()))
 	}
+
+	if appMain != nil {
+		appMain()
+	} else {
+		defaultAppMain()
+	}
+
+	writePidFile()
+	wgp.Add(1)
+	Go2(waitForSystemExit)
 	wgp.Wait()
 	deletePidFile()
 	logger.Warn("Say byebye to the world")
 }
 
-func Stop() {
+func Close() {
 	logger.Info("App will stop")
 	if !atomic.CompareAndSwapInt32(&stop, 0, 1) {
-		logger.Error("Server Stop error")
+		logger.Error("Server Close error")
 		return
 	}
 
 	for _, v := range modules {
 		func(m Module) {
-			err := m.Stop()
-			logger.Info("mod [%v] stop result:%v", m.ID(), err)
+			assert(m.Close(&wgp), fmt.Sprintf("mod [%v] stop", m.ID()))
 		}(v)
 	}
-	cancel()
+	if cancel != nil {
+		close(cancel)
+	}
 	wgp.Done()
 	logger.Info("App stop done")
 }
 
-
-//APP控制器 ready
-func appInit() error  {
-	// 随机种子
-	rand.Seed(time.Now().UnixNano())
-	// 命令行解析
-	assert(initFlag(), "init flag")
-	assert(buildInit(), "init build args")
-	// 初始性能调优
-	assert(initProfile(), "init profile")
-
-	return nil
-}
-//APP控制器 start
-func appStart() error  {
-	wgp.Add(1)
-	// 输出基本配置项
-	showConfig()
-
-	Go(waitForSystemExit)
-	return nil
-}
-
-
 func showConfig() {
-	logger.Info("=============== show app config ======================")
-	logger.Info(">> AppName:%v", Flag.GetString("name"))
-	logger.Info(">> AppBinDir:%v", Flag.GetString("AppBinDir"))
-	logger.Info(">> AppWorkDir:%v", Flag.GetString("AppWorkDir"))
-	logger.Info(">> appExecFile:%v", Flag.GetString("appExecFile"))
-	logger.Info(">> AppLogDir:%v", Flag.GetString("logdir"))
-	logger.Info(">> AppPidFile:%v", Flag.GetString("pidfile"))
+	var log []string
+	log = append(log, "")
+	log = append(log, "=============== show app config ======================")
+	log = append(log, fmt.Sprintf(">> AppName:%v", Flag.GetString("name")))
+	log = append(log, fmt.Sprintf(">> AppBinDir:%v", Flag.GetString("AppBinDir")))
+	log = append(log, fmt.Sprintf(">> AppLogDir:%v", Flag.GetString("logdir")))
+	log = append(log, fmt.Sprintf(">> AppWorkDir:%v", Flag.GetString("AppWorkDir")))
+	log = append(log, fmt.Sprintf(">> appExecFile:%v", Flag.GetString("appExecFile")))
+	log = append(log, fmt.Sprintf(">> AppPidFile:%v", Flag.GetString("pidfile")))
+	log = append(log, fmt.Sprintf(">> BUIND GO:%v VER:%v  TIME:%v", BUIND_GO, BUIND_VER, BUIND_TIME))
+	log = append(log, fmt.Sprintf(">> RUNTIME GO:%v  CPU:%v  Pid:%v", runtime.Version(), runtime.NumCPU(), os.Getpid()))
+	log = append(log, "======================================================")
+	log = append(log, "")
+	logger.Info(strings.Join(log, "\n"))
 
-	logger.Info(">> CPU:%v  Pid:%v", runtime.NumCPU(), os.Getpid())
+}
 
-	logger.Info("======================================================")
+//判断程序是否已经关闭
+func Done() bool {
+	return stop == 1
 }

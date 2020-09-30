@@ -9,16 +9,9 @@ import (
 	"strings"
 )
 
-
-func initPidFile() error  {
-	return writePidFile()
-}
-
-
-
 func writePidFile() (err error) {
 	pidFile := Flag.GetString("pidfile")
-	if pidFile == ""{
+	if pidFile == "" {
 		return nil
 	}
 	var pid int
@@ -31,7 +24,7 @@ func writePidFile() (err error) {
 		if err != nil {
 			return err
 		}
-		if exist{
+		if exist {
 			return fmt.Errorf("process %v exist, check it", pid)
 		} else {
 			err = deletePidFile()
@@ -51,19 +44,16 @@ func writePidFile() (err error) {
 	return err
 }
 
-
-
 func deletePidFile() error {
 	pidFile := Flag.GetString("pidfile")
-	if pidFile == ""{
+	if pidFile == "" {
 		return nil
 	}
 	return os.Remove(pidFile)
 }
 
-
 func checkPidFile(pidFile string) (error, int) {
-	if !fileutil.Exist(pidFile){
+	if !fileutil.Exist(pidFile) {
 		return nil, 0
 	}
 	fhdl, err := os.Open(pidFile)
@@ -84,6 +74,3 @@ func checkPidFile(pidFile string) (error, int) {
 	}
 	return nil, pid
 }
-
-
-
