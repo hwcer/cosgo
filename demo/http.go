@@ -3,7 +3,7 @@ package main
 import (
 	"cosgo/express"
 	"cosgo/logger"
-	"net/http"
+	"fmt"
 	"sync"
 )
 
@@ -29,6 +29,7 @@ func (this *httpMod) Load() error {
 func (this *httpMod) Start(wgp *sync.WaitGroup) (err error) {
 	wgp.Add(1)
 	this.express.GET("/", hello)
+	this.express.GET("/:api", hello2)
 	return this.express.Start()
 }
 
@@ -44,11 +45,14 @@ func middleware1(c *express.Context, next func()) {
 }
 func middleware2(c *express.Context, next func()) {
 	logger.Debug("middleware2")
-	c.HTML(200, "hahah")
 	next()
 }
 
 // Handler
 func hello(c *express.Context) error {
-	return c.String(http.StatusOK, "Hello, World!")
+	return c.String(fmt.Sprintf("Hello, World!  %v", c.Param("api")))
+}
+
+func hello2(c *express.Context) error {
+	return c.String(fmt.Sprintf("Hello, World!  %v", c.Param("api")))
 }

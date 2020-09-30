@@ -323,7 +323,7 @@ func GetlocalLogger() *LocalLogger {
 	return defaultLogger
 }
 
-// Reset will remove all the adapter
+// reset will remove all the adapter
 func Reset() {
 	defaultLogger.Reset()
 }

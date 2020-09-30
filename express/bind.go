@@ -34,18 +34,16 @@ type (
 func (b *DefaultBinder) Bind(i interface{}, c *Context) (err error) {
 	req := c.Request
 
-	names := c.ParamNames()
-	values := c.ParamValues()
 	params := map[string][]string{}
-	for i, name := range names {
-		params[name] = []string{values[i]}
-	}
+	//for i, name := range names {
+	//	params[name] = []string{values[i]}
+	//}
 	if err := b.bindData(i, params, "param"); err != nil {
 		return NewHTTPError(http.StatusBadRequest, err.Error())
 	}
-	if err = b.bindData(i, c.QueryParams(), "query"); err != nil {
-		return NewHTTPError(http.StatusBadRequest, err.Error())
-	}
+	//if err = b.bindData(i, c.Query(), "query"); err != nil {
+	//	return NewHTTPError(http.StatusBadRequest, err.Error())
+	//}
 	if req.ContentLength == 0 {
 		return
 	}

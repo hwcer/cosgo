@@ -2,7 +2,6 @@ package express
 
 import (
 	"bytes"
-	"cosgo/app"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -41,6 +40,10 @@ func (c *Context) writeContentType(value string) {
 	}
 }
 
+func (c *Context) writeStatus() {
+
+}
+
 // next should be used only inside middleware.
 func (c *Context) next() {
 	if c.index >= uint8(len(c.Engine.middleware)) {
@@ -58,6 +61,12 @@ func (c *Context) IsTLS() bool {
 func (c *Context) IsWebSocket() bool {
 	upgrade := c.Request.Header.Get(HeaderUpgrade)
 	return strings.ToLower(upgrade) == "websocket"
+}
+
+//设置状态码
+func (c *Context) Status(code int) *Context {
+	c.Response.Status = code
+	return c
 }
 
 //协议
@@ -107,11 +116,6 @@ func (c *Context) Query(name string) string {
 		c.query = c.Request.URL.Query()
 	}
 	return c.query.Get(name)
-}
-
-//获取查询字符串
-func (c *Context) RawQuery() string {
-	return c.Request.URL.RawQuery
 }
 
 func (c *Context) FormValue(name string) string {
@@ -176,7 +180,7 @@ func (c *Context) Validate(i interface{}) error {
 	return c.Engine.Validator.Validate(i)
 }
 
-func (c *Context) Render(code int, name string, data interface{}) (err error) {
+func (c *Context) Render(name string, data interface{}) (err error) {
 	if c.Engine.Renderer == nil {
 		return ErrRendererNotRegistered
 	}
@@ -184,29 +188,34 @@ func (c *Context) Render(code int, name string, data interface{}) (err error) {
 	if err = c.Engine.Renderer.Render(buf, name, data, c); err != nil {
 		return
 	}
-	return c.HTMLBlob(code, buf.Bytes())
+	return c.Blob(MIMETextHTMLCharsetUTF8, buf.Bytes())
 }
 
-func (c *Context) HTML(code int, html string) (err error) {
-	return c.HTMLBlob(code, []byte(html))
+//结束响应，返回空内容
+func (c *Context) End() error {
+	_, err := c.Response.Write([]byte{})
+	return err
 }
 
-func (c *Context) HTMLBlob(code int, b []byte) (err error) {
-	return c.Blob(code, MIMETextHTMLCharsetUTF8, b)
+func (c *Context) HTML(html string) (err error) {
+	return c.Blob(MIMETextHTMLCharsetUTF8, []byte(html))
 }
 
-func (c *Context) String(code int, s string) (err error) {
-	return c.Blob(code, MIMETextPlainCharsetUTF8, []byte(s))
+func (c *Context) String(s string) (err error) {
+	return c.Blob(MIMETextPlainCharsetUTF8, []byte(s))
 }
 
-func (c *Context) jsonPBlob(code int, callback string, i interface{}) (err error) {
-	enc := json.NewEncoder(c.Response)
-	_, pretty := c.QueryParams()["pretty"]
-	if app.Debug || pretty {
-		enc.SetIndent("", "  ")
+func (c *Context) JSON(i interface{}) error {
+	data, err := json.Marshal(i)
+	if err != nil {
+		return err
 	}
+	return c.Blob(MIMEApplicationJSONCharsetUTF8, data)
+}
+
+func (c *Context) JSONP(callback string, i interface{}) (err error) {
+	enc := json.NewEncoder(c.Response)
 	c.writeContentType(MIMEApplicationJavaScriptCharsetUTF8)
-	c.Response.WriteHeader(code)
 	if _, err = c.Response.Write([]byte(callback + "(")); err != nil {
 		return
 	}
@@ -219,94 +228,23 @@ func (c *Context) jsonPBlob(code int, callback string, i interface{}) (err error
 	return
 }
 
-func (c *Context) json(code int, i interface{}, indent string) error {
-	enc := json.NewEncoder(c.Response)
-	if indent != "" {
-		enc.SetIndent("", indent)
+func (c *Context) XML(i interface{}, indent string) (err error) {
+	data, err := xml.Marshal(i)
+	if err != nil {
+		return err
 	}
-	c.writeContentType(MIMEApplicationJSONCharsetUTF8)
-	c.Response.Status = code
-	return enc.Encode(i)
-}
-
-func (c *Context) JSON(code int, i interface{}) (err error) {
-	indent := ""
-	if _, pretty := c.QueryParams()["pretty"]; app.Debug || pretty {
-		indent = defaultIndent
-	}
-	return c.json(code, i, indent)
-}
-
-func (c *Context) JSONPretty(code int, i interface{}, indent string) (err error) {
-	return c.json(code, i, indent)
-}
-
-func (c *Context) JSONBlob(code int, b []byte) (err error) {
-	return c.Blob(code, MIMEApplicationJSONCharsetUTF8, b)
-}
-
-func (c *Context) JSONP(code int, callback string, i interface{}) (err error) {
-	return c.jsonPBlob(code, callback, i)
-}
-
-func (c *Context) JSONPBlob(code int, callback string, b []byte) (err error) {
-	c.writeContentType(MIMEApplicationJavaScriptCharsetUTF8)
-	c.Response.WriteHeader(code)
-	if _, err = c.Response.Write([]byte(callback + "(")); err != nil {
-		return
-	}
-	if _, err = c.Response.Write(b); err != nil {
-		return
-	}
-	_, err = c.Response.Write([]byte(");"))
+	c.Blob(MIMEApplicationXMLCharsetUTF8, data)
 	return
 }
 
-func (c *Context) xml(code int, i interface{}, indent string) (err error) {
-	c.writeContentType(MIMEApplicationXMLCharsetUTF8)
-	c.Response.WriteHeader(code)
-	enc := xml.NewEncoder(c.Response)
-	if indent != "" {
-		enc.Indent("", indent)
-	}
-	if _, err = c.Response.Write([]byte(xml.Header)); err != nil {
-		return
-	}
-	return enc.Encode(i)
-}
-
-func (c *Context) XML(code int, i interface{}) (err error) {
-	indent := ""
-	if _, pretty := c.QueryParams()["pretty"]; app.Debug || pretty {
-		indent = defaultIndent
-	}
-	return c.xml(code, i, indent)
-}
-
-func (c *Context) XMLPretty(code int, i interface{}, indent string) (err error) {
-	return c.xml(code, i, indent)
-}
-
-func (c *Context) XMLBlob(code int, b []byte) (err error) {
-	c.writeContentType(MIMEApplicationXMLCharsetUTF8)
-	c.Response.WriteHeader(code)
-	if _, err = c.Response.Write([]byte(xml.Header)); err != nil {
-		return
-	}
+func (c *Context) Blob(contentType string, b []byte) (err error) {
+	c.writeContentType(contentType)
 	_, err = c.Response.Write(b)
 	return
 }
 
-func (c *Context) Blob(code int, contentType string, b []byte) (err error) {
+func (c *Context) Stream(contentType string, r io.Reader) (err error) {
 	c.writeContentType(contentType)
-	c.Response.WriteHeader(code)
-	_, err = c.Response.Write(b)
-	return
-}
-
-func (c *Context) Stream(code int, contentType string, r io.Reader) (err error) {
-	c.writeContentType(contentType)
-	c.Response.WriteHeader(code)
 	_, err = io.Copy(c.Response, r)
 	return
 }
@@ -347,17 +285,11 @@ func (c *Context) contentDisposition(file, name, dispositionType string) error {
 	return c.File(file)
 }
 
-func (c *Context) Empty(code int) error {
-	c.Response.WriteHeader(code)
-	return nil
-}
-
-func (c *Context) Redirect(code int, url string) error {
-	if code < 300 || code > 308 {
-		return ErrInvalidRedirectCode
-	}
+func (c *Context) Redirect(url string) error {
 	c.Response.Header().Set(HeaderLocation, url)
-	c.Response.WriteHeader(code)
+	if c.Response.Status == 0 {
+		c.Response.WriteHeader(http.StatusMultipleChoices)
+	}
 	return nil
 }
 
@@ -365,16 +297,12 @@ func (c *Context) Error(err error) {
 	c.Engine.HTTPErrorHandler(c, err)
 }
 
-func (c *Context) Reset(r *http.Request, w http.ResponseWriter) {
+func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
 	c.index = 0
+	c.query = nil
+	c.params = nil
+
+	c.Path = ""
 	c.Request = r
 	c.Response.reset(w)
-	c.query = nil
-	c.store = nil
-	c.Path = ""
-	c.pnames = nil
-	// NOTE: Don't reset because it has to have length c.Engine.maxParam at all times
-	for i := 0; i < *c.Engine.maxParam; i++ {
-		c.pvalues[i] = ""
-	}
 }

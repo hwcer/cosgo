@@ -202,11 +202,9 @@ func New(address string, tlsConfig ...*tls.Config) (e *Engine) {
 // NewContext returns a Context instance.
 func (e *Engine) NewContext(r *http.Request, w http.ResponseWriter) *Context {
 	return &Context{
+		Engine:   e,
 		Request:  r,
 		Response: NewResponse(w, e),
-		store:    make(Map),
-		Engine:   e,
-		pvalues:  make([]string, *e.maxParam),
 	}
 }
 
@@ -231,19 +229,19 @@ func (e *Engine) DefaultHTTPErrorHandler(c *Context, err error) {
 		}
 	}
 
-	code := he.Code
+	c.Response.Status = he.Code
 	message := ""
 	if app.Debug {
 		message = err.Error()
 	} else {
-		message = http.StatusText(code)
+		message = http.StatusText(he.Code)
 	}
 	// Send Response
 	if !c.Response.Committed {
 		if c.Request.Method == http.MethodHead { // Issue #608
-			err = c.Empty(he.Code)
+			err = c.End()
 		} else {
-			err = c.String(code, message)
+			err = c.String(message)
 		}
 		if err != nil {
 			logger.Error(err)
@@ -363,7 +361,8 @@ func (common) static(prefix, root string, get func(string, HandlerFunc, ...Middl
 		p = c.Request.URL.Path // Path must not be empty.
 		if fi.IsDir() && p[len(p)-1] != '/' {
 			// Redirect to ends with "/"
-			return c.Redirect(http.StatusMovedPermanently, p+"/")
+			c.Response.Status = http.StatusMovedPermanently
+			return c.Redirect(p + "/")
 		}
 		return c.File(name)
 	}
@@ -392,11 +391,13 @@ func (e *Engine) add(host, method, path string, handler HandlerFunc, middleware 
 	//	return h(c)
 	//})
 	r := &RNode{
-		Path:   path,
-		Name:   name,
-		Method: method,
+		Path:       path,
+		Name:       name,
+		Method:     method,
+		Handler:    handler,
+		middleware: middleware,
 	}
-	e.router.routes[method+path] = r
+	e.router.routes = append(e.router.routes, r)
 	return r
 }
 
@@ -481,27 +482,34 @@ func (e *Engine) ReleaseContext(c *Context) {
 func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Acquire Context
 	c := e.pool.Get().(*Context)
-	c.Reset(r, w)
+	c.reset(r, w)
 
 	defer func() {
 		if err := recover(); err != nil {
 			e.HTTPErrorHandler(c, NewHTTPError500(err))
 		}
 	}()
+	c.Path = r.URL.EscapedPath()
 	//do middleware
 	c.next()
 	//Find Router
-	h := NotFoundHandler
-	//e.findRouter(r.Host).Find(r.Method, r.URL.EscapedPath(), c)
-	//
-	//h = c.Handler()
-	//h = applyMiddleware(h, e.middleware...)
-
-	// Execute chain
-	if err := h(c); err != nil {
-		e.HTTPErrorHandler(c, err)
+	router := e.findRouter(r.Host)
+	matchPath := &MPath{Path: c.Path}
+	matchSuccess := int8(0)
+	for _, route := range router.routes {
+		if params, ok := route.Match(r.Method, matchPath); ok {
+			matchSuccess++
+			c.params = params
+			err := route.Handler(c)
+			if err != nil {
+				e.HTTPErrorHandler(c, err)
+				return
+			}
+		}
 	}
-
+	if matchSuccess == 0 {
+		e.HTTPErrorHandler(c, ErrNotFound)
+	}
 	// Release Context
 	e.pool.Put(c)
 }

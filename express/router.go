@@ -9,6 +9,7 @@ type RNode struct {
 	Path       string
 	Name       string
 	Method     string
+	Handler    HandlerFunc
 	middleware []MiddlewareFunc
 }
 
@@ -32,9 +33,14 @@ func (m *MPath) GetMatchPath() []string {
 }
 
 func (r *RNode) Match(method string, tar *MPath) (param map[string]string, ok bool) {
-	if method != r.Method || r.Path == tar.Path {
+	param = make(map[string]string)
+	if method != r.Method {
 		return
 	}
+	if r.Path == tar.Path {
+		return param, true
+	}
+
 	routeMatch := r.GetMatchPath()
 	targetMatch := tar.GetMatchPath()
 	rl := len(routeMatch)
@@ -42,7 +48,6 @@ func (r *RNode) Match(method string, tar *MPath) (param map[string]string, ok bo
 	if rl > tl || (rl < tl && routeMatch[rl-1] != "*") {
 		return
 	}
-	param = make(map[string]string)
 	for i := 0; i < rl; i++ {
 		if routeMatch[i] == "*" {
 			continue
@@ -75,7 +80,7 @@ func (r *Router) Add(method, path string, h HandlerFunc) {
 // For performance:
 //
 // - Get Context from `Engine#AcquireContext()`
-// - Reset it `Context#Reset()`
+// - reset it `Context#reset()`
 // - Return it `Engine#ReleaseContext()`.
 
 func (r *Router) Find(c *Context, method, path string) {
