@@ -13,7 +13,7 @@ type (
 		host       string
 		prefix     string
 		middleware []MiddlewareFunc
-		echo       *Engine
+		Engine     *Engine
 	}
 )
 
@@ -25,8 +25,8 @@ func (g *Group) Use(middleware ...MiddlewareFunc) {
 	}
 	// Allow all requests to reach the group as they might get dropped if router
 	// doesn't find a match, making none of the group middleware process.
-	g.Any("", NotFoundHandler)
-	g.Any("/*", NotFoundHandler)
+	g.Any("", MethodNotFoundHandler)
+	g.Any("/*", MethodNotFoundHandler)
 }
 
 // CONNECT implements `Engine#CONNECT()` for sub-Routes within the Group.
@@ -97,7 +97,7 @@ func (g *Group) Group(prefix string, middleware ...MiddlewareFunc) (sg *Group) {
 	m := make([]MiddlewareFunc, 0, len(g.middleware)+len(middleware))
 	m = append(m, g.middleware...)
 	m = append(m, middleware...)
-	sg = g.echo.Group(g.prefix+prefix, m...)
+	sg = g.Engine.Group(g.prefix+prefix, m...)
 	sg.host = g.host
 	return
 }
@@ -120,5 +120,5 @@ func (g *Group) Add(method, path string, handler HandlerFunc, middleware ...Midd
 	m := make([]MiddlewareFunc, 0, len(g.middleware)+len(middleware))
 	m = append(m, g.middleware...)
 	m = append(m, middleware...)
-	return g.echo.add(g.host, method, g.prefix+path, handler, m...)
+	return g.Engine.Add(method, g.prefix+path, handler, m...)
 }

@@ -16,9 +16,10 @@ import (
 )
 
 type Context struct {
-	index  uint8
-	query  url.Values
-	params map[string]string
+	index     uint8
+	query     url.Values
+	params    map[string]string
+	matchPath *MPath
 
 	Path     string
 	Engine   *Engine
@@ -27,10 +28,18 @@ type Context struct {
 	Response *Response
 }
 
+// context returns a Context instance.
+func NewContext(e *Engine, r *http.Request, w http.ResponseWriter) *Context {
+	return &Context{
+		Engine:   e,
+		Request:  r,
+		Response: NewResponse(w, e),
+	}
+}
+
 const (
-	defaultMemory = 32 << 20 // 32 MB
 	indexPage     = "index.html"
-	defaultIndent = "  "
+	defaultMemory = 32 << 20 // 32 MB
 )
 
 func (c *Context) writeContentType(value string) {
@@ -40,18 +49,34 @@ func (c *Context) writeContentType(value string) {
 	}
 }
 
-func (c *Context) writeStatus() {
+// Next should be used only inside middleware.
+func (c *Context) Next() {
+	index := c.index
+	c.index++
+	middlewareNum := uint8(len(c.Engine.middleware))
+	if index < middlewareNum {
+		h := c.Engine.middleware[index]
+		h(c)
+	} else {
+		i := index - middlewareNum
+		if i < uint8(len(c.Engine.router.routes)) {
+			c.match(i)
+		}
+	}
 
 }
 
-// next should be used only inside middleware.
-func (c *Context) next() {
-	if c.index >= uint8(len(c.Engine.middleware)) {
-		return
+func (c *Context) match(i uint8) {
+	//Find Router
+	route := c.Engine.router.routes[i]
+	if params, ok := route.Match(c.Request.Method, c.matchPath); ok {
+		c.params = params
+		err := route.Handler(c)
+		if err != nil {
+			c.Engine.HTTPErrorHandler(c, err)
+			return
+		}
 	}
-	h := c.Engine.middleware[c.index]
-	c.index++
-	h(c, c.next)
 }
 
 func (c *Context) IsTLS() bool {
@@ -65,7 +90,7 @@ func (c *Context) IsWebSocket() bool {
 
 //设置状态码
 func (c *Context) Status(code int) *Context {
-	c.Response.Status = code
+	c.Response.Status(code)
 	return c
 }
 
@@ -193,8 +218,8 @@ func (c *Context) Render(name string, data interface{}) (err error) {
 
 //结束响应，返回空内容
 func (c *Context) End() error {
-	_, err := c.Response.Write([]byte{})
-	return err
+	c.Response.WriteHeader(0)
+	return nil
 }
 
 func (c *Context) HTML(html string) (err error) {
@@ -252,7 +277,7 @@ func (c *Context) Stream(contentType string, r io.Reader) (err error) {
 func (c *Context) File(file string) (err error) {
 	f, err := os.Open(file)
 	if err != nil {
-		return NotFoundHandler(c)
+		return MethodNotFoundHandler(c)
 	}
 	defer f.Close()
 
@@ -261,7 +286,7 @@ func (c *Context) File(file string) (err error) {
 		file = filepath.Join(file, indexPage)
 		f, err = os.Open(file)
 		if err != nil {
-			return NotFoundHandler(c)
+			return MethodNotFoundHandler(c)
 		}
 		defer f.Close()
 		if fi, err = f.Stat(); err != nil {
@@ -272,12 +297,12 @@ func (c *Context) File(file string) (err error) {
 	return
 }
 
-func (c *Context) Attachment(file, name string) error {
-	return c.contentDisposition(file, name, "attachment")
-}
-
 func (c *Context) Inline(file, name string) error {
 	return c.contentDisposition(file, name, "inline")
+}
+
+func (c *Context) Attachment(file, name string) error {
+	return c.contentDisposition(file, name, "attachment")
 }
 
 func (c *Context) contentDisposition(file, name, dispositionType string) error {
@@ -287,8 +312,8 @@ func (c *Context) contentDisposition(file, name, dispositionType string) error {
 
 func (c *Context) Redirect(url string) error {
 	c.Response.Header().Set(HeaderLocation, url)
-	if c.Response.Status == 0 {
-		c.Response.WriteHeader(http.StatusMultipleChoices)
+	if c.Response.httpStatusCode == 0 {
+		c.Response.Status(http.StatusMultipleChoices)
 	}
 	return nil
 }
@@ -301,8 +326,10 @@ func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
 	c.index = 0
 	c.query = nil
 	c.params = nil
+	c.matchPath = nil
 
 	c.Path = ""
+	c.Routes = nil
 	c.Request = r
 	c.Response.reset(w)
 }

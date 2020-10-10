@@ -1,12 +1,10 @@
 package express
 
 import (
-	"bytes"
 	stdContext "context"
 	"cosgo/app"
 	"cosgo/logger"
 	"crypto/tls"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -27,7 +25,6 @@ type (
 		middleware []MiddlewareFunc
 		maxParam   *int
 		router     *Router
-		routers    map[string]*Router
 		//notFoundHandler HandlerFunc
 		pool   sync.Pool
 		Server *http.Server
@@ -46,7 +43,7 @@ type (
 	}
 
 	// MiddlewareFunc defines a function to process middleware.
-	MiddlewareFunc func(*Context, func())
+	MiddlewareFunc func(*Context)
 
 	// HandlerFunc defines a function to serve HTTP requests.
 	HandlerFunc func(*Context) error
@@ -71,84 +68,13 @@ type (
 	common struct{}
 )
 
-// MIME types
 const (
-	MIMEApplicationJSON                  = "application/json"
-	MIMEApplicationJSONCharsetUTF8       = MIMEApplicationJSON + "; " + charsetUTF8
-	MIMEApplicationJavaScript            = "application/javascript"
-	MIMEApplicationJavaScriptCharsetUTF8 = MIMEApplicationJavaScript + "; " + charsetUTF8
-	MIMEApplicationXML                   = "application/xml"
-	MIMEApplicationXMLCharsetUTF8        = MIMEApplicationXML + "; " + charsetUTF8
-	MIMETextXML                          = "text/xml"
-	MIMETextXMLCharsetUTF8               = MIMETextXML + "; " + charsetUTF8
-	MIMEApplicationForm                  = "application/x-www-form-urlencoded"
-	MIMEApplicationProtobuf              = "application/protobuf"
-	MIMEApplicationMsgpack               = "application/msgpack"
-	MIMETextHTML                         = "text/html"
-	MIMETextHTMLCharsetUTF8              = MIMETextHTML + "; " + charsetUTF8
-	MIMETextPlain                        = "text/plain"
-	MIMETextPlainCharsetUTF8             = MIMETextPlain + "; " + charsetUTF8
-	MIMEMultipartForm                    = "multipart/form-data"
-	MIMEOctetStream                      = "application/octet-stream"
-)
-
-const (
-	charsetUTF8 = "charset=UTF-8"
-	// PROPFIND Method can be used on collection and property resources.
-	PROPFIND = "PROPFIND"
+	httpMethodAny = "Any"
 	// REPORT Method can be used to get information about a resource, see rfc 3253
-	REPORT = "REPORT"
-)
-
-// Headers
-const (
-	HeaderAccept              = "Accept"
-	HeaderAcceptEncoding      = "Accept-Encoding"
-	HeaderAllow               = "Allow"
-	HeaderAuthorization       = "Authorization"
-	HeaderContentDisposition  = "Content-Disposition"
-	HeaderContentEncoding     = "Content-Encoding"
-	HeaderContentLength       = "Content-Length"
-	HeaderContentType         = "Content-Type"
-	HeaderCookie              = "Cookie"
-	HeaderSetCookie           = "Set-Cookie"
-	HeaderIfModifiedSince     = "If-Modified-Since"
-	HeaderLastModified        = "Last-Modified"
-	HeaderLocation            = "Location"
-	HeaderUpgrade             = "Upgrade"
-	HeaderVary                = "Vary"
-	HeaderWWWAuthenticate     = "WWW-Authenticate"
-	HeaderXForwardedFor       = "X-Forwarded-For"
-	HeaderXForwardedProto     = "X-Forwarded-Proto"
-	HeaderXForwardedProtocol  = "X-Forwarded-Protocol"
-	HeaderXForwardedSsl       = "X-Forwarded-Ssl"
-	HeaderXUrlScheme          = "X-Url-Protocol"
-	HeaderXHTTPMethodOverride = "X-HTTP-Method-Override"
-	HeaderXRealIP             = "X-Real-IP"
-	HeaderXRequestID          = "X-Request-ID"
-	HeaderXRequestedWith      = "X-Requested-With"
-	HeaderServer              = "Server"
-	HeaderOrigin              = "Origin"
-
-	// Access control
-	HeaderAccessControlRequestMethod    = "Access-Control-Request-Method"
-	HeaderAccessControlRequestHeaders   = "Access-Control-Request-Headers"
-	HeaderAccessControlAllowOrigin      = "Access-Control-Allow-Origin"
-	HeaderAccessControlAllowMethods     = "Access-Control-Allow-Methods"
-	HeaderAccessControlAllowHeaders     = "Access-Control-Allow-Headers"
-	HeaderAccessControlAllowCredentials = "Access-Control-Allow-Credentials"
-	HeaderAccessControlExposeHeaders    = "Access-Control-Expose-Headers"
-	HeaderAccessControlMaxAge           = "Access-Control-Max-Age"
-
-	// Security
-	HeaderStrictTransportSecurity         = "Strict-Transport-Security"
-	HeaderXContentTypeOptions             = "X-Content-Type-Options"
-	HeaderXXSSProtection                  = "X-XSS-Protection"
-	HeaderXFrameOptions                   = "X-Frame-Options"
-	HeaderContentSecurityPolicy           = "Content-Security-Policy"
-	HeaderContentSecurityPolicyReportOnly = "Content-Security-Policy-Report-Only"
-	HeaderXCSRFToken                      = "X-CSRF-Token"
-	HeaderReferrerPolicy                  = "Referrer-Policy"
+	httpMethodREPORT = "REPORT"
+	// PROPFIND Method can be used on collection and property resources.
+	httpMethodPROPFIND = "PROPFIND"
+	charsetUTF8        = "charset=UTF-8"
 )
 
 var (
@@ -160,16 +86,16 @@ var (
 		http.MethodOptions,
 		http.MethodPatch,
 		http.MethodPost,
-		PROPFIND,
+		httpMethodREPORT,
 		http.MethodPut,
 		http.MethodTrace,
-		REPORT,
+		httpMethodPROPFIND,
 	}
 )
 
 // Error handlers
 var (
-	NotFoundHandler = func(c *Context) error {
+	MethodNotFoundHandler = func(c *Context) error {
 		return ErrNotFound
 	}
 
@@ -192,20 +118,10 @@ func New(address string, tlsConfig ...*tls.Config) (e *Engine) {
 	e.HTTPErrorHandler = e.DefaultHTTPErrorHandler
 	e.Binder = &DefaultBinder{}
 	e.pool.New = func() interface{} {
-		return e.NewContext(nil, nil)
+		return NewContext(e, nil, nil)
 	}
 	e.router = NewRouter(e)
-	e.routers = map[string]*Router{}
 	return
-}
-
-// NewContext returns a Context instance.
-func (e *Engine) NewContext(r *http.Request, w http.ResponseWriter) *Context {
-	return &Context{
-		Engine:   e,
-		Request:  r,
-		Response: NewResponse(w, e),
-	}
 }
 
 // Router returns the default router.
@@ -213,14 +129,14 @@ func (e *Engine) Router() *Router {
 	return e.router
 }
 
-// Routers returns the map of host => router.
-func (e *Engine) Routers() map[string]*Router {
-	return e.routers
-}
-
 // DefaultHTTPErrorHandler is the default HTTP error handler. It sends a JSON Response
 // with status code.
 func (e *Engine) DefaultHTTPErrorHandler(c *Context, err error) {
+	if c.Response.committed {
+		logger.Warn("%v", err)
+		return
+	}
+
 	he, ok := err.(*HTTPError)
 	if !ok {
 		he = &HTTPError{
@@ -229,7 +145,7 @@ func (e *Engine) DefaultHTTPErrorHandler(c *Context, err error) {
 		}
 	}
 
-	c.Response.Status = he.Code
+	c.Response.Status(he.Code)
 	message := ""
 	if app.Debug {
 		message = err.Error()
@@ -237,16 +153,15 @@ func (e *Engine) DefaultHTTPErrorHandler(c *Context, err error) {
 		message = http.StatusText(he.Code)
 	}
 	// Send Response
-	if !c.Response.Committed {
-		if c.Request.Method == http.MethodHead { // Issue #608
-			err = c.End()
-		} else {
-			err = c.String(message)
-		}
-		if err != nil {
-			logger.Error(err)
-		}
+	if c.Request.Method == http.MethodHead {
+		err = c.End()
+	} else {
+		err = c.String(message)
 	}
+	if err != nil {
+		logger.Error(err)
+	}
+
 }
 
 // Use adds middleware to the chain which is run after router.
@@ -310,12 +225,8 @@ func (e *Engine) TRACE(path string, h HandlerFunc, m ...MiddlewareFunc) *RNode {
 
 // Any registers a new route for all HTTP methods and Path with matching handler
 // in the router with optional route-level middleware.
-func (e *Engine) Any(path string, handler HandlerFunc, middleware ...MiddlewareFunc) []*RNode {
-	routes := make([]*RNode, len(methods))
-	for i, m := range methods {
-		routes[i] = e.Add(m, path, handler, middleware...)
-	}
-	return routes
+func (e *Engine) Any(path string, h HandlerFunc, m ...MiddlewareFunc) *RNode {
+	return e.Add(httpMethodAny, path, h, m...)
 }
 
 // matchPath registers a new route for multiple HTTP methods and Path with matching
@@ -354,14 +265,14 @@ func (common) static(prefix, root string, get func(string, HandlerFunc, ...Middl
 		fi, err := os.Stat(name)
 		if err != nil {
 			// The access Path does not exist
-			return NotFoundHandler(c)
+			return MethodNotFoundHandler(c)
 		}
 
 		// If the Request is for a directory and does not end with "/"
 		p = c.Request.URL.Path // Path must not be empty.
 		if fi.IsDir() && p[len(p)-1] != '/' {
 			// Redirect to ends with "/"
-			c.Response.Status = http.StatusMovedPermanently
+			c.Response.Status(http.StatusMovedPermanently)
 			return c.Redirect(p + "/")
 		}
 		return c.File(name)
@@ -383,15 +294,12 @@ func (e *Engine) File(path, file string, m ...MiddlewareFunc) *RNode {
 	return e.file(path, file, e.GET, m...)
 }
 
-func (e *Engine) add(host, method, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *RNode {
+// Add registers a new route for an HTTP method and Path with matching handler
+// in the router with optional route-level middleware.
+func (e *Engine) Add(method, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *RNode {
 	name := handlerName(handler)
-	//router := e.findRouter(host)
-	//router.Add(method, MPath, func(c *Context) error {
-	//	h := applyMiddleware(handler, middleware...)
-	//	return h(c)
-	//})
 	r := &RNode{
-		Path:       path,
+		MPath:      MPath{Path: path},
 		Name:       name,
 		Method:     method,
 		Handler:    handler,
@@ -401,75 +309,21 @@ func (e *Engine) add(host, method, path string, handler HandlerFunc, middleware 
 	return r
 }
 
-// Add registers a new route for an HTTP method and Path with matching handler
-// in the router with optional route-level middleware.
-func (e *Engine) Add(method, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *RNode {
-	return e.add("", method, path, handler, middleware...)
-}
-
-// Host creates a new router group for the provided host and optional host-level middleware.
-func (e *Engine) Host(name string, m ...MiddlewareFunc) (g *Group) {
-	e.routers[name] = NewRouter(e)
-	g = &Group{host: name, echo: e}
-	g.Use(m...)
-	return
-}
-
 // Group creates a new router group with prefix and optional group-level middleware.
 func (e *Engine) Group(prefix string, m ...MiddlewareFunc) (g *Group) {
-	g = &Group{prefix: prefix, echo: e}
+	g = &Group{prefix: prefix, Engine: e}
 	g.Use(m...)
 	return
-}
-
-// URI generates a URI from handler.
-func (e *Engine) URI(handler HandlerFunc, params ...interface{}) string {
-	name := handlerName(handler)
-	return e.Reverse(name, params...)
-}
-
-// URL is an alias for `URI` function.
-func (e *Engine) URL(h HandlerFunc, params ...interface{}) string {
-	return e.URI(h, params...)
-}
-
-// Reverse generates an URL from route name and provided parameters.
-func (e *Engine) Reverse(name string, params ...interface{}) string {
-	uri := new(bytes.Buffer)
-	ln := len(params)
-	n := 0
-	for _, r := range e.router.routes {
-		if r.Name == name {
-			for i, l := 0, len(r.Path); i < l; i++ {
-				if r.Path[i] == ':' && n < ln {
-					for ; i < l && r.Path[i] != '/'; i++ {
-					}
-					uri.WriteString(fmt.Sprintf("%v", params[n]))
-					n++
-				}
-				if i < l {
-					uri.WriteByte(r.Path[i])
-				}
-			}
-			break
-		}
-	}
-	return uri.String()
-}
-
-// Routes returns the registered Routes.
-func (e *Engine) Routes() []*RNode {
-	routes := make([]*RNode, 0, len(e.router.routes))
-	for _, v := range e.router.routes {
-		routes = append(routes, v)
-	}
-	return routes
 }
 
 // AcquireContext returns an empty `Context` instance from the pool.
 // You must return the Context by calling `ReleaseContext()`.
-func (e *Engine) AcquireContext() *Context {
-	return e.pool.Get().(*Context)
+func (e *Engine) AcquireContext(w http.ResponseWriter, r *http.Request) *Context {
+	c := e.pool.Get().(*Context)
+	if w != nil || r != nil {
+		c.reset(r, w)
+	}
+	return c
 }
 
 // ReleaseContext returns the `Context` instance back to the pool.
@@ -481,37 +335,21 @@ func (e *Engine) ReleaseContext(c *Context) {
 // ServeHTTP implements `http.Handler` interface, which serves HTTP requests.
 func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Acquire Context
-	c := e.pool.Get().(*Context)
-	c.reset(r, w)
-
+	c := e.AcquireContext(w, r)
 	defer func() {
 		if err := recover(); err != nil {
 			e.HTTPErrorHandler(c, NewHTTPError500(err))
 		}
 	}()
 	c.Path = r.URL.EscapedPath()
+	c.matchPath = &MPath{Path: c.Path}
 	//do middleware
-	c.next()
-	//Find Router
-	router := e.findRouter(r.Host)
-	matchPath := &MPath{Path: c.Path}
-	matchSuccess := int8(0)
-	for _, route := range router.routes {
-		if params, ok := route.Match(r.Method, matchPath); ok {
-			matchSuccess++
-			c.params = params
-			err := route.Handler(c)
-			if err != nil {
-				e.HTTPErrorHandler(c, err)
-				return
-			}
-		}
-	}
-	if matchSuccess == 0 {
+	c.Next()
+	if !c.Response.committed {
 		e.HTTPErrorHandler(c, ErrNotFound)
 	}
 	// Release Context
-	e.pool.Put(c)
+	e.ReleaseContext(c)
 }
 
 // Start starts an HTTP server.
@@ -555,15 +393,6 @@ func (e *Engine) Close() error {
 // It internally calls `http.Server#Shutdown()`.
 func (e *Engine) Shutdown(ctx stdContext.Context) error {
 	return e.Server.Shutdown(ctx)
-}
-
-func (e *Engine) findRouter(host string) *Router {
-	if len(e.routers) > 0 {
-		if r, ok := e.routers[host]; ok {
-			return r
-		}
-	}
-	return e.router
 }
 
 //func applyMiddleware(h HandlerFunc, middleware ...MiddlewareFunc) HandlerFunc {

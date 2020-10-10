@@ -6,7 +6,6 @@ import (
 
 type RNode struct {
 	MPath
-	Path       string
 	Name       string
 	Method     string
 	Handler    HandlerFunc
@@ -34,7 +33,7 @@ func (m *MPath) GetMatchPath() []string {
 
 func (r *RNode) Match(method string, tar *MPath) (param map[string]string, ok bool) {
 	param = make(map[string]string)
-	if method != r.Method {
+	if method != r.Method && r.Method != httpMethodAny {
 		return
 	}
 	if r.Path == tar.Path {
