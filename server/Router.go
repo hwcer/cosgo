@@ -67,35 +67,35 @@ func (s *Router) Register(handle interface{}) *nsp {
 		mtype := method.Type
 		mname := method.Name
 		//fmt.Println("打印Method", mname, mtype)
-		// Method must be exported.
+		// method must be exported.
 		if method.PkgPath != "" {
-			fmt.Printf("Register Method PkgPath Not End,Method:%v.%v(),PkgPath:%v\n", nsp.name, mname, method.PkgPath)
+			fmt.Printf("Register method PkgPath Not End,method:%v.%v(),PkgPath:%v\n", nsp.name, mname, method.PkgPath)
 			continue
 		}
 		if !isExported(mname) {
-			fmt.Printf("Register Method Can't Exported,Method:%v.%v()\n", nsp.name, mname)
+			fmt.Printf("Register method Can't Exported,method:%v.%v()\n", nsp.name, mname)
 			continue
 		}
-		// Method needs four ins: receiver, context.Context, *args, *reply.
+		// method needs four ins: receiver, context.Context, *args, *reply.
 		if mtype.NumIn() != 2 || mtype.NumOut() != 1 {
-			fmt.Printf("Register Method args num or return num error,Method:%v.%v()\n", nsp.name, mname)
+			fmt.Printf("Register method args num or return num error,method:%v.%v()\n", nsp.name, mname)
 			continue
 		}
 		// First arg must be context.Context
 		//ctxType := mtype.In(1)
 		//if !ctxType.ConvertibleTo(typeOfContext) {
-		//	fmt.Printf("Register Method args error,Method:%v.%v()\n",nsp.name,mname)
+		//	fmt.Printf("Register method args error,method:%v.%v()\n",nsp.name,mname)
 		//	continue
 		//}
 		////
 		//outType := mtype.Out(0)
 		//if !outType.ConvertibleTo(typeOfMessage) {
-		//	fmt.Printf("Register Method return error,Method:%v.%v()\n",nsp.name,mname)
+		//	fmt.Printf("Register method return error,method:%v.%v()\n",nsp.name,mname)
 		//	continue
 		//}
 
 		//service.method[mname] = method.Func.Interface().(handlerMethod)
-		//fmt.Printf("Register Method；%v\n",mname)
+		//fmt.Printf("Register method；%v\n",mname)
 		nsp.method[mname] = &nspMethod{
 			proto:  proto,
 			value:  method.Func,

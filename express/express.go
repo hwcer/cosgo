@@ -70,27 +70,11 @@ type (
 
 const (
 	httpMethodAny = "Any"
-	// REPORT Method can be used to get information about a resource, see rfc 3253
+	// REPORT method can be used to get information about a resource, see rfc 3253
 	httpMethodREPORT = "REPORT"
-	// PROPFIND Method can be used on collection and property resources.
+	// PROPFIND method can be used on collection and property resources.
 	httpMethodPROPFIND = "PROPFIND"
 	charsetUTF8        = "charset=UTF-8"
-)
-
-var (
-	methods = [...]string{
-		http.MethodConnect,
-		http.MethodDelete,
-		http.MethodGet,
-		http.MethodHead,
-		http.MethodOptions,
-		http.MethodPatch,
-		http.MethodPost,
-		httpMethodREPORT,
-		http.MethodPut,
-		http.MethodTrace,
-		httpMethodPROPFIND,
-	}
 )
 
 // Error handlers
@@ -133,7 +117,7 @@ func (e *Engine) Router() *Router {
 // with status code.
 func (e *Engine) DefaultHTTPErrorHandler(c *Context, err error) {
 	if c.Response.committed {
-		logger.Warn("%v", err)
+		logger.Error("%v", err)
 		return
 	}
 
@@ -169,70 +153,70 @@ func (e *Engine) Use(middleware ...MiddlewareFunc) {
 	e.middleware = append(e.middleware, middleware...)
 }
 
-// CONNECT registers a new CONNECT route for a Path with matching handler in the
+// CONNECT registers a new CONNECT route for a path with matching handler in the
 // router with optional route-level middleware.
-func (e *Engine) CONNECT(path string, h HandlerFunc, m ...MiddlewareFunc) *RNode {
+func (e *Engine) CONNECT(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Add(http.MethodConnect, path, h, m...)
 }
 
-// DELETE registers a new DELETE route for a Path with matching handler in the router
+// DELETE registers a new DELETE route for a path with matching handler in the router
 // with optional route-level middleware.
-func (e *Engine) DELETE(path string, h HandlerFunc, m ...MiddlewareFunc) *RNode {
+func (e *Engine) DELETE(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Add(http.MethodDelete, path, h, m...)
 }
 
-// GET registers a new GET route for a Path with matching handler in the router
+// GET registers a new GET route for a path with matching handler in the router
 // with optional route-level middleware.
-func (e *Engine) GET(path string, h HandlerFunc, m ...MiddlewareFunc) *RNode {
+func (e *Engine) GET(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Add(http.MethodGet, path, h, m...)
 }
 
-// HEAD registers a new HEAD route for a Path with matching handler in the
+// HEAD registers a new HEAD route for a path with matching handler in the
 // router with optional route-level middleware.
-func (e *Engine) HEAD(path string, h HandlerFunc, m ...MiddlewareFunc) *RNode {
+func (e *Engine) HEAD(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Add(http.MethodHead, path, h, m...)
 }
 
-// OPTIONS registers a new OPTIONS route for a Path with matching handler in the
+// OPTIONS registers a new OPTIONS route for a path with matching handler in the
 // router with optional route-level middleware.
-func (e *Engine) OPTIONS(path string, h HandlerFunc, m ...MiddlewareFunc) *RNode {
+func (e *Engine) OPTIONS(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Add(http.MethodOptions, path, h, m...)
 }
 
-// PATCH registers a new PATCH route for a Path with matching handler in the
+// PATCH registers a new PATCH route for a path with matching handler in the
 // router with optional route-level middleware.
-func (e *Engine) PATCH(path string, h HandlerFunc, m ...MiddlewareFunc) *RNode {
+func (e *Engine) PATCH(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Add(http.MethodPatch, path, h, m...)
 }
 
-// POST registers a new POST route for a Path with matching handler in the
+// POST registers a new POST route for a path with matching handler in the
 // router with optional route-level middleware.
-func (e *Engine) POST(path string, h HandlerFunc, m ...MiddlewareFunc) *RNode {
+func (e *Engine) POST(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Add(http.MethodPost, path, h, m...)
 }
 
-// PUT registers a new PUT route for a Path with matching handler in the
+// PUT registers a new PUT route for a path with matching handler in the
 // router with optional route-level middleware.
-func (e *Engine) PUT(path string, h HandlerFunc, m ...MiddlewareFunc) *RNode {
+func (e *Engine) PUT(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Add(http.MethodPut, path, h, m...)
 }
 
-// TRACE registers a new TRACE route for a Path with matching handler in the
+// TRACE registers a new TRACE route for a path with matching handler in the
 // router with optional route-level middleware.
-func (e *Engine) TRACE(path string, h HandlerFunc, m ...MiddlewareFunc) *RNode {
+func (e *Engine) TRACE(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Add(http.MethodTrace, path, h, m...)
 }
 
-// Any registers a new route for all HTTP methods and Path with matching handler
+// Any registers a new route for all HTTP methods and path with matching handler
 // in the router with optional route-level middleware.
-func (e *Engine) Any(path string, h HandlerFunc, m ...MiddlewareFunc) *RNode {
+func (e *Engine) Any(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Add(httpMethodAny, path, h, m...)
 }
 
-// matchPath registers a new route for multiple HTTP methods and Path with matching
+// matchPath registers a new route for multiple HTTP methods and path with matching
 // handler in the router with optional route-level middleware.
-func (e *Engine) Match(methods []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) []*RNode {
-	routes := make([]*RNode, len(methods))
+func (e *Engine) Match(methods []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) []*Route {
+	routes := make([]*Route, len(methods))
 	for i, m := range methods {
 		routes[i] = e.Add(m, path, handler, middleware...)
 	}
@@ -240,21 +224,21 @@ func (e *Engine) Match(methods []string, path string, handler HandlerFunc, middl
 }
 
 //TODO
-func (e *Engine) RESTful(prefix string, service RESTful) []*RNode {
-	routes := make([]*RNode, len(RESTfulMethods))
+func (e *Engine) RESTful(prefix string, service RESTful) []*Route {
+	routes := make([]*Route, len(RESTfulMethods))
 	return routes
 }
 
-// Static registers a new route with Path prefix to serve static files from the
+// Static registers a new route with path prefix to serve static files from the
 // provided root directory.
-func (e *Engine) Static(prefix, root string) *RNode {
+func (e *Engine) Static(prefix, root string) *Route {
 	if root == "" {
 		root = "." // For security we want to restrict to CWD.
 	}
 	return e.static(prefix, root, e.GET)
 }
 
-func (common) static(prefix, root string, get func(string, HandlerFunc, ...MiddlewareFunc) *RNode) *RNode {
+func (common) static(prefix, root string, get func(string, HandlerFunc, ...MiddlewareFunc) *Route) *Route {
 	h := func(c *Context) error {
 		p, err := url.PathUnescape(c.Param("*"))
 		if err != nil {
@@ -264,12 +248,12 @@ func (common) static(prefix, root string, get func(string, HandlerFunc, ...Middl
 		name := filepath.Join(root, path.Clean("/"+p)) // "/"+ for security
 		fi, err := os.Stat(name)
 		if err != nil {
-			// The access Path does not exist
+			// The access path does not exist
 			return MethodNotFoundHandler(c)
 		}
 
 		// If the Request is for a directory and does not end with "/"
-		p = c.Request.URL.Path // Path must not be empty.
+		p = c.Request.URL.Path // path must not be empty.
 		if fi.IsDir() && p[len(p)-1] != '/' {
 			// Redirect to ends with "/"
 			c.Response.Status(http.StatusMovedPermanently)
@@ -283,30 +267,21 @@ func (common) static(prefix, root string, get func(string, HandlerFunc, ...Middl
 	return get(prefix+"/*", h)
 }
 
-func (common) file(path, file string, get func(string, HandlerFunc, ...MiddlewareFunc) *RNode, m ...MiddlewareFunc) *RNode {
+func (common) file(path, file string, get func(string, HandlerFunc, ...MiddlewareFunc) *Route, m ...MiddlewareFunc) *Route {
 	return get(path, func(c *Context) error {
 		return c.File(file)
 	}, m...)
 }
 
-// File registers a new route with Path to serve a static file with optional route-level middleware.
-func (e *Engine) File(path, file string, m ...MiddlewareFunc) *RNode {
+// File registers a new route with path to serve a static file with optional route-level middleware.
+func (e *Engine) File(path, file string, m ...MiddlewareFunc) *Route {
 	return e.file(path, file, e.GET, m...)
 }
 
-// Add registers a new route for an HTTP method and Path with matching handler
+// Add registers a new route for an HTTP method and path with matching handler
 // in the router with optional route-level middleware.
-func (e *Engine) Add(method, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *RNode {
-	name := handlerName(handler)
-	r := &RNode{
-		MPath:      MPath{Path: path},
-		Name:       name,
-		Method:     method,
-		Handler:    handler,
-		middleware: middleware,
-	}
-	e.router.routes = append(e.router.routes, r)
-	return r
+func (e *Engine) Add(method, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
+	return e.router.Add(method, path, handler, middleware...)
 }
 
 // Group creates a new router group with prefix and optional group-level middleware.
@@ -332,7 +307,7 @@ func (e *Engine) ReleaseContext(c *Context) {
 	e.pool.Put(c)
 }
 
-// ServeHTTP implements `http.Handler` interface, which serves HTTP requests.
+// ServeHTTP implements `http.handler` interface, which serves HTTP requests.
 func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Acquire Context
 	c := e.AcquireContext(w, r)
@@ -342,7 +317,6 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	c.Path = r.URL.EscapedPath()
-	c.matchPath = &MPath{Path: c.Path}
 	//do middleware
 	c.Next()
 	if !c.Response.committed {
@@ -369,7 +343,7 @@ func (e *Engine) Start() (err error) {
 func (e *Engine) StartH2(h2s *http2.Server) (err error) {
 	// Setup
 	//s := e.Server
-	//s.Handler = h2c.NewHandler(e, h2s)
+	//s.handler = h2c.NewHandler(e, h2s)
 	//if e.Listener == nil {
 	//	e.Listener, err = newListener(s.Addr)
 	//	if err != nil {

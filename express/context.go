@@ -2,6 +2,7 @@ package express
 
 import (
 	"bytes"
+	"cosgo/logger"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -16,10 +17,9 @@ import (
 )
 
 type Context struct {
-	index     uint8
-	query     url.Values
-	params    map[string]string
-	matchPath *MPath
+	index  uint8
+	query  url.Values
+	params map[string]string
 
 	Path     string
 	Engine   *Engine
@@ -59,7 +59,7 @@ func (c *Context) Next() {
 		h(c)
 	} else {
 		i := index - middlewareNum
-		if i < uint8(len(c.Engine.router.routes)) {
+		if i < uint8(len(c.Engine.router.route)) {
 			c.match(i)
 		}
 	}
@@ -68,19 +68,18 @@ func (c *Context) Next() {
 
 func (c *Context) match(i uint8) {
 	//Find Router
-	route := c.Engine.router.routes[i]
-	if params, ok := route.Match(c.Request.Method, c.matchPath); ok {
+	route := c.Engine.router.route[i]
+	if params, ok := route.Match(c.Request.Method, c.Path); ok {
+		logger.Debug("router match success:%v", route.Path())
 		c.params = params
-		err := route.Handler(c)
+		err := route.handler(c)
 		if err != nil {
 			c.Engine.HTTPErrorHandler(c, err)
-			return
 		}
+	} else {
+		logger.Debug("router match fail:%v", route.Path())
+		c.Next()
 	}
-}
-
-func (c *Context) IsTLS() bool {
-	return c.Request.TLS != nil
 }
 
 func (c *Context) IsWebSocket() bool {
@@ -98,7 +97,7 @@ func (c *Context) Status(code int) *Context {
 func (c *Context) Protocol() string {
 	// Can't use `r.Request.URL.Protocol`
 	// See: https://groups.google.com/forum/#!topic/golang-nuts/pMUkBlQBDF0
-	if c.IsTLS() {
+	if c.Request.TLS != nil {
 		return "https"
 	}
 	if scheme := c.Request.Header.Get(HeaderXForwardedProto); scheme != "" {
@@ -133,6 +132,10 @@ func (c *Context) RemoteAddr() string {
 
 func (c *Context) Param(name string) string {
 	return c.params[name]
+}
+
+func (c *Context) Params() map[string]string {
+	return c.params
 }
 
 //获取查询参数
@@ -326,7 +329,6 @@ func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
 	c.index = 0
 	c.query = nil
 	c.params = nil
-	c.matchPath = nil
 
 	c.Path = ""
 	c.Routes = nil

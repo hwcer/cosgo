@@ -156,7 +156,7 @@ fields are basically a subset of http.Cookie fields. Let's change the
 maximum age of a session to one week:
 
 	session.Options = &sessions.Options{
-		Path:     "/",
+		path:     "/",
 		MaxAge:   86400 * 7,
 		HttpOnly: true,
 	}

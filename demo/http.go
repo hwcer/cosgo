@@ -28,9 +28,9 @@ func (this *httpMod) Load() error {
 
 func (this *httpMod) Start(wgp *sync.WaitGroup) (err error) {
 	wgp.Add(1)
-	this.express.GET("/*", hello)
-	this.express.POST("/*", hello)
-	this.express.GET("/:api", hello2)
+
+	this.express.GET("/:api", hello1)
+	this.express.Any("/*", hello2)
 	//this.express.Static("/*", ".")
 	return this.express.Start()
 }
@@ -50,17 +50,17 @@ func middleware2(c *express.Context) {
 	c.Next()
 }
 
-// Handler
-func hello(c *express.Context) error {
-	//logger.Debug("hello1")
+// handler
+func hello1(c *express.Context) error {
+	logger.Debug("hello1")
 	//return c.End()
-	c.String(fmt.Sprintf("Hello, World 1!  %v\n", c.Param("api")))
+	c.String(fmt.Sprintf("Hello, World 1!  %v\n", c.Params()))
 	c.Next()
 	return nil
 	//return c.String(fmt.Sprintf("Hello, World 1!  %v\n", c.Param("api")))
 }
 
 func hello2(c *express.Context) error {
-	//logger.Debug("hello2")
-	return c.String(fmt.Sprintf("Hello, World 2!  %v\n", c.Param("api")))
+	logger.Debug("hello2")
+	return c.String(fmt.Sprintf("Hello, World 2!  %v\n", c.Params()))
 }
