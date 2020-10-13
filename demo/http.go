@@ -2,7 +2,6 @@ package main
 
 import (
 	"cosgo/express"
-	"cosgo/logger"
 	"fmt"
 	"sync"
 )
@@ -22,17 +21,15 @@ func (this *httpMod) ID() string {
 
 func (this *httpMod) Load() error {
 	this.express = express.New("")
-	//this.express.Use(middleware1, middleware2)
+	this.express.Any("/s/:api", hello)
+	this.express.Proxy("/proxy/*", "http://127.0.0.1:7902")
 	return nil
 }
 
 func (this *httpMod) Start(wgp *sync.WaitGroup) (err error) {
 	wgp.Add(1)
-
-	this.express.GET("/:api", hello1)
-	this.express.Any("/*", hello2)
-	//this.express.Static("/*", ".")
-	return this.express.Start()
+	this.express.Start()
+	return
 }
 
 func (this *httpMod) Close(wgp *sync.WaitGroup) error {
@@ -41,26 +38,7 @@ func (this *httpMod) Close(wgp *sync.WaitGroup) error {
 	return nil
 }
 
-func middleware1(c *express.Context) {
-	logger.Debug("middleware1")
-	c.Next()
-}
-func middleware2(c *express.Context) {
-	logger.Debug("middleware2")
-	c.Next()
-}
-
 // handler
-func hello1(c *express.Context) error {
-	logger.Debug("hello1")
-	//return c.End()
-	c.String(fmt.Sprintf("Hello, World 1!  %v\n", c.Params()))
-	c.Next()
-	return nil
-	//return c.String(fmt.Sprintf("Hello, World 1!  %v\n", c.Param("api")))
-}
-
-func hello2(c *express.Context) error {
-	logger.Debug("hello2")
-	return c.String(fmt.Sprintf("Hello, World 2!  %v\n", c.Params()))
+func hello(c *express.Context) error {
+	return c.String(fmt.Sprintf("Hello, World 1!  %v\n", c.Params()))
 }

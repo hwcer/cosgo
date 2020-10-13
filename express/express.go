@@ -7,10 +7,6 @@ import (
 	"crypto/tls"
 	"io"
 	"net/http"
-	"net/url"
-	"os"
-	"path"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -21,14 +17,15 @@ type (
 	// Engine is the top-level framework instance.
 	Engine struct {
 		common
+		//notFoundHandler HandlerFunc
+		pool sync.Pool
+		//调试模式会打印所有路由匹配状态
+		debug  bool
+		router *Router
 		//premiddleware []MiddlewareFunc
 		middleware []MiddlewareFunc
-		maxParam   *int
-		router     *Router
-		//notFoundHandler HandlerFunc
-		pool   sync.Pool
-		Server *http.Server
 
+		Server *http.Server
 		//TLSServer        *http.Server
 		//Listener net.Listener
 		//TLSListener      net.Listener
@@ -63,9 +60,6 @@ type (
 
 	// Map defines a generic map of type `map[string]interface{}`.
 	Map map[string]interface{}
-
-	// Common struct for Engine & Group.
-	common struct{}
 )
 
 const (
@@ -74,7 +68,6 @@ const (
 	httpMethodREPORT = "REPORT"
 	// PROPFIND method can be used on collection and property resources.
 	httpMethodPROPFIND = "PROPFIND"
-	charsetUTF8        = "charset=UTF-8"
 )
 
 // Error handlers
@@ -82,17 +75,12 @@ var (
 	MethodNotFoundHandler = func(c *Context) error {
 		return ErrNotFound
 	}
-
-	MethodNotAllowedHandler = func(c *Context) error {
-		return ErrMethodNotAllowed
-	}
 )
 
 // New creates an instance of Engine.
 func New(address string, tlsConfig ...*tls.Config) (e *Engine) {
 	e = &Engine{
-		Server:   new(http.Server),
-		maxParam: new(int),
+		Server: new(http.Server),
 	}
 	if len(tlsConfig) > 0 {
 		e.Server.TLSConfig = tlsConfig[0]
@@ -113,11 +101,19 @@ func (e *Engine) Router() *Router {
 	return e.router
 }
 
+func (e *Engine) Proxy(path string, address ...string) *Route {
+	proxy := &Proxy{}
+	for _, addr := range address {
+		proxy.Add(addr)
+	}
+	return e.Add(httpMethodAny, path, proxy.handle)
+}
+
 // DefaultHTTPErrorHandler is the default HTTP error handler. It sends a JSON Response
 // with status code.
 func (e *Engine) DefaultHTTPErrorHandler(c *Context, err error) {
 	if c.Response.committed {
-		logger.Error("%v", err)
+		logger.Error(err)
 		return
 	}
 
@@ -215,12 +211,8 @@ func (e *Engine) Any(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 
 // matchPath registers a new route for multiple HTTP methods and path with matching
 // handler in the router with optional route-level middleware.
-func (e *Engine) Match(methods []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) []*Route {
-	routes := make([]*Route, len(methods))
-	for i, m := range methods {
-		routes[i] = e.Add(m, path, handler, middleware...)
-	}
-	return routes
+func (e *Engine) Match(methods []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
+	return e.router.Match(methods, path, handler, middleware...)
 }
 
 //TODO
@@ -236,41 +228,6 @@ func (e *Engine) Static(prefix, root string) *Route {
 		root = "." // For security we want to restrict to CWD.
 	}
 	return e.static(prefix, root, e.GET)
-}
-
-func (common) static(prefix, root string, get func(string, HandlerFunc, ...MiddlewareFunc) *Route) *Route {
-	h := func(c *Context) error {
-		p, err := url.PathUnescape(c.Param("*"))
-		if err != nil {
-			return err
-		}
-
-		name := filepath.Join(root, path.Clean("/"+p)) // "/"+ for security
-		fi, err := os.Stat(name)
-		if err != nil {
-			// The access path does not exist
-			return MethodNotFoundHandler(c)
-		}
-
-		// If the Request is for a directory and does not end with "/"
-		p = c.Request.URL.Path // path must not be empty.
-		if fi.IsDir() && p[len(p)-1] != '/' {
-			// Redirect to ends with "/"
-			c.Response.Status(http.StatusMovedPermanently)
-			return c.Redirect(p + "/")
-		}
-		return c.File(name)
-	}
-	if prefix == "/" {
-		return get(prefix+"*", h)
-	}
-	return get(prefix+"/*", h)
-}
-
-func (common) file(path, file string, get func(string, HandlerFunc, ...MiddlewareFunc) *Route, m ...MiddlewareFunc) *Route {
-	return get(path, func(c *Context) error {
-		return c.File(file)
-	}, m...)
 }
 
 // File registers a new route with path to serve a static file with optional route-level middleware.
@@ -316,7 +273,7 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			e.HTTPErrorHandler(c, NewHTTPError500(err))
 		}
 	}()
-	c.Path = r.URL.EscapedPath()
+	c.Path = r.URL.Path
 	//do middleware
 	c.Next()
 	if !c.Response.committed {
@@ -328,7 +285,6 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Start starts an HTTP server.
 func (e *Engine) Start() (err error) {
-	logger.Info("⇨ http(s) server started on %s", e.Server.Addr)
 	err = app.TimeOut(time.Second, func() error {
 		if e.Server.TLSConfig != nil {
 			return e.Server.ListenAndServeTLS("", "")
@@ -368,10 +324,3 @@ func (e *Engine) Close() error {
 func (e *Engine) Shutdown(ctx stdContext.Context) error {
 	return e.Server.Shutdown(ctx)
 }
-
-//func applyMiddleware(h HandlerFunc, middleware ...MiddlewareFunc) HandlerFunc {
-//	for i := len(middleware) - 1; i >= 0; i-- {
-//		h = middleware[i](h)
-//	}
-//	return h
-//}

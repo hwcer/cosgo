@@ -85,7 +85,7 @@ func (c *ipChecker) trust(ip net.IP) bool {
 type IPExtractor func(*http.Request) string
 
 // ExtractIPDirect extracts IP address using actual IP address.
-// Use this if your server faces to internet directory (i.e.: uses no proxy).
+// Use this if your server faces to internet directory (i.e.: uses no Proxy).
 func ExtractIPDirect() IPExtractor {
 	return func(req *http.Request) string {
 		ra, _, _ := net.SplitHostPort(req.RemoteAddr)
@@ -94,7 +94,7 @@ func ExtractIPDirect() IPExtractor {
 }
 
 // ExtractIPFromRealIPHeader extracts IP address using x-real-ip header.
-// Use this if you put proxy which uses this header.
+// Use this if you put Proxy which uses this header.
 func ExtractIPFromRealIPHeader(options ...TrustOption) IPExtractor {
 	checker := newIPChecker(options)
 	return func(req *http.Request) string {
@@ -110,7 +110,7 @@ func ExtractIPFromRealIPHeader(options ...TrustOption) IPExtractor {
 }
 
 // ExtractIPFromXFFHeader extracts IP address using x-forwarded-for header.
-// Use this if you put proxy which uses this header.
+// Use this if you put Proxy which uses this header.
 // This returns nearest untrustable IP. If all IPs are trustable, returns furthest one (i.e.: XFF[0]).
 func ExtractIPFromXFFHeader(options ...TrustOption) IPExtractor {
 	checker := newIPChecker(options)

@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+type RouteMethod []string
+
 type Route struct {
 	path string
 
@@ -25,8 +27,6 @@ type RouteMatch struct {
 	suffix   string
 	matching []string
 }
-
-type RouteMethod []string
 
 // Router is the registry of all registered Routes for an `Engine` instance for
 // Request matching and URL path parameter parsing.
@@ -108,6 +108,11 @@ func (r *Route) Format() {
 	} else if len(matching) > 0 && matching[len(matching)-1] == "*" {
 		r.suffixMatchAll = true
 	}
+
+	prefix = append(prefix, "")
+	if len(suffix) > 0 {
+		suffix = append([]string{""}, suffix...)
+	}
 	r.prefix = strings.Join(prefix, "/")
 	r.suffix = strings.Join(suffix, "/")
 	r.matching = matching
@@ -116,11 +121,12 @@ func (r *Route) Format() {
 
 }
 
-func (r *Route) Match(method string, path string) (param map[string]string, ok bool) {
+func (r *Route) Find(method string, path string) (param map[string]string, ok bool) {
 	param = make(map[string]string)
 	if !r.method.IndexOf(method) {
 		return nil, false
 	}
+	r.Format()
 
 	if len(r.matching) == 0 && r.path == path {
 		return param, true
@@ -166,7 +172,8 @@ func (r *Route) Match(method string, path string) (param map[string]string, ok b
 		}
 	}
 	if r.suffixMatchAll {
-		param[strconv.Itoa(k)] = strings.Join(arrPath[max:], "/")
+		s := len(r.matching) - 1
+		param[strconv.Itoa(k)] = strings.Join(arrPath[s:], "/")
 	}
 	return param, true
 }
@@ -178,15 +185,8 @@ func (r *Router) Add(method, path string, handler HandlerFunc, middleware ...Mid
 	return route
 }
 
-// Find lookup a handler registered for method and path. It also parses URL for path
-// parameters and load them into Context.
-//
-// For performance:
-//
-// - Get Context from `Engine#AcquireContext()`
-// - reset it `Context#reset()`
-// - Return it `Engine#ReleaseContext()`.
-
-func (r *Router) Find(c *Context, method, path string) {
-
+func (r *Router) Match(methods []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
+	route := NewRoute(path, methods, handler, middleware...)
+	r.route = append(r.route, route)
+	return route
 }

@@ -1,5 +1,7 @@
 package express
 
+const charsetUTF8 = "charset=UTF-8"
+
 // MIME types
 const (
 	MIMEApplicationJSON                  = "application/json"

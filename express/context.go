@@ -23,7 +23,6 @@ type Context struct {
 
 	Path     string
 	Engine   *Engine
-	Routes   []string //当前匹配到的全部路由
 	Request  *http.Request
 	Response *Response
 }
@@ -42,6 +41,15 @@ const (
 	defaultMemory = 32 << 20 // 32 MB
 )
 
+func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
+	c.index = 0
+	c.query = nil
+	c.params = nil
+
+	c.Path = ""
+	c.Request = r
+	c.Response.reset(w)
+}
 func (c *Context) writeContentType(value string) {
 	header := c.Response.Header()
 	if header.Get(HeaderContentType) == "" {
@@ -67,17 +75,21 @@ func (c *Context) Next() {
 }
 
 func (c *Context) match(i uint8) {
-	//Find Router
+	//Find Route
 	route := c.Engine.router.route[i]
-	if params, ok := route.Match(c.Request.Method, c.Path); ok {
-		logger.Debug("router match success:%v", route.Path())
+	if params, ok := route.Find(c.Request.Method, c.Path); ok {
+		if c.Engine.debug {
+			logger.Debug("router match success:%v", route.path)
+		}
 		c.params = params
 		err := route.handler(c)
 		if err != nil {
 			c.Engine.HTTPErrorHandler(c, err)
 		}
 	} else {
-		logger.Debug("router match fail:%v", route.Path())
+		if c.Engine.debug {
+			logger.Debug("router match fail:%v", route.path)
+		}
 		c.Next()
 	}
 }
@@ -323,15 +335,4 @@ func (c *Context) Redirect(url string) error {
 
 func (c *Context) Error(err error) {
 	c.Engine.HTTPErrorHandler(c, err)
-}
-
-func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
-	c.index = 0
-	c.query = nil
-	c.params = nil
-
-	c.Path = ""
-	c.Routes = nil
-	c.Request = r
-	c.Response.reset(w)
 }

@@ -41,7 +41,7 @@ func (r *Response) Header() http.Header {
 // used to send error codes.
 func (r *Response) WriteHeader(code int) {
 	if r.committed {
-		logger.Error("response already committed")
+		logger.Error("WriteHeader but response already committed")
 		return
 	}
 	if code > 0 {
@@ -56,7 +56,7 @@ func (r *Response) WriteHeader(code int) {
 
 func (r *Response) Status(code int) {
 	if r.committed {
-		logger.Error("Response already committed")
+		logger.Error("set status but Response already committed")
 		return
 	}
 	r.httpStatusCode = code
@@ -65,7 +65,7 @@ func (r *Response) Status(code int) {
 // Write writes the data to the connection as part of an HTTP reply.
 func (r *Response) Write(b []byte) (n int, err error) {
 	if r.committed {
-		logger.Error("Response already committed")
+		logger.Error("Write data but Response already committed")
 		return
 	}
 	r.WriteHeader(r.httpStatusCode)
