@@ -78,8 +78,8 @@ func (c *Context) match(i uint8) {
 	//Find Route
 	route := c.Engine.router.route[i]
 	if params, ok := route.Find(c.Request.Method, c.Path); ok {
-		if c.Engine.debug {
-			logger.Debug("router match success:%v", route.path)
+		if c.Engine.Debug {
+			logger.Debug("router match success:%v ==> %v", c.Path, route.path)
 		}
 		c.params = params
 		err := route.handler(c)
@@ -87,8 +87,8 @@ func (c *Context) match(i uint8) {
 			c.Engine.HTTPErrorHandler(c, err)
 		}
 	} else {
-		if c.Engine.debug {
-			logger.Debug("router match fail:%v", route.path)
+		if c.Engine.Debug {
+			logger.Debug("router match fail:%v ==> %v", c.Path, route.path)
 		}
 		c.Next()
 	}

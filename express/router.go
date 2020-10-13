@@ -149,7 +149,7 @@ func (r *Route) Find(method string, path string) (param map[string]string, ok bo
 
 	arrPath := strings.Split(path, "/")
 
-	if len(arrPath) < len(r.matching) {
+	if len(arrPath) < len(r.matching) || (!r.suffixMatchAll && len(arrPath) > len(r.matching)) {
 		return nil, false
 	}
 
@@ -178,8 +178,11 @@ func (r *Route) Find(method string, path string) (param map[string]string, ok bo
 	return param, true
 }
 
-// Add registers a new route for method and path with matching handler.
+// SetAddress registers a new route for method and path with matching handler.
 func (r *Router) Add(method, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
 	route := NewRoute(path, []string{method}, handler, middleware...)
 	r.route = append(r.route, route)
 	return route

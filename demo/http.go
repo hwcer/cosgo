@@ -21,8 +21,10 @@ func (this *httpMod) ID() string {
 
 func (this *httpMod) Load() error {
 	this.express = express.New("")
-	this.express.Any("/s/:api", hello)
-	this.express.Proxy("/proxy/*", "http://127.0.0.1:7902")
+	this.express.Debug = true
+	this.express.Any("/api/:api", hello)
+	//代理
+	this.express.Proxy("*", "http://redis.cn/")
 	return nil
 }
 

@@ -52,7 +52,7 @@ func TestFlashes(t *testing.T) {
 	if len(flashes) != 0 {
 		t.Errorf("Expected empty flashes; Got %v", flashes)
 	}
-	// Add some flashes.
+	// SetAddress some flashes.
 	session.AddFlash("foo")
 	session.AddFlash("bar")
 	// Custom key.
@@ -118,7 +118,7 @@ func TestFlashes(t *testing.T) {
 	if len(flashes) != 0 {
 		t.Errorf("Expected empty flashes; Got %v", flashes)
 	}
-	// Add some flashes.
+	// SetAddress some flashes.
 	session.AddFlash(&FlashMessage{42, "foo"})
 	// Save.
 	if err = Save(req, rsp); err != nil {

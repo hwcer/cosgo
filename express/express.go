@@ -19,8 +19,7 @@ type (
 		common
 		//notFoundHandler HandlerFunc
 		pool sync.Pool
-		//调试模式会打印所有路由匹配状态
-		debug  bool
+
 		router *Router
 		//premiddleware []MiddlewareFunc
 		middleware []MiddlewareFunc
@@ -32,6 +31,7 @@ type (
 		//AutoTLSManager   autocert.Manager
 		//DisableHTTP2     bool
 
+		Debug            bool //DEBUG模式会打印所有路由匹配状态,向客户端输出详细错误信息
 		Binder           Binder
 		Validator        Validator
 		Renderer         Renderer
@@ -101,12 +101,10 @@ func (e *Engine) Router() *Router {
 	return e.router
 }
 
-func (e *Engine) Proxy(path string, address ...string) *Route {
-	proxy := &Proxy{}
-	for _, addr := range address {
-		proxy.Add(addr)
-	}
-	return e.Add(httpMethodAny, path, proxy.handle)
+func (e *Engine) Proxy(path string, address ...string) *Proxy {
+	proxy := NewProxy(address...)
+	e.Add(httpMethodAny, path, proxy.handle)
+	return proxy
 }
 
 // DefaultHTTPErrorHandler is the default HTTP error handler. It sends a JSON Response
@@ -127,9 +125,10 @@ func (e *Engine) DefaultHTTPErrorHandler(c *Context, err error) {
 
 	c.Response.Status(he.Code)
 	message := ""
-	if app.Debug {
+	if e.Debug {
 		message = err.Error()
 	} else {
+		logger.Error(err)
 		message = http.StatusText(he.Code)
 	}
 	// Send Response
@@ -235,7 +234,7 @@ func (e *Engine) File(path, file string, m ...MiddlewareFunc) *Route {
 	return e.file(path, file, e.GET, m...)
 }
 
-// Add registers a new route for an HTTP method and path with matching handler
+// SetAddress registers a new route for an HTTP method and path with matching handler
 // in the router with optional route-level middleware.
 func (e *Engine) Add(method, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
 	return e.router.Add(method, path, handler, middleware...)

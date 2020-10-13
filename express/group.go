@@ -76,7 +76,7 @@ func (g *Group) TRACE(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 //func (g *Group) Any(path string, handler HandlerFunc, middleware ...MiddlewareFunc) []*Route {
 //	route := make([]*Route, len(methods))
 //	for i, m := range methods {
-//		route[i] = g.Add(m, path, handler, middleware...)
+//		route[i] = g.SetAddress(m, path, handler, middleware...)
 //	}
 //	return route
 //}
@@ -110,7 +110,7 @@ func (g *Group) File(path, file string) {
 	g.file(path, file, g.GET)
 }
 
-// Add implements `Engine#Add()` for sub-Routes within the Group.
+// SetAddress implements `Engine#SetAddress()` for sub-Routes within the Group.
 func (g *Group) Add(method, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
 	// Combine into a new slice to avoid accidentally passing the same slice for
 	// multiple Routes, which would lead to later add() calls overwriting the
