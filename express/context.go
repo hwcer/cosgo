@@ -2,7 +2,6 @@ package express
 
 import (
 	"bytes"
-	"cosgo/logger"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -16,8 +15,33 @@ import (
 	"strings"
 )
 
+type contextMiddleware struct {
+	finish bool
+	handle []MiddlewareFunc
+}
+
+func (this *contextMiddleware) reset(m ...MiddlewareFunc) {
+	this.finish = len(m) == 0
+	this.handle = m
+
+}
+
+func (this *contextMiddleware) unshift() (MiddlewareFunc, bool) {
+	if len(this.handle) == 0 {
+		this.finish = true
+		return nil, false
+	}
+	handle := this.handle[0]
+	this.handle = this.handle[1:]
+	return handle, true
+}
+
+//Middleware 终止执行
+func (this *contextMiddleware) aborted() bool {
+	return !this.finish
+}
+
 type Context struct {
-	index  uint8
 	query  url.Values
 	params map[string]string
 
@@ -25,14 +49,17 @@ type Context struct {
 	Engine   *Engine
 	Request  *http.Request
 	Response *Response
+
+	middleware *contextMiddleware
 }
 
 // context returns a Context instance.
 func NewContext(e *Engine, r *http.Request, w http.ResponseWriter) *Context {
 	return &Context{
-		Engine:   e,
-		Request:  r,
-		Response: NewResponse(w, e),
+		Engine:     e,
+		Request:    r,
+		Response:   NewResponse(w, e),
+		middleware: &contextMiddleware{},
 	}
 }
 
@@ -42,13 +69,13 @@ const (
 )
 
 func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
-	c.index = 0
 	c.query = nil
 	c.params = nil
 
 	c.Path = ""
 	c.Request = r
 	c.Response.reset(w)
+	c.middleware.reset()
 }
 func (c *Context) writeContentType(value string) {
 	header := c.Response.Header()
@@ -58,45 +85,21 @@ func (c *Context) writeContentType(value string) {
 }
 
 // Next should be used only inside middleware.
-func (c *Context) Next() {
-	index := c.index
-	c.index++
-	middlewareNum := uint8(len(c.Engine.middleware))
-	if index < middlewareNum {
-		h := c.Engine.middleware[index]
-		h(c)
-	} else {
-		i := index - middlewareNum
-		if i < uint8(len(c.Engine.router.route)) {
-			c.match(i)
-		}
-	}
-
-}
-
-func (c *Context) match(i uint8) {
-	//Find Route
-	route := c.Engine.router.route[i]
-	if params, ok := route.Find(c.Request.Method, c.Path); ok {
-		if c.Engine.Debug {
-			logger.Debug("router match success:%v ==> %v", c.Path, route.path)
-		}
-		c.params = params
-		err := route.handler(c)
-		if err != nil {
-			c.Engine.HTTPErrorHandler(c, err)
-		}
-	} else {
-		if c.Engine.Debug {
-			logger.Debug("router match fail:%v ==> %v", c.Path, route.path)
-		}
-		c.Next()
+func (c *Context) next() {
+	handle, ok := c.middleware.unshift()
+	if ok {
+		handle(c, c.next)
 	}
 }
 
 func (c *Context) IsWebSocket() bool {
 	upgrade := c.Request.Header.Get(HeaderUpgrade)
 	return strings.ToLower(upgrade) == "websocket"
+}
+
+//是否已经被中断
+func (c *Context) Aborted() bool {
+	return c.middleware.aborted() || c.Response.committed
 }
 
 //设置状态码
@@ -189,7 +192,7 @@ func (c *Context) MultipartForm() (*multipart.Form, error) {
 	return c.Request.MultipartForm, err
 }
 
-func (c *Context) Cookie(name string) (*http.Cookie, error) {
+func (c *Context) GetCookie(name string) (*http.Cookie, error) {
 	return c.Request.Cookie(name)
 }
 
@@ -237,6 +240,15 @@ func (c *Context) End() error {
 	return nil
 }
 
+func (c *Context) XML(i interface{}, indent string) (err error) {
+	data, err := xml.Marshal(i)
+	if err != nil {
+		return err
+	}
+	c.Blob(MIMEApplicationXMLCharsetUTF8, data)
+	return
+}
+
 func (c *Context) HTML(html string) (err error) {
 	return c.Blob(MIMETextHTMLCharsetUTF8, []byte(html))
 }
@@ -255,7 +267,7 @@ func (c *Context) JSON(i interface{}) error {
 
 func (c *Context) JSONP(callback string, i interface{}) (err error) {
 	enc := json.NewEncoder(c.Response)
-	c.writeContentType(MIMEApplicationJavaScriptCharsetUTF8)
+	c.writeContentType(MIMEApplicationJSCharsetUTF8)
 	if _, err = c.Response.Write([]byte(callback + "(")); err != nil {
 		return
 	}
@@ -265,15 +277,6 @@ func (c *Context) JSONP(callback string, i interface{}) (err error) {
 	if _, err = c.Response.Write([]byte(");")); err != nil {
 		return
 	}
-	return
-}
-
-func (c *Context) XML(i interface{}, indent string) (err error) {
-	data, err := xml.Marshal(i)
-	if err != nil {
-		return err
-	}
-	c.Blob(MIMEApplicationXMLCharsetUTF8, data)
 	return
 }
 

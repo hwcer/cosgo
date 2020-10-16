@@ -40,7 +40,7 @@ type (
 	}
 
 	// MiddlewareFunc defines a function to process middleware.
-	MiddlewareFunc func(*Context)
+	MiddlewareFunc func(*Context, func())
 
 	// HandlerFunc defines a function to serve HTTP requests.
 	HandlerFunc func(*Context) error
@@ -271,15 +271,43 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err := recover(); err != nil {
 			e.HTTPErrorHandler(c, NewHTTPError500(err))
 		}
+		// Release Context
+		e.ReleaseContext(c)
 	}()
+
 	c.Path = r.URL.Path
+	c.middleware.reset(e.middleware...)
 	//do middleware
-	c.Next()
+	c.next()
+	var err error
+	for i := int(0); i < len(e.router.route) && !c.Aborted(); i++ {
+		route := e.router.route[i]
+		if params, ok := route.Find(c.Request.Method, c.Path); ok {
+			if c.Engine.Debug {
+				logger.Debug("router match success:%v ==> %v", c.Path, route.path)
+			}
+			c.params = params
+			if len(route.middleware) > 0 {
+				c.middleware.reset(route.middleware...)
+				c.next()
+			}
+			if !c.Aborted() {
+				err = route.handler(c)
+			} else {
+				c.middleware.reset()
+			}
+			if err != nil {
+				c.Engine.HTTPErrorHandler(c, err)
+			}
+		} else if c.Engine.Debug {
+			logger.Debug("router match fail:%v ==> %v", c.Path, route.path)
+		}
+
+	}
+
 	if !c.Response.committed {
 		e.HTTPErrorHandler(c, ErrNotFound)
 	}
-	// Release Context
-	e.ReleaseContext(c)
 }
 
 // Start starts an HTTP server.
