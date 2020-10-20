@@ -9,8 +9,6 @@ import (
 	"net/http"
 	"sync"
 	"time"
-
-	"golang.org/x/net/http2"
 )
 
 type (
@@ -35,7 +33,6 @@ type (
 		Binder           Binder
 		Validator        Validator
 		Renderer         Renderer
-		IPExtractor      IPExtractor
 		HTTPErrorHandler HTTPErrorHandler
 	}
 
@@ -103,7 +100,7 @@ func (e *Engine) Router() *Router {
 
 func (e *Engine) Proxy(path string, address ...string) *Proxy {
 	proxy := NewProxy(address...)
-	e.Add(httpMethodAny, path, proxy.handle)
+	e.Route([]string{httpMethodAny}, path, proxy.handle)
 	return proxy
 }
 
@@ -151,67 +148,61 @@ func (e *Engine) Use(middleware ...MiddlewareFunc) {
 // CONNECT registers a new CONNECT route for a path with matching handler in the
 // router with optional route-level middleware.
 func (e *Engine) CONNECT(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Add(http.MethodConnect, path, h, m...)
+	return e.Route([]string{http.MethodConnect}, path, h, m...)
 }
 
 // DELETE registers a new DELETE route for a path with matching handler in the router
 // with optional route-level middleware.
 func (e *Engine) DELETE(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Add(http.MethodDelete, path, h, m...)
+	return e.Route([]string{http.MethodDelete}, path, h, m...)
 }
 
 // GET registers a new GET route for a path with matching handler in the router
 // with optional route-level middleware.
 func (e *Engine) GET(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Add(http.MethodGet, path, h, m...)
+	return e.Route([]string{http.MethodGet}, path, h, m...)
 }
 
 // HEAD registers a new HEAD route for a path with matching handler in the
 // router with optional route-level middleware.
 func (e *Engine) HEAD(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Add(http.MethodHead, path, h, m...)
+	return e.Route([]string{http.MethodHead}, path, h, m...)
 }
 
 // OPTIONS registers a new OPTIONS route for a path with matching handler in the
 // router with optional route-level middleware.
 func (e *Engine) OPTIONS(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Add(http.MethodOptions, path, h, m...)
+	return e.Route([]string{http.MethodOptions}, path, h, m...)
 }
 
 // PATCH registers a new PATCH route for a path with matching handler in the
 // router with optional route-level middleware.
 func (e *Engine) PATCH(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Add(http.MethodPatch, path, h, m...)
+	return e.Route([]string{http.MethodPatch}, path, h, m...)
 }
 
 // POST registers a new POST route for a path with matching handler in the
 // router with optional route-level middleware.
 func (e *Engine) POST(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Add(http.MethodPost, path, h, m...)
+	return e.Route([]string{http.MethodPost}, path, h, m...)
 }
 
 // PUT registers a new PUT route for a path with matching handler in the
 // router with optional route-level middleware.
 func (e *Engine) PUT(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Add(http.MethodPut, path, h, m...)
+	return e.Route([]string{http.MethodPut}, path, h, m...)
 }
 
 // TRACE registers a new TRACE route for a path with matching handler in the
 // router with optional route-level middleware.
 func (e *Engine) TRACE(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Add(http.MethodTrace, path, h, m...)
+	return e.Route([]string{http.MethodTrace}, path, h, m...)
 }
 
 // Any registers a new route for all HTTP methods and path with matching handler
 // in the router with optional route-level middleware.
 func (e *Engine) Any(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Add(httpMethodAny, path, h, m...)
-}
-
-// matchPath registers a new route for multiple HTTP methods and path with matching
-// handler in the router with optional route-level middleware.
-func (e *Engine) Match(methods []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
-	return e.router.Match(methods, path, handler, middleware...)
+	return e.Route([]string{httpMethodAny}, path, h, m...)
 }
 
 //TODO
@@ -236,15 +227,8 @@ func (e *Engine) File(path, file string, m ...MiddlewareFunc) *Route {
 
 // SetAddress registers a new route for an HTTP method and path with matching handler
 // in the router with optional route-level middleware.
-func (e *Engine) Add(method, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
-	return e.router.Add(method, path, handler, middleware...)
-}
-
-// Group creates a new router group with prefix and optional group-level middleware.
-func (e *Engine) Group(prefix string, m ...MiddlewareFunc) (g *Group) {
-	g = &Group{prefix: prefix, Engine: e}
-	g.Use(m...)
-	return
+func (e *Engine) Route(method []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
+	return e.router.Route(method, path, handler, middleware...)
 }
 
 // AcquireContext returns an empty `Context` instance from the pool.
@@ -280,9 +264,9 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//do middleware
 	c.next()
 	var err error
-	for i := int(0); i < len(e.router.route) && !c.Aborted(); i++ {
+	for i := 0; i < len(e.router.route) && !c.Aborted(); i++ {
 		route := e.router.route[i]
-		if params, ok := route.Find(c.Request.Method, c.Path); ok {
+		if params, ok := route.Match(c.Request.Method, c.Path); ok {
 			if c.Engine.Debug {
 				logger.Debug("router match success:%v ==> %v", c.Path, route.path)
 			}
@@ -319,24 +303,6 @@ func (e *Engine) Start() (err error) {
 			return e.Server.ListenAndServe()
 		}
 	})
-	return
-}
-
-// StartH2CServer starts a custom http/2 server with h2c (HTTP/2 Cleartext).
-func (e *Engine) StartH2(h2s *http2.Server) (err error) {
-	// Setup
-	//s := e.Server
-	//s.handler = h2c.NewHandler(e, h2s)
-	//if e.Listener == nil {
-	//	e.Listener, err = newListener(s.Addr)
-	//	if err != nil {
-	//		return err
-	//	}
-	//}
-	//logger.Info("⇨ http2 server started on %s\n", e.address)
-	//err = app.TimeOut(time.Second, func() error {
-	//	return s.Serve(e.Listener)
-	//})
 	return
 }
 

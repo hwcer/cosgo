@@ -12,8 +12,8 @@ func NewHttpMod(name string) *httpMod {
 }
 
 type httpMod struct {
-	name    string
-	express *express.Engine
+	app  *express.Engine
+	name string
 }
 
 func (this *httpMod) ID() string {
@@ -21,25 +21,25 @@ func (this *httpMod) ID() string {
 }
 
 func (this *httpMod) Load() error {
-	this.express = express.New("")
-	this.express.Use(middleware1, middleware2)
+	this.app = express.New("")
+	//this.app.Use(middleware1, middleware2)
 
-	this.express.Debug = true
-	this.express.Any("/s/*", hello, middleware3)
-	this.express.Any("/s/*", hello, middleware3)
+	this.app.Debug = true
+	this.app.GET("/favicon.ioc", favicon)
+	this.app.Any("/s/:api/*", hello)
 	//代理
-	//this.express.Proxy("*", "http://redis.cn/")
+	//this.app.Proxy("*", "http://redis.cn/")
 	return nil
 }
 
 func (this *httpMod) Start(wgp *sync.WaitGroup) (err error) {
 	wgp.Add(1)
-	this.express.Start()
+	this.app.Start()
 	return
 }
 
 func (this *httpMod) Close(wgp *sync.WaitGroup) error {
-	this.express.Close()
+	this.app.Close()
 	wgp.Done()
 	return nil
 }
@@ -50,6 +50,9 @@ func hello(c *express.Context) error {
 	return c.String(fmt.Sprintf("Hello, World 1!  %v\n", c.Params()))
 }
 
+func favicon(c *express.Context) error {
+	return c.Status(404).End()
+}
 func middleware1(c *express.Context, next func()) {
 	logger.Debug("middleware1")
 	next()

@@ -188,7 +188,7 @@ func (f *fileLogger) lines() (int, error) {
 // new file name like  xx.2013-01-01.001.log
 func (f *fileLogger) createFreshFile(logTime time.Time) error {
 	// file exists
-	// Find the next available number
+	// Match the next available number
 	num := 1
 	fName := ""
 	rotatePerm, err := strconv.ParseInt(f.PermitMask, 8, 64)

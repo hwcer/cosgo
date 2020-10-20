@@ -7,7 +7,14 @@ import (
 	"io/ioutil"
 	"reflect"
 	"runtime"
+	"unicode"
+	"unicode/utf8"
 )
+
+func isExported(name string) bool {
+	rune, _ := utf8.DecodeRuneInString(name)
+	return unicode.IsUpper(rune)
+}
 
 func handlerName(h HandlerFunc) string {
 	t := reflect.ValueOf(h).Type()

@@ -131,9 +131,6 @@ func (c *Context) Protocol() string {
 }
 
 func (c *Context) RemoteAddr() string {
-	if c.Engine != nil && c.Engine.IPExtractor != nil {
-		return c.Engine.IPExtractor(c.Request)
-	}
 	// Fall back to legacy behavior
 	if ip := c.Request.Header.Get(HeaderXForwardedFor); ip != "" {
 		return strings.Split(ip, ", ")[0]
