@@ -1,81 +1,129 @@
 package express
 
 import (
-	"fmt"
+	"cosgo/logger"
 	"reflect"
+)
+
+const (
+	nameSpacePathName   = "_nsp_path"
+	nameSpaceMethodName = "_nsp_method"
 )
 
 var typeOfContext = reflect.TypeOf(&Context{})
 
 //NameSpace  namsespace代表了一个虚拟目录，目录下有很多method
-//可以使用 /path/$NameSpace/$method 的格式访问
+//可以使用 /path/$NameSpace/$value 的格式访问
 type NameSpace struct {
 	name  string
-	nodes map[string]*NameSpaceMethod
+	nodes map[string]*NameSpaceNode
 }
 
-type NameSpaceMethod struct {
+type NameSpaceNode struct {
 	proto  reflect.Value
-	value  reflect.Value
-	method map[string]func(*Context) error
+	value  map[string]reflect.Value
+	method NameSpaceHandler
+}
+type NameSpaceHandler map[string]HandlerFunc
+
+func NewNameSpace() *NameSpace {
+	return &NameSpace{
+		nodes: make(map[string]*NameSpaceNode),
+	}
 }
 
-func NewNameSpace(name string) *NameSpace {
-	return &NameSpace{
-		name:  name,
-		nodes: make(map[string]*NameSpaceMethod),
+func NewNameSpaceNode(handle interface{}) *NameSpaceNode {
+	return &NameSpaceNode{
+		proto:  reflect.ValueOf(handle),
+		value:  make(map[string]reflect.Value),
+		method: make(NameSpaceHandler),
+	}
+}
+
+//Handle 路由入口
+func (this *NameSpace) handler(c *Context) error {
+	path := c.Param(nameSpacePathName)
+	name := c.Param(nameSpaceMethodName)
+	nsp := this.nodes[path]
+	if nsp == nil {
+		return nil
+	}
+	//原始方法
+	if f, ok := nsp.method[name]; ok {
+		return f(c)
+	}
+	//反射方法
+	name = strFirstToUpper(name)
+	var ok bool
+	var method reflect.Value
+	if method, ok = nsp.value[name]; !ok {
+		return nil
+	}
+	ret := method.Call([]reflect.Value{nsp.proto, reflect.ValueOf(c)})
+	if ret[0].IsNil() {
+		return nil
+	} else {
+		return ret[0].Interface().(error)
 	}
 }
 
 //Register 注册一组handle，重名忽略
 func (this *NameSpace) Register(handle interface{}) {
-	typ := reflect.TypeOf(handle)
-	name := typ.Elem().Name()
-	proto := reflect.ValueOf(handle)
-	node := this.nodes[name]
-	if node == nil {
-		node = &NameSpaceMethod{
-			proto:  reflect.ValueOf(handle),
-			method: make(map[string]func(*Context) error),
-		}
-		this.nodes[name] = node
+	handleType := reflect.TypeOf(handle)
+	if handleType.Kind() != reflect.Ptr {
+		logger.Error("NameSpace Register error:handle not pointer")
+		return
 	}
+	name := handleType.Elem().Name()
+	if _, ok := this.nodes[name]; ok {
+		logger.Error("NameSpace Register error:%v exist", name)
+	}
+	node := NewNameSpaceNode(handle)
+
+	this.nodes[name] = node
 	//fmt.Printf("Register:%v\n",NameSpace.name)
-	for m := 0; m < typ.NumMethod(); m++ {
-		method := typ.Method(m)
-		mtype := method.Type
-		mname := method.Name
-		//fmt.Println("打印Method", mname, mtype)
-		// method must be exported.
+	for m := 0; m < handleType.NumMethod(); m++ {
+		method := handleType.Method(m)
+		methodType := method.Type
+		methodName := method.Name
+		//fmt.Println("打印Method", methodName, methodType)
+		// value must be exported.
 		if method.PkgPath != "" {
-			fmt.Printf("Register method PkgPath Not End,method:%v.%v(),PkgPath:%v\n", name, mname, method.PkgPath)
+			logger.Debug("Register value PkgPath Not End,value:%v.%v(),PkgPath:%v", name, methodName, method.PkgPath)
 			continue
 		}
-		if !isExported(mname) {
-			fmt.Printf("Register method Can't Exported,method:%v.%v()\n", name, mname)
+		if !isExported(methodName) {
+			logger.Debug("Register value Can't Exported,value:%v.%v()", name, methodName)
 			continue
 		}
-		// method needs four ins: receiver, context.Context, *args, *reply.
-		if mtype.NumIn() != 2 || mtype.NumOut() != 1 {
-			fmt.Printf("Register method args num or return num error,method:%v.%v()\n", name, mname)
+		// value needs four ins: receiver, context.Context, *args, *reply.
+		if methodType.NumIn() != 2 || methodType.NumOut() != 1 {
+			logger.Debug("Register value args num or return num error,value:%v.%v()", name, methodName)
 			continue
 		}
 		// First arg must be context.Context
-		//ctxType := mtype.In(1)
-		//if !ctxType.ConvertibleTo(typeOfContext) {
-		//	fmt.Printf("Register method args error,method:%v.%v()\n",NameSpace.name,mname)
-		//	continue
-		//}
+		ctxType := methodType.In(1)
+		if !ctxType.ConvertibleTo(typeOfContext) {
+			logger.Debug("Register value args error,value:%v.%v()", name, methodName)
+			continue
+		}
 		////
-		//outType := mtype.Out(0)
+		//outType := methodType.Out(0)
 		//if !outType.ConvertibleTo(typeOfMessage) {
-		//	fmt.Printf("Register method return error,method:%v.%v()\n",NameSpace.name,mname)
+		//	logger.Debug("Register value return error,value:%v.%v()\n", name, methodName)
 		//	continue
 		//}
 
-		//service.method[mname] = method.Func.Interface().(handlerMethod)
-		//fmt.Printf("Register method；%v\n",mname)
-		node.method[mname] = method.Func
+		node.value[methodName] = method.Func
 
+	}
+	//MAP MOTHOD
+	if handleType.Elem().Kind() == reflect.Map {
+		h, ok := handle.(NameSpaceHandler)
+		if ok {
+			for k, f := range h {
+				node.method[k] = f
+			}
+		}
 	}
 }

@@ -13,7 +13,7 @@ import (
 )
 
 type (
-	// Binder is the interface that wraps the Bind method.
+	// Binder is the interface that wraps the Bind value.
 	Binder interface {
 		Bind(i interface{}, c *Context) error
 	}
@@ -21,7 +21,7 @@ type (
 	// DefaultBinder is the default implementation of the Binder interface.
 	DefaultBinder struct{}
 
-	// BindUnmarshaler is the interface used to wrap the UnmarshalParam method.
+	// BindUnmarshaler is the interface used to wrap the UnmarshalParam value.
 	// Types that don't implement this, but do implement encoding.TextUnmarshaler
 	// will use that interface instead.
 	BindUnmarshaler interface {

@@ -60,11 +60,11 @@ type (
 )
 
 const (
-	httpMethodAny = "Any"
-	// REPORT method can be used to get information about a resource, see rfc 3253
-	httpMethodREPORT = "REPORT"
-	// PROPFIND method can be used on collection and property resources.
-	httpMethodPROPFIND = "PROPFIND"
+	HttpMethodAny = "Any"
+	// REPORT value can be used to get information about a resource, see rfc 3253
+	HttpMethodREPORT = "REPORT"
+	// PROPFIND value can be used on collection and property resources.
+	HttpMethodPROPFIND = "PROPFIND"
 )
 
 // Error handlers
@@ -100,7 +100,7 @@ func (e *Engine) Router() *Router {
 
 func (e *Engine) Proxy(path string, address ...string) *Proxy {
 	proxy := NewProxy(address...)
-	e.Route([]string{httpMethodAny}, path, proxy.handle)
+	e.Route([]string{HttpMethodAny}, path, proxy.handle)
 	return proxy
 }
 
@@ -202,7 +202,7 @@ func (e *Engine) TRACE(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 // Any registers a new route for all HTTP methods and path with matching handler
 // in the router with optional route-level middleware.
 func (e *Engine) Any(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Route([]string{httpMethodAny}, path, h, m...)
+	return e.Route([]string{HttpMethodAny}, path, h, m...)
 }
 
 //TODO
@@ -225,10 +225,16 @@ func (e *Engine) File(path, file string, m ...MiddlewareFunc) *Route {
 	return e.file(path, file, e.GET, m...)
 }
 
-// SetAddress registers a new route for an HTTP method and path with matching handler
+// SetAddress registers a new route for an HTTP value and path with matching handler
 // in the router with optional route-level middleware.
 func (e *Engine) Route(method []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
 	return e.router.Route(method, path, handler, middleware...)
+}
+
+// SetAddress registers a new route for an HTTP value and path with matching handler
+// in the router with optional route-level middleware.
+func (e *Engine) Register(method []string, path string, i interface{}, middleware ...MiddlewareFunc) (*Route, *NameSpace) {
+	return e.router.Register(method, path, i, middleware...)
 }
 
 // AcquireContext returns an empty `Context` instance from the pool.

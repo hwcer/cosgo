@@ -20,6 +20,12 @@ func (this *httpMod) ID() string {
 	return this.name
 }
 
+type myapi express.NameSpaceHandler
+
+func (this *myapi) Xyz(c *express.Context) error {
+	return nil
+}
+
 func (this *httpMod) Load() error {
 	this.app = express.New("")
 	//this.app.Use(middleware1, middleware2)
@@ -27,6 +33,14 @@ func (this *httpMod) Load() error {
 	this.app.Debug = true
 	this.app.GET("/favicon.ioc", favicon)
 	this.app.Any("/s/:api/*", hello)
+	this.app.Register([]string{express.HttpMethodAny}, "/nsp/", &remote{})
+
+	mapapi := myapi{}
+	mapapi["abc"] = func(c *express.Context) error {
+		return nil
+	}
+
+	this.app.Register([]string{express.HttpMethodAny}, "/int/", &mapapi)
 	//代理
 	//this.app.Proxy("*", "http://redis.cn/")
 	return nil

@@ -23,7 +23,7 @@ const (
 	HeaderXForwardedProtocol  = "X-Forwarded-Protocol"
 	HeaderXForwardedSsl       = "X-Forwarded-Ssl"
 	HeaderXUrlScheme          = "X-Url-Protocol"
-	HeaderXHTTPMethodOverride = "X-HTTP-method-Override"
+	HeaderXHTTPMethodOverride = "X-HTTP-value-Override"
 	HeaderXRealIP             = "X-Real-IP"
 	HeaderXRequestID          = "X-Request-ID"
 	HeaderXRequestedWith      = "X-Requested-With"
@@ -31,7 +31,7 @@ const (
 	HeaderOrigin              = "Origin"
 
 	// Access control
-	HeaderAccessControlRequestMethod    = "Access-Control-Request-method"
+	HeaderAccessControlRequestMethod    = "Access-Control-Request-value"
 	HeaderAccessControlRequestHeaders   = "Access-Control-Request-Headers"
 	HeaderAccessControlAllowOrigin      = "Access-Control-Allow-Origin"
 	HeaderAccessControlAllowMethods     = "Access-Control-Allow-Methods"

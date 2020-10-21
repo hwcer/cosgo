@@ -15,7 +15,14 @@ func isExported(name string) bool {
 	rune, _ := utf8.DecodeRuneInString(name)
 	return unicode.IsUpper(rune)
 }
-
+func strFirstToUpper(str string) string {
+	if len(str) < 1 {
+		return ""
+	}
+	strArray := []rune(str)
+	strArray[0] = unicode.ToUpper(strArray[0])
+	return string(strArray)
+}
 func handlerName(h HandlerFunc) string {
 	t := reflect.ValueOf(h).Type()
 	if t.Kind() == reflect.Func {

@@ -50,7 +50,7 @@ func NewRouter(e *Engine) *Router {
 
 func (r RouteMethod) IndexOf(s string) bool {
 	for _, m := range r {
-		if m == s || m == httpMethodAny {
+		if m == s || m == HttpMethodAny {
 			return true
 		}
 	}
@@ -167,7 +167,7 @@ func (r *Route) Format() {
 
 }
 
-// SetAddress registers a new route for method and path with matching handler.
+// SetAddress registers a new route for value and path with matching handler.
 func (r *Router) Route(method []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
@@ -177,12 +177,12 @@ func (r *Router) Route(method []string, path string, handler HandlerFunc, middle
 	return route
 }
 
-//通过一个对象注册，
-//func (r *Router) Register(method []string, path string, i interface{}, middleware ...MiddlewareFunc) *Route {
-//	if !strings.HasPrefix(path, "/") {
-//		path = "/" + path
-//	}
-//	route := NewRoute(path, method, handler, middleware...)
-//	r.route = append(r.route, route)
-//	return route
-//}
+//通过一个对象注册，导入对象中的所有方法
+func (r *Router) Register(method []string, path string, i interface{}, middleware ...MiddlewareFunc) (*Route, *NameSpace) {
+	arr := []string{strings.TrimSuffix(path, "/"), ":" + nameSpacePathName, ":" + nameSpaceMethodName}
+	nsp := NewNameSpace()
+	nsp.Register(i)
+	route := NewRoute(strings.Join(arr, "/"), method, nsp.handler, middleware...)
+	r.route = append(r.route, route)
+	return route, nsp
+}
