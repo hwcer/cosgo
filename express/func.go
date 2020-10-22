@@ -70,3 +70,23 @@ func filepathOrContent(fileOrContent interface{}) (content []byte, err error) {
 		return nil, ErrInvalidCertOrKeyType
 	}
 }
+
+//通过文件或者证书内容获取TLSConfig
+func TLSConfigParse(certFile, keyFile interface{}) (TLSConfig *tls.Config, err error) {
+	var cert []byte
+	if cert, err = filepathOrContent(certFile); err != nil {
+		return
+	}
+
+	var key []byte
+	if key, err = filepathOrContent(keyFile); err != nil {
+		return
+	}
+
+	TLSConfig = new(tls.Config)
+	TLSConfig.Certificates = make([]tls.Certificate, 1)
+	if TLSConfig.Certificates[0], err = tls.X509KeyPair(cert, key); err != nil {
+		return
+	}
+	return
+}

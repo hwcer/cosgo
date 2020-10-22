@@ -1,7 +1,6 @@
 package express
 
 import (
-	"strconv"
 	"strings"
 )
 
@@ -68,20 +67,24 @@ func (r *Route) Path() string {
 }
 
 //匹配路由
-func (r *Route) Match(method string, path string) (param map[string]string, ok bool) {
-	param = make(map[string]string)
+func (r *Route) match(c *Context) (ok bool) {
+	path := c.Path
+	method := c.Request.Method
+	c.params = make(map[string]string)
+	c.values = make([]string, 0)
+
 	if !r.method.IndexOf(method) {
-		return nil, false
+		return false
 	}
 	r.Format()
 	if !strings.HasPrefix(path, r.prefix) {
-		return nil, false
+		return false
 	}
 	//静态路由
 	if r.staticMatch {
 		if r.suffixMatch && len(path) > len(r.prefix) {
 			ok = true
-			param["0"] = strings.TrimPrefix(path, r.prefix)
+			c.values = append(c.values, strings.TrimPrefix(path, r.prefix))
 		} else if !r.suffixMatch && path == r.prefix {
 			ok = true
 		}
@@ -93,33 +96,31 @@ func (r *Route) Match(method string, path string) (param map[string]string, ok b
 	var suffix string
 	if r.suffixMatch {
 		if len(arrPath) <= len(r.matching) {
-			return nil, false
+			return false
 		}
 		suffix = strings.Join(arrPath[len(r.matching):], "/")
 		if suffix == "" {
-			return nil, false
+			return false
 		}
 		arrPath = arrPath[0:len(r.matching)]
 	} else if len(arrPath) != len(r.matching) {
-		return nil, false
+		return false
 	}
 
-	var k int
 	for i := 0; i < len(r.matching); i++ {
 		if r.matching[i] == "*" {
-			param[strconv.Itoa(k)] = arrPath[i]
-			k++
+			c.values = append(c.values, arrPath[i])
 		} else if strings.HasPrefix(r.matching[i], ":") {
 			k := strings.TrimPrefix(r.matching[i], ":")
-			param[k] = arrPath[i]
+			c.params[k] = arrPath[i]
 		} else if r.matching[i] != arrPath[i] {
-			return nil, false
+			return false
 		}
 	}
 	if r.suffixMatch {
-		param[strconv.Itoa(k)] = suffix
+		c.values = append(c.values, suffix)
 	}
-	return param, true
+	return true
 }
 
 //追加Method并返回更新后的Method
@@ -175,14 +176,4 @@ func (r *Router) Route(method []string, path string, handler HandlerFunc, middle
 	route := NewRoute(path, method, handler, middleware...)
 	r.route = append(r.route, route)
 	return route
-}
-
-//通过一个对象注册，导入对象中的所有方法
-func (r *Router) Register(method []string, path string, i interface{}, middleware ...MiddlewareFunc) (*Route, *NameSpace) {
-	arr := []string{strings.TrimSuffix(path, "/"), ":" + nameSpacePathName, ":" + nameSpaceMethodName}
-	nsp := NewNameSpace()
-	nsp.Register(i)
-	route := NewRoute(strings.Join(arr, "/"), method, nsp.handler, middleware...)
-	r.route = append(r.route, route)
-	return route, nsp
 }

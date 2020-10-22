@@ -6,44 +6,43 @@ import (
 )
 
 const (
-	nameSpacePathName   = "_nsp_path"
-	nameSpaceMethodName = "_nsp_method"
+	iGroupRoutePath = "_GROUP_PATH"
+	iGroupRouteName = "_GROUP_NAME"
 )
 
 var typeOfContext = reflect.TypeOf(&Context{})
 
-//NameSpace  namsespace代表了一个虚拟目录，目录下有很多method
-//可以使用 /path/$NameSpace/$value 的格式访问
-type NameSpace struct {
-	name  string
-	nodes map[string]*NameSpaceNode
+//Group  namsespace代表了一个虚拟目录，目录下有很多method
+//可以使用 /path/$Group/$value 的格式访问
+type Group struct {
+	nodes map[string]*GroupNode
 }
 
-type NameSpaceNode struct {
+type GroupNode struct {
 	proto  reflect.Value
 	value  map[string]reflect.Value
-	method NameSpaceHandler
+	method GroupHandler
 }
-type NameSpaceHandler map[string]HandlerFunc
+type GroupHandler map[string]HandlerFunc
 
-func NewNameSpace() *NameSpace {
-	return &NameSpace{
-		nodes: make(map[string]*NameSpaceNode),
+func NewGroup() *Group {
+	return &Group{
+		nodes: make(map[string]*GroupNode),
 	}
 }
 
-func NewNameSpaceNode(handle interface{}) *NameSpaceNode {
-	return &NameSpaceNode{
+func NewGroupNode(handle interface{}) *GroupNode {
+	return &GroupNode{
 		proto:  reflect.ValueOf(handle),
 		value:  make(map[string]reflect.Value),
-		method: make(NameSpaceHandler),
+		method: make(GroupHandler),
 	}
 }
 
 //Handle 路由入口
-func (this *NameSpace) handler(c *Context) error {
-	path := c.Param(nameSpacePathName)
-	name := c.Param(nameSpaceMethodName)
+func (this *Group) handler(c *Context) error {
+	path := c.Param(iGroupRoutePath)
+	name := c.Param(iGroupRouteName)
 	nsp := this.nodes[path]
 	if nsp == nil {
 		return nil
@@ -68,20 +67,20 @@ func (this *NameSpace) handler(c *Context) error {
 }
 
 //Register 注册一组handle，重名忽略
-func (this *NameSpace) Register(handle interface{}) {
+func (this *Group) Register(handle interface{}) {
 	handleType := reflect.TypeOf(handle)
 	if handleType.Kind() != reflect.Ptr {
-		logger.Error("NameSpace Register error:handle not pointer")
+		logger.Error("Group Register error:handle not pointer")
 		return
 	}
 	name := handleType.Elem().Name()
 	if _, ok := this.nodes[name]; ok {
-		logger.Error("NameSpace Register error:%v exist", name)
+		logger.Error("Group Register error:%v exist", name)
 	}
-	node := NewNameSpaceNode(handle)
+	node := NewGroupNode(handle)
 
 	this.nodes[name] = node
-	//fmt.Printf("Register:%v\n",NameSpace.name)
+	//fmt.Printf("Register:%v\n",Group.name)
 	for m := 0; m < handleType.NumMethod(); m++ {
 		method := handleType.Method(m)
 		methodType := method.Type
@@ -119,7 +118,7 @@ func (this *NameSpace) Register(handle interface{}) {
 	}
 	//MAP MOTHOD
 	if handleType.Elem().Kind() == reflect.Map {
-		h, ok := handle.(NameSpaceHandler)
+		h, ok := handle.(GroupHandler)
 		if ok {
 			for k, f := range h {
 				node.method[k] = f

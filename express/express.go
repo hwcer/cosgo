@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -14,7 +15,6 @@ import (
 type (
 	// Engine is the top-level framework instance.
 	Engine struct {
-		common
 		//notFoundHandler HandlerFunc
 		pool sync.Pool
 
@@ -205,36 +205,37 @@ func (e *Engine) Any(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Route([]string{HttpMethodAny}, path, h, m...)
 }
 
-//TODO
-func (e *Engine) RESTful(prefix string, service RESTful) []*Route {
-	routes := make([]*Route, len(RESTfulMethods))
-	return routes
-}
-
-// Static registers a new route with path prefix to serve static files from the
-// provided root directory.
-func (e *Engine) Static(prefix, root string) *Route {
-	if root == "" {
-		root = "." // For security we want to restrict to CWD.
-	}
-	return e.static(prefix, root, e.GET)
-}
-
-// File registers a new route with path to serve a static file with optional route-level middleware.
-func (e *Engine) File(path, file string, m ...MiddlewareFunc) *Route {
-	return e.file(path, file, e.GET, m...)
-}
-
 // SetAddress registers a new route for an HTTP value and path with matching handler
 // in the router with optional route-level middleware.
 func (e *Engine) Route(method []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
 	return e.router.Route(method, path, handler, middleware...)
 }
+func (e *Engine) Group(method []string, prefix string, i interface{}, middleware ...MiddlewareFunc) (*Route, *Group) {
+	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + iGroupRoutePath, ":" + iGroupRouteName}
+	nsp := NewGroup()
+	nsp.Register(i)
+	route := e.router.Route(method, strings.Join(arr, "/"), nsp.handler, middleware...)
+	return route, nsp
+}
 
-// SetAddress registers a new route for an HTTP value and path with matching handler
-// in the router with optional route-level middleware.
-func (e *Engine) Register(method []string, path string, i interface{}, middleware ...MiddlewareFunc) (*Route, *NameSpace) {
-	return e.router.Register(method, path, i, middleware...)
+func (e *Engine) RESTful(prefix string, handle iRESTful, middleware ...MiddlewareFunc) (*Route, *RESTful) {
+	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + iRESTfulRoutePath}
+	rest := NewRESTful()
+	rest.Register(handle)
+	method := append([]string{}, RESTfulMethods...)
+	route := e.router.Route(method, strings.Join(arr, "/"), rest.handler, middleware...)
+	return route, rest
+}
+
+// Static registers a new route with path prefix to serve static files from the
+// provided root directory.
+// 如果root 不是绝对路径 将以程序的WorkDir为基础
+func (e *Engine) Static(prefix, root string, middleware ...MiddlewareFunc) (*Route, *Static) {
+	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + iStaticRoutePath}
+	static := NewStatic(root)
+	method := append([]string{}, HttpMethodAny)
+	route := e.router.Route(method, strings.Join(arr, "/"), static.handler, middleware...)
+	return route, static
 }
 
 // AcquireContext returns an empty `Context` instance from the pool.
@@ -272,11 +273,10 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var err error
 	for i := 0; i < len(e.router.route) && !c.Aborted(); i++ {
 		route := e.router.route[i]
-		if params, ok := route.Match(c.Request.Method, c.Path); ok {
+		if route.match(c) {
 			if c.Engine.Debug {
 				logger.Debug("router match success:%v ==> %v", c.Path, route.path)
 			}
-			c.params = params
 			if len(route.middleware) > 0 {
 				c.middleware.reset(route.middleware...)
 				c.next()

@@ -44,6 +44,7 @@ func (this *contextMiddleware) aborted() bool {
 type Context struct {
 	query  url.Values
 	params map[string]string
+	values []string //路由通过通配符"*"匹配到的值
 
 	Path     string
 	Engine   *Engine
@@ -210,7 +211,7 @@ func (c *Context) Cookies() []*http.Cookie {
 //}
 
 func (c *Context) Bind(i interface{}) error {
-	return c.Engine.Binder.Bind(i, c)
+	return c.Engine.Binder.Bind(c, i)
 }
 
 func (c *Context) Validate(i interface{}) error {
@@ -308,6 +309,7 @@ func (c *Context) File(file string) (err error) {
 			return
 		}
 	}
+	http.FileServer()
 	http.ServeContent(c.Response, c.Request, fi.Name(), fi.ModTime(), f)
 	return
 }
