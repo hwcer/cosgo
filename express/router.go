@@ -82,7 +82,7 @@ func (r *Route) match(c *Context) (ok bool) {
 	}
 	//静态路由
 	if r.staticMatch {
-		if r.suffixMatch && len(path) > len(r.prefix) {
+		if r.suffixMatch && len(path) >= len(r.prefix) {
 			ok = true
 			c.values = append(c.values, strings.TrimPrefix(path, r.prefix))
 		} else if !r.suffixMatch && path == r.prefix {
@@ -95,13 +95,10 @@ func (r *Route) match(c *Context) (ok bool) {
 	//通配符尾缀
 	var suffix string
 	if r.suffixMatch {
-		if len(arrPath) <= len(r.matching) {
+		if len(arrPath) < len(r.matching) {
 			return false
 		}
 		suffix = strings.Join(arrPath[len(r.matching):], "/")
-		if suffix == "" {
-			return false
-		}
 		arrPath = arrPath[0:len(r.matching)]
 	} else if len(arrPath) != len(r.matching) {
 		return false
@@ -168,7 +165,7 @@ func (r *Route) Format() {
 
 }
 
-// SetAddress registers a new route for value and path with matching handler.
+// AddTarget registers a new route for value and path with matching handler.
 func (r *Router) Route(method []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path

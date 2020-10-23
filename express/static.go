@@ -16,7 +16,7 @@ type Static struct {
 
 func NewStatic(root string) *Static {
 	if !path.IsAbs(root) {
-		root = path.Join(app.Flag.GetString("appWorkDir"), root)
+		root = filepath.Join(app.Flag.GetString("appWorkDir"), root)
 	}
 	return &Static{root: root}
 }
@@ -26,7 +26,7 @@ func (this *Static) handler(c *Context) error {
 		return nil
 	}
 	name := c.values[len(c.values)-1]
-	file := filepath.Join(this.root, path.Clean("/"+name))
+	file := filepath.Join(this.root, name)
 	if !strings.HasPrefix(file, this.root) {
 		return nil
 	}

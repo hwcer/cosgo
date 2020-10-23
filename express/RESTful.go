@@ -43,7 +43,7 @@ func (this *RESTful) handler(c *Context) error {
 		return nil
 	}
 
-	switch c.Protocol() {
+	switch c.Request.Method {
 	case http.MethodGet:
 		return handle.GET(c)
 	case http.MethodPost:
@@ -64,7 +64,7 @@ func (this *RESTful) Register(handle iRESTful) {
 		logger.Error("RESTful Register error:handle not pointer")
 		return
 	}
-	name := handleType.Elem().Name()
+	name := strFirstToLower(handleType.Elem().Name())
 	if _, ok := this.nodes[name]; ok {
 		logger.Error("RESTful Register error:%v exist", name)
 	}

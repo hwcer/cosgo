@@ -52,7 +52,6 @@ func (this *Group) handler(c *Context) error {
 		return f(c)
 	}
 	//反射方法
-	name = strFirstToUpper(name)
 	var ok bool
 	var method reflect.Value
 	if method, ok = nsp.value[name]; !ok {
@@ -73,7 +72,7 @@ func (this *Group) Register(handle interface{}) {
 		logger.Error("Group Register error:handle not pointer")
 		return
 	}
-	name := handleType.Elem().Name()
+	name := strFirstToLower(handleType.Elem().Name())
 	if _, ok := this.nodes[name]; ok {
 		logger.Error("Group Register error:%v exist", name)
 	}
@@ -113,7 +112,7 @@ func (this *Group) Register(handle interface{}) {
 		//	continue
 		//}
 
-		node.value[methodName] = method.Func
+		node.value[strFirstToLower(methodName)] = method.Func
 
 	}
 	//MAP MOTHOD

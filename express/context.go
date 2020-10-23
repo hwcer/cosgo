@@ -309,7 +309,6 @@ func (c *Context) File(file string) (err error) {
 			return
 		}
 	}
-	http.FileServer()
 	http.ServeContent(c.Response, c.Request, fi.Name(), fi.ModTime(), f)
 	return
 }

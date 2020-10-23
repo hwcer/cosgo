@@ -23,6 +23,16 @@ func strFirstToUpper(str string) string {
 	strArray[0] = unicode.ToUpper(strArray[0])
 	return string(strArray)
 }
+
+func strFirstToLower(str string) string {
+	if len(str) < 1 {
+		return ""
+	}
+	strArray := []rune(str)
+	strArray[0] = unicode.ToLower(strArray[0])
+	return string(strArray)
+}
+
 func handlerName(h HandlerFunc) string {
 	t := reflect.ValueOf(h).Type()
 	if t.Kind() == reflect.Func {

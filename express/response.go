@@ -64,11 +64,9 @@ func (r *Response) Status(code int) {
 
 // Write writes the data to the connection as part of an HTTP reply.
 func (r *Response) Write(b []byte) (n int, err error) {
-	if r.committed {
-		logger.Error("Write data but Response already committed")
-		return
+	if !r.committed {
+		r.WriteHeader(r.httpStatusCode)
 	}
-	r.WriteHeader(r.httpStatusCode)
 	n, err = r.Writer.Write(b)
 	r.contentSize += int64(n)
 	return

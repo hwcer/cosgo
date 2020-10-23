@@ -98,12 +98,6 @@ func (e *Engine) Router() *Router {
 	return e.router
 }
 
-func (e *Engine) Proxy(path string, address ...string) *Proxy {
-	proxy := NewProxy(address...)
-	e.Route([]string{HttpMethodAny}, path, proxy.handle)
-	return proxy
-}
-
 // DefaultHTTPErrorHandler is the default HTTP error handler. It sends a JSON Response
 // with status code.
 func (e *Engine) DefaultHTTPErrorHandler(c *Context, err error) {
@@ -205,17 +199,26 @@ func (e *Engine) Any(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Route([]string{HttpMethodAny}, path, h, m...)
 }
 
-// SetAddress registers a new route for an HTTP value and path with matching handler
+// AddTarget registers a new route for an HTTP value and path with matching handler
 // in the router with optional route-level middleware.
 func (e *Engine) Route(method []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
 	return e.router.Route(method, path, handler, middleware...)
 }
+
 func (e *Engine) Group(method []string, prefix string, i interface{}, middleware ...MiddlewareFunc) (*Route, *Group) {
 	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + iGroupRoutePath, ":" + iGroupRouteName}
 	nsp := NewGroup()
 	nsp.Register(i)
 	route := e.router.Route(method, strings.Join(arr, "/"), nsp.handler, middleware...)
 	return route, nsp
+}
+
+//代理服务器
+func (e *Engine) Proxy(prefix, address string, middleware ...MiddlewareFunc) (*Route, *Proxy) {
+	arr := []string{strings.TrimSuffix(prefix, "/"), iProxyRoutePath}
+	proxy := NewProxy(address)
+	route := e.router.Route([]string{HttpMethodAny}, strings.Join(arr, "/"), proxy.handle, middleware...)
+	return route, proxy
 }
 
 func (e *Engine) RESTful(prefix string, handle iRESTful, middleware ...MiddlewareFunc) (*Route, *RESTful) {
@@ -231,7 +234,7 @@ func (e *Engine) RESTful(prefix string, handle iRESTful, middleware ...Middlewar
 // provided root directory.
 // 如果root 不是绝对路径 将以程序的WorkDir为基础
 func (e *Engine) Static(prefix, root string, middleware ...MiddlewareFunc) (*Route, *Static) {
-	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + iStaticRoutePath}
+	arr := []string{strings.TrimSuffix(prefix, "/"), iStaticRoutePath}
 	static := NewStatic(root)
 	method := append([]string{}, HttpMethodAny)
 	route := e.router.Route(method, strings.Join(arr, "/"), static.handler, middleware...)

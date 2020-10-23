@@ -6,35 +6,46 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
 //反向代理服务器
 
+const iProxyRoutePath = "*"
+
 func NewProxy(address ...string) *Proxy {
 	proxy := &Proxy{}
 	for _, addr := range address {
-		proxy.SetAddress(addr)
+		proxy.AddTarget(addr)
 	}
-	proxy.GetPath = defaultProxyGetPath
-	proxy.GetAddress = defaultProxyGetAddress
+	proxy.GetTarget = defaultProxyGetTarget
 	return proxy
 }
 
 type Proxy struct {
-	address    []string
-	GetPath    func(*Context) string           //获取客户端请求PATH,需要路径重写时使用
-	GetAddress func(*Context, []string) string //获取目标服务器地址,适用于负载均衡
+	target    []*url.URL
+	GetTarget func(*Context, []*url.URL) url.URL //获取目标服务器地址,适用于负载均衡
 }
 
 func (this *Proxy) handle(c *Context) error {
-	url := this.GetAddress(c, this.address)
-	if url == "" {
-		return errors.New("Proxy Address empty")
+	target := this.GetTarget(c, this.target)
+	if &target == nil {
+		return errors.New("Proxy AddTarget empty")
 	}
-	path := this.GetPath(c)
+	path := c.values[len(c.values)-1]
+	if !strings.HasSuffix(path, "/") {
+		path = "/" + path
+	}
 
-	address := url + path
+	target.Path = path
+	target.RawQuery = c.Request.URL.RawQuery
+	target.Fragment = c.Request.URL.Fragment
+	if c.Request.URL.User != nil {
+		target.User = c.Request.URL.User
+	}
+
+	address := target.String()
 
 	req, err := http.NewRequest(c.Request.Method, address, c.Request.Body)
 	if err != nil {
@@ -71,15 +82,17 @@ func (this *Proxy) handle(c *Context) error {
 }
 
 //添加代理服务器地址
-func (this *Proxy) SetAddress(url string) {
-	if strings.HasPrefix(url, "/") {
-		url = strings.TrimSuffix(url, "/")
+func (this *Proxy) AddTarget(addr string) error {
+	u, err := url.Parse(addr)
+	if err != nil {
+		return err
 	}
-	this.address = append(this.address, url)
+	this.target = append(this.target, u)
+	return nil
 }
 
 //func (this *Proxy) NewMultipleHostsReverseProxy() *httputil.ReverseProxy {
-//	//return httputil.NewSingleHostReverseProxy(this.address[0])
+//	//return httputil.NewSingleHostReverseProxy(this.target[0])
 //	if this.reverseProxy == nil {
 //		this.reverseProxy = &httputil.ReverseProxy{Director: this.director}
 //	}
@@ -87,7 +100,7 @@ func (this *Proxy) SetAddress(url string) {
 //}
 
 //func (this *Proxy) director(req *http.Request) {
-//	target := this.address[0]
+//	target := this.target[0]
 //	targetQuery := target.RawQuery
 //
 //	req.Host = target.Host
@@ -105,30 +118,15 @@ func (this *Proxy) SetAddress(url string) {
 //	}
 //}
 
-func defaultProxyGetPath(c *Context) string {
-	return c.Path
-}
-
-func defaultProxyGetAddress(c *Context, address []string) string {
-	if len(address) == 0 {
-		return ""
-	} else if len(address) == 1 {
-		return address[0]
+func defaultProxyGetTarget(c *Context, address []*url.URL) url.URL {
+	var u *url.URL
+	if len(address) == 1 {
+		u = address[0]
+	} else if len(address) > 1 {
+		i := rand.Intn(len(address) - 1)
+		u = address[i]
 	}
-	i := rand.Intn(len(address) - 1)
-	return address[i]
-}
-
-func singleJoiningSlash(a, b string) string {
-	aslash := strings.HasSuffix(a, "/")
-	bslash := strings.HasPrefix(b, "/")
-	switch {
-	case aslash && bslash:
-		return a + b[1:]
-	case !aslash && !bslash:
-		return a + "/" + b
-	}
-	return a + b
+	return *u
 }
 
 func copyHeader(source http.Header, dest *http.Header) {
