@@ -5,21 +5,17 @@ import (
 )
 
 type Route struct {
-	path string
+	path        string
+	prefix      string
+	matching    []string
+	staticMatch bool             //静态路由
+	suffixMatch bool             //匹配规则是否以 * 结束
+	method      map[string]bool  //匹配方式
+	handler     HandlerFunc      //handler入口
+	formatted   bool             //路径是否已经格式化
+	middleware  []MiddlewareFunc //中间件
 
-	format   bool
-	prefix   string
-	matching []string
-
-	staticMatch bool //静态路由
-	suffixMatch bool //匹配规则是否以 * 结束
-
-	method     RouteMethod
-	handler    HandlerFunc
-	middleware []MiddlewareFunc
 }
-
-type RouteMethod []string
 
 // Router is the registry of all registered Routes for an `Engine` instance for
 // Request matching and URL path parameter parsing.
@@ -31,11 +27,14 @@ type Router struct {
 func NewRoute(path string, method []string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
 	route := &Route{
 		path:       path,
-		method:     method,
+		method:     make(map[string]bool),
 		handler:    handler,
 		middleware: middleware,
 	}
-	route.Format()
+	for _, k := range method {
+		route.method[k] = true
+	}
+	route.format()
 	return route
 }
 
@@ -45,15 +44,6 @@ func NewRouter(e *Engine) *Router {
 		engine: e,
 		route:  make([]*Route, 0),
 	}
-}
-
-func (r RouteMethod) IndexOf(s string) bool {
-	for _, m := range r {
-		if m == s || m == HttpMethodAny {
-			return true
-		}
-	}
-	return false
 }
 
 //加入中间件
@@ -66,6 +56,16 @@ func (r *Route) Path() string {
 	return r.path
 }
 
+//启用method
+func (r *Route) Enable(method string) {
+	r.method[method] = true
+}
+
+//禁用method
+func (r *Route) Disable(method string) {
+	r.method[method] = false
+}
+
 //匹配路由
 func (r *Route) match(c *Context) (ok bool) {
 	path := c.Path
@@ -73,10 +73,10 @@ func (r *Route) match(c *Context) (ok bool) {
 	c.params = make(map[string]string)
 	c.values = make([]string, 0)
 
-	if !r.method.IndexOf(method) {
+	if !(r.method[method] || r.method[HttpMethodAny]) {
 		return false
 	}
-	r.Format()
+	r.format()
 	if !strings.HasPrefix(path, r.prefix) {
 		return false
 	}
@@ -120,14 +120,9 @@ func (r *Route) match(c *Context) (ok bool) {
 	return true
 }
 
-//追加Method并返回更新后的Method
-func (r *Route) Method(m ...string) {
-	r.method = append(r.method, m...)
-}
-
 //预先格式化路径
-func (r *Route) Format() {
-	if r.format {
+func (r *Route) format() {
+	if r.formatted {
 		return
 	}
 	path := r.path
@@ -161,7 +156,7 @@ func (r *Route) Format() {
 	r.prefix = strings.Join(prefix, "/")
 	r.matching = matching
 
-	r.format = true
+	r.formatted = true
 
 }
 

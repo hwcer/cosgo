@@ -214,13 +214,6 @@ func (c *Context) Bind(i interface{}) error {
 	return c.Engine.Binder.Bind(c, i)
 }
 
-func (c *Context) Validate(i interface{}) error {
-	if c.Engine.Validator == nil {
-		return ErrValidatorNotRegistered
-	}
-	return c.Engine.Validator.Validate(i)
-}
-
 func (c *Context) Render(name string, data interface{}) (err error) {
 	if c.Engine.Renderer == nil {
 		return ErrRendererNotRegistered

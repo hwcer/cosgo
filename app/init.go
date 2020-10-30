@@ -2,7 +2,6 @@ package app
 
 import (
 	"cosgo/logger"
-	"fmt"
 	"sync"
 	"time"
 )
@@ -27,14 +26,14 @@ type Module interface {
 }
 
 func Go(fn func()) {
+	wgp.Add(1)
 	go func() {
 		defer func() {
 			wgp.Done()
 			if err := recover(); err != nil {
-				fmt.Printf("panic in Go: %v\n", err)
+				logger.Error("panic in Go: %v\n", err)
 			}
 		}()
-		wgp.Add(1)
 		fn()
 	}()
 }
@@ -42,13 +41,13 @@ func Go(fn func()) {
 //带cancel的GO协程
 func Go2(fn func(chan struct{})) {
 	go func() {
+		wgp.Add(1)
 		defer func() {
 			wgp.Done()
 			if err := recover(); err != nil {
-				fmt.Printf("panic in Go: %v\n", err)
+				logger.Error("panic in Go: %v\n", err)
 			}
 		}()
-		wgp.Add(1)
 		fn(cancel)
 	}()
 }

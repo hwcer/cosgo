@@ -1,7 +1,10 @@
-package server
+package express
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"github.com/gin-gonic/gin"
@@ -22,11 +25,11 @@ import (
 type oauth struct {
 	Key     string
 	Secret  string
-	Strict bool     //严格模式，body会参与签名
-	Timeout int32  //超时秒
+	Strict  bool  //严格模式，body会参与签名
+	Timeout int32 //超时秒
 }
 
-const OAuth_Signature_Name  = "oauth_signature"
+const OAuth_Signature_Name = "oauth_signature"
 
 var oauthParams = []string{"oauth_consumer_key", "oauth_nonce", "oauth_timestamp", "oauth_version", "oauth_signature_method"}
 
@@ -43,17 +46,22 @@ func (this *oauth) NewOAuthParams() map[string]string {
 	oauth["oauth_timestamp"] = strconv.FormatInt(time.Now().Unix(), 10)
 	return oauth
 }
+func HMACSHA1(key, data string) string {
+	mac := hmac.New(sha1.New, []byte(key))
+	mac.Write([]byte(data))
+	return hex.EncodeToString(mac.Sum(nil))
+}
 
 //签名Signature
 //method GET Insert
 //url:protocol://hostname/path
 //body JSON字符串
-func (this *oauth) Signature(method, url string, oauth map[string]string,body string) string {
+func (this *oauth) Signature(method, url string, oauth map[string]string, body string) string {
 	arr := []string{method, url}
 	for _, k := range oauthParams {
 		arr = append(arr, k+"="+oauth[k])
 	}
-	arr = append(arr, body,this.Secret)
+	arr = append(arr, body, this.Secret)
 	str := strings.Join(arr, "&")
 	return HMACSHA1(this.Secret, str)
 }
@@ -61,7 +69,7 @@ func (this *oauth) Signature(method, url string, oauth map[string]string,body st
 //Verify http(s)验签
 func (this *oauth) Verify(ctx *gin.Context) error {
 	signature := ctx.GetHeader(OAuth_Signature_Name)
-	if signature == ""{
+	if signature == "" {
 		return errors.New("OAuth Signature empty")
 	}
 
@@ -87,16 +95,16 @@ func (this *oauth) Verify(ctx *gin.Context) error {
 	}
 
 	var strBody string
-	if this.Strict{
-		byteBody,err:= ioutil.ReadAll(ctx.Request.Body)
-		if err!=nil{
+	if this.Strict {
+		byteBody, err := ioutil.ReadAll(ctx.Request.Body)
+		if err != nil {
 			return err
 		}
 		strBody = string(byteBody)
 	}
 
 	baseUrl := strings.Join([]string{ctx.Request.URL.Scheme, "://", ctx.Request.URL.Host, ctx.Request.URL.EscapedPath()}, "")
-	newSignature := this.Signature(ctx.Request.Method, baseUrl, OAuthMap,strBody)
+	newSignature := this.Signature(ctx.Request.Method, baseUrl, OAuthMap, strBody)
 
 	if signature != newSignature {
 		return errors.New("oauth signature error")
@@ -144,13 +152,12 @@ func (this *oauth) request(method, rawurl string, data []byte, header map[string
 		req.Header.Add(k, v)
 	}
 
-
 	var strBody string
-	if this.Strict{
+	if this.Strict {
 		strBody = string(data)
 	}
 	baseUrl := strings.Join([]string{urlPase.Scheme, "://", urlPase.Host, urlPase.EscapedPath()}, "")
-	signature := this.Signature(method, baseUrl, OAuthMap,strBody)
+	signature := this.Signature(method, baseUrl, OAuthMap, strBody)
 	req.Header.Add(OAuth_Signature_Name, signature)
 
 	client := &http.Client{Timeout: time.Duration(this.Timeout) * time.Second}
@@ -188,8 +195,8 @@ func (this *oauth) POST(url string, data []byte, header map[string]string) *Mess
 }
 
 func (this *oauth) PostJson(url string, query interface{}) *Message {
-	data,err := json.Marshal(query)
-	if err!=nil{
+	data, err := json.Marshal(query)
+	if err != nil {
 		return NewErrMsgFromError(err)
 	}
 	return this.request("POST", url, data, nil)

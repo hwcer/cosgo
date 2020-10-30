@@ -22,7 +22,7 @@ func (this *httpMod) ID() string {
 func (this *httpMod) Load() error {
 	this.app = express.New("")
 	//this.app.Use(middleware1, middleware2)
-	this.app.Group([]string{express.HttpMethodAny}, "/", &handle.Remote{})
+	this.app.Group("/", &handle.Remote{})
 	this.app.RESTful("/", &handle.Restful{})
 
 	this.app.Static("/web/", "web")

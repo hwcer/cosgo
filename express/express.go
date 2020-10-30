@@ -31,7 +31,6 @@ type (
 
 		Debug            bool //DEBUG模式会打印所有路由匹配状态,向客户端输出详细错误信息
 		Binder           Binder
-		Validator        Validator
 		Renderer         Renderer
 		HTTPErrorHandler HTTPErrorHandler
 	}
@@ -44,11 +43,6 @@ type (
 
 	// HTTPErrorHandler is a centralized HTTP error handler.
 	HTTPErrorHandler func(*Context, error)
-
-	// Validator is the interface that wraps the Validate function.
-	Validator interface {
-		Validate(i interface{}) error
-	}
 
 	// Renderer is the interface that wraps the Render function.
 	Renderer interface {
@@ -205,11 +199,12 @@ func (e *Engine) Route(method []string, path string, handler HandlerFunc, middle
 	return e.router.Route(method, path, handler, middleware...)
 }
 
-func (e *Engine) Group(method []string, prefix string, i interface{}, middleware ...MiddlewareFunc) (*Route, *Group) {
+//
+func (e *Engine) Group(prefix string, i interface{}, middleware ...MiddlewareFunc) (*Route, *Group) {
 	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + iGroupRoutePath, ":" + iGroupRouteName}
 	nsp := NewGroup()
 	nsp.Register(i)
-	route := e.router.Route(method, strings.Join(arr, "/"), nsp.handler, middleware...)
+	route := e.router.Route([]string{HttpMethodAny}, strings.Join(arr, "/"), nsp.handler, middleware...)
 	return route, nsp
 }
 

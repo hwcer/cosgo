@@ -105,6 +105,7 @@ func (r *tcpSocket) RemoteAddr() string {
 }
 
 func (r *tcpSocket) readMsg() {
+	defer r.conn.Close()
 	headData := make([]byte, MsgHeadSize)
 	var data []byte
 	var head *MsgHead
