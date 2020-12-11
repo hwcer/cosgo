@@ -24,7 +24,7 @@ func assert(err error, s string) {
 	}
 }
 
-func defaultAppMain() {
+func defAppMain() {
 	banner := `
   _________  _____________ 
  / ___/ __ \/ __/ ___/ __ \
@@ -37,7 +37,7 @@ ____________________________________O/_______
 }
 
 //设置默认启动界面，启动完所有MOD后执行
-func SetMain(m func()) {
+func SetAppMain(m func()) {
 	appMain = m
 }
 
@@ -77,7 +77,7 @@ func Start(mods ...Module) {
 	if appMain != nil {
 		appMain()
 	} else {
-		defaultAppMain()
+		defAppMain()
 	}
 
 	writePidFile()

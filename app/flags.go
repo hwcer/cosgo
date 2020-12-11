@@ -12,9 +12,11 @@ import (
 
 //其他模块可以使用pflag设置额外的参数
 var Flag *viper.Viper
+var Config *viper.Viper
 
 func init() {
 	Flag = viper.New()
+	Config = viper.New()
 	pflag.Bool("debug", false, "developer model")
 	pflag.String("logdir", "", "app logs dir")
 	pflag.String("pidfile", "", "app pid file")
