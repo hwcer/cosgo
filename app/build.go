@@ -18,12 +18,12 @@ func init() {
 }
 
 func initBuild() error {
-	if Flag.IsSet("version") {
+	if Config.IsSet("version") {
 		fmt.Printf("BUIND GO:%v\n", BUIND_GO)
 		fmt.Printf("BUIND VER:%v\n", BUIND_VER)
 		fmt.Printf("BUIND TIME:%v\n", BUIND_TIME)
 		os.Exit(0)
-	} else if Flag.IsSet("help") {
+	} else if Config.IsSet("help") {
 		pflag.Usage()
 		os.Exit(0)
 	}

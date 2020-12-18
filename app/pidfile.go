@@ -10,7 +10,7 @@ import (
 )
 
 func writePidFile() (err error) {
-	pidFile := Flag.GetString("pidfile")
+	pidFile := Config.GetString("pidfile")
 	if pidFile == "" {
 		return nil
 	}
@@ -45,7 +45,7 @@ func writePidFile() (err error) {
 }
 
 func deletePidFile() error {
-	pidFile := Flag.GetString("pidfile")
+	pidFile := Config.GetString("pidfile")
 	if pidFile == "" {
 		return nil
 	}

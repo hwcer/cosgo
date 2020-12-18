@@ -11,16 +11,16 @@ import (
 )
 
 //其他模块可以使用pflag设置额外的参数
-var Flag *viper.Viper
 var Config *viper.Viper
 
 func init() {
-	Flag = viper.New()
 	Config = viper.New()
 	pflag.Bool("debug", false, "developer model")
 	pflag.String("logdir", "", "app logs dir")
 	pflag.String("pidfile", "", "app pid file")
 	pflag.String("profile", "", "profile address")
+	pflag.StringP("config", "c", "", "use config file")
+
 	var (
 		tmpDir      string
 		appName     string
@@ -47,24 +47,33 @@ func init() {
 		appName = strings.TrimRight(appName, ext)
 	}
 
-	Flag.SetDefault("name", appName)
-	Flag.SetDefault("logdir", filepath.Join(appWorkDir, "logs"))
-	Flag.SetDefault("pidfile", filepath.Join(appBinDir, appName+".pid"))
-	Flag.SetDefault("appBinDir", appBinDir)
-	Flag.SetDefault("appWorkDir", appWorkDir)
-	Flag.SetDefault("appExecFile", appExecFile)
+	Config.SetDefault("name", appName)
+	Config.SetDefault("logdir", filepath.Join(appWorkDir, "logs"))
+	Config.SetDefault("pidfile", filepath.Join(appBinDir, appName+".pid"))
+	Config.SetDefault("appBinDir", appBinDir)
+	Config.SetDefault("appWorkDir", appWorkDir)
+	Config.SetDefault("appExecFile", appExecFile)
 
 }
 
 func initFlag() error {
 	pflag.Parse()
-	Flag.BindPFlags(pflag.CommandLine)
+	Config.BindPFlags(pflag.CommandLine)
+	//通过配置读取
+	if Config.IsSet("config") {
+		f := Config.GetString("config")
+		Config.AddConfigPath(f)
+		err := Config.ReadInConfig()
+		if err != nil {
+			return err
+		}
+	}
 	//设置日志
-	logdir := Flag.GetString("logdir")
+	logdir := Config.GetString("logdir")
 	if logdir != "" {
-		logger.SetLogPathTrim(Flag.GetString(""))
+		logger.SetLogPathTrim(Config.GetString(logdir))
 	}
 
-	Debug = Flag.GetBool("debug")
+	Debug = Config.GetBool("debug")
 	return nil
 }

@@ -75,7 +75,7 @@ func GetTimeWeekStart(t time.Time, args ...int32) time.Time {
 		week = 7
 	}
 	if week > 1 {
-		t.AddDate(0, 0, -(week - 1)) //定位到周一
+		t = t.AddDate(0, 0, -(week - 1)) //定位到周一
 	}
 	r := time.Date(t.Year(), t.Month(), t.Day(), dayResetHour, 0, 0, 0, t.Location())
 	if addWeeks > 0 {

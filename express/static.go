@@ -16,7 +16,7 @@ type Static struct {
 
 func NewStatic(root string) *Static {
 	if !path.IsAbs(root) {
-		root = filepath.Join(app.Flag.GetString("appWorkDir"), root)
+		root = filepath.Join(app.Config.GetString("appWorkDir"), root)
 	}
 	return &Static{root: root}
 }
