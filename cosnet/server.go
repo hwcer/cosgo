@@ -2,8 +2,6 @@ package cosnet
 
 import (
 	"cosgo/logger"
-	"errors"
-	"fmt"
 	"sync/atomic"
 	"time"
 )
@@ -49,7 +47,7 @@ func (this *defServer) Done() bool {
 
 func (this *defServer) Close() (err error) {
 	if !atomic.CompareAndSwapInt32(&this.stop, 0, 1) {
-		return errors.New(fmt.Sprintf("Server Close error:%v", this.address))
+		logger.Error("Server Close error:%v", this.address)
 	}
 	return
 }
@@ -168,7 +166,7 @@ func (r *defSocket) Close() (err error) {
 	msgqueMapSync.Lock()
 	delete(msgqueMap, r.id)
 	msgqueMapSync.Unlock()
-	logger.Debug("msgque close id:%d", r.id)
+	logger.Debug("msgque close Id:%d", r.id)
 	return
 }
 
@@ -178,7 +176,7 @@ func (r *defSocket) isTimeout(tick *time.Timer) bool {
 		tick.Reset(time.Millisecond * time.Duration(Config.ConnectHeartbeat))
 		return false
 	}
-	logger.Debug("msgque close because timeout id:%v wait:%v timeout:%v", r.id, left, Config.ConnectTimeout)
+	logger.Debug("msgque close because timeout Id:%v wait:%v timeout:%v", r.id, left, Config.ConnectTimeout)
 	return true
 }
 

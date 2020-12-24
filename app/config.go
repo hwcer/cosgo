@@ -62,6 +62,10 @@ func initFlag() error {
 	//通过配置读取
 	if Config.IsSet("config") {
 		f := Config.GetString("config")
+		appWorkDir := Config.GetString("appWorkDir")
+		if !filepath.IsAbs(f) {
+			f = filepath.Join(appWorkDir, f)
+		}
 		Config.AddConfigPath(f)
 		err := Config.ReadInConfig()
 		if err != nil {
@@ -73,7 +77,5 @@ func initFlag() error {
 	if logdir != "" {
 		logger.SetLogPathTrim(Config.GetString(logdir))
 	}
-
-	Debug = Config.GetBool("debug")
 	return nil
 }

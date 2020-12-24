@@ -7,6 +7,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -15,6 +16,13 @@ var (
 	appMain func()
 	modules []Module
 )
+
+type Module interface {
+	ID() string
+	Init() error
+	Start(*sync.WaitGroup) error
+	Close(*sync.WaitGroup) error
+}
 
 func assert(err error, s string) {
 	if err != nil {
@@ -65,13 +73,13 @@ func Start(mods ...Module) {
 	initProfile()
 
 	for _, v := range modules {
-		assert(v.Load(), fmt.Sprintf("mod [%v] init", v.ID()))
+		assert(v.Init(), fmt.Sprintf("mod [%v] init", v.ID()))
 	}
 	//=========================启动信息=============================
 	showConfig()
 	//=========================启动模块=============================
 	for _, v := range modules {
-		assert(v.Start(&wgp), fmt.Sprintf("mod [%v] start", v.ID()))
+		assert(v.Start(wgp), fmt.Sprintf("mod [%v] start", v.ID()))
 	}
 
 	if appMain != nil {
@@ -82,7 +90,7 @@ func Start(mods ...Module) {
 
 	writePidFile()
 	wgp.Add(1)
-	Go2(waitForSystemExit)
+	Go(waitForSystemExit)
 	wgp.Wait()
 	deletePidFile()
 	logger.Warn("Say byebye to the world")
@@ -94,10 +102,9 @@ func Close() {
 		logger.Error("Server Close error")
 		return
 	}
-
 	for _, v := range modules {
 		func(m Module) {
-			assert(m.Close(&wgp), fmt.Sprintf("mod [%v] stop", m.ID()))
+			assert(m.Close(wgp), fmt.Sprintf("mod [%v] stop", m.ID()))
 		}(v)
 	}
 	if cancel != nil {
@@ -122,10 +129,4 @@ func showConfig() {
 	log = append(log, "======================================================")
 	log = append(log, "")
 	logger.Info(strings.Join(log, "\n"))
-
-}
-
-//判断程序是否已经关闭
-func Done() bool {
-	return stop == 1
 }

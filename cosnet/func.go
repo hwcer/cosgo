@@ -11,7 +11,7 @@ import (
 )
 
 //启动服务器,根据
-func New(addr string, typ MsgType, handler IMsgHandler) (Server, error) {
+func NewServer(addr string, typ MsgType, handler IMsgHandler) (Server, error) {
 	addrs := strings.Split(addr, "://")
 	if addrs[0] == "tcp" {
 		return NewTcpServer(addrs[1], typ, handler)

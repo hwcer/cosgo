@@ -81,7 +81,7 @@ func newTcpSocket(srv *tcpServer, conn net.Conn) *tcpSocket {
 	msgqueMapSync.Lock()
 	msgqueMap[sock.id] = sock
 	msgqueMapSync.Unlock()
-	logger.Debug("new socket id:%d from addr:%s", sock.id, conn.RemoteAddr().String())
+	logger.Debug("new socket Id:%d from Addr:%s", sock.id, conn.RemoteAddr().String())
 	return sock
 }
 
@@ -176,7 +176,7 @@ func (r *tcpSocket) writeMsg() {
 		if writeCount < len(data) {
 			n, err := r.conn.Write(data[writeCount:])
 			if err != nil {
-				logger.Error("msgque write id:%v err:%v", r.id, err)
+				logger.Error("msgque write Id:%v err:%v", r.id, err)
 				break
 			}
 			writeCount += n
@@ -194,7 +194,7 @@ func (r *tcpSocket) writeMsg() {
 func (r *tcpSocket) read() {
 	defer func() {
 		if err := recover(); err != nil {
-			logger.Error("msgque read panic id:%v err:%v", r.id, err)
+			logger.Error("msgque read panic Id:%v err:%v", r.id, err)
 		}
 		r.Close()
 	}()
@@ -204,7 +204,7 @@ func (r *tcpSocket) read() {
 func (r *tcpSocket) write() {
 	defer func() {
 		if err := recover(); err != nil {
-			logger.Error("msgque write panic id:%v err:%v", r.id, err)
+			logger.Error("msgque write panic Id:%v err:%v", r.id, err)
 		}
 		if r.conn != nil {
 			r.conn.Close()

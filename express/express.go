@@ -69,7 +69,7 @@ var (
 )
 
 // New creates an instance of Engine.
-func New(address string, tlsConfig ...*tls.Config) (e *Engine) {
+func NewServer(address string, tlsConfig ...*tls.Config) (e *Engine) {
 	e = &Engine{
 		Server: new(http.Server),
 	}
@@ -300,7 +300,7 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Start starts an HTTP server.
 func (e *Engine) Start() (err error) {
-	err = app.TimeOut(time.Second, func() error {
+	err = app.Timeout(time.Second, func() error {
 		if e.Server.TLSConfig != nil {
 			return e.Server.ListenAndServeTLS("", "")
 		} else {
@@ -310,8 +310,8 @@ func (e *Engine) Start() (err error) {
 	return
 }
 
-// Close immediately stops the server.
-// It internally calls `http.Server#Close()`.
+// shutdown immediately stops the server.
+// It internally calls `http.Server#shutdown()`.
 func (e *Engine) Close() error {
 	return e.Server.Close()
 }

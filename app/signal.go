@@ -19,7 +19,7 @@ func SetGCSummaryTime(ms int) {
 	gcSummaryTime = time.Second * time.Duration(ms)
 }
 
-func waitForSystemExit(c chan struct{}) {
+func waitForSystemExit() {
 	ch := make(chan os.Signal, 1)
 	tick := time.NewTicker(gcSummaryTime)
 	defer tick.Stop()
@@ -30,7 +30,7 @@ func waitForSystemExit(c chan struct{}) {
 			signalNotify(sig)
 		case <-tick.C:
 			gcSummaryLogger()
-		case <-c:
+		case <-cancel:
 			return
 		}
 	}

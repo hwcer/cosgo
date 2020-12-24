@@ -7,7 +7,9 @@ import (
 	"time"
 )
 
+var cancel chan struct{}
 var timestamp int64 //时间线(MS)
+var heartbeat int64 //心跳时间(MS)
 
 var msgqueId uint32 //消息队列id
 var msgqueMap = map[uint32]Socket{}
@@ -41,23 +43,28 @@ var Config = struct {
 
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	timestamp = millisecond()
-	app.Go2(timerTick)
+	heartbeat = 100
+	cancel = make(chan struct{})
+	app.Go(timerTick)
 }
 
-func millisecond() int64 {
-	return time.Now().UnixNano() / 1e6
-}
-
-func timerTick(c chan struct{}) {
-	var ticker = time.NewTicker(time.Millisecond)
+func timerTick() {
+	var ticker = time.NewTicker(time.Millisecond * time.Duration(heartbeat))
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			timestamp += 1
-		case <-c:
+			timestamp += heartbeat
+		case <-cancel:
 			return
 		}
+	}
+}
+
+func Close() {
+	select {
+	case <-cancel:
+	default:
+		close(cancel)
 	}
 }
