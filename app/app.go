@@ -7,7 +7,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -16,13 +15,6 @@ var (
 	appMain func()
 	modules []Module
 )
-
-type Module interface {
-	ID() string
-	Init() error
-	Start(*sync.WaitGroup) error
-	Close(*sync.WaitGroup) error
-}
 
 func assert(err error, s string) {
 	if err != nil {

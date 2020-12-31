@@ -5,87 +5,69 @@ import (
 	"cosgo/logger"
 	"io"
 	"net"
-	"sync/atomic"
-	"time"
 )
 
-type tcpServer struct {
-	defServer
+type TcpServer struct {
+	*NetServer
 	listener net.Listener //监听
 }
 
-func (r *tcpServer) Start() (err error) {
-	app.Go(func() {
-		r.listen()
-	})
+func (r *TcpServer) Start() (err error) {
+	app.Go(r.listen)
 	return
 }
 
-func (r *tcpServer) listen() {
+func (r *TcpServer) listen() {
 	defer r.listener.Close()
-	for !r.Done() {
+	defer r.Close()
+	for !r.Stoped() {
 		c, err := r.listener.Accept()
 		if err != nil {
 			logger.Error("tcp server accept failed:%v", err)
 			break
 		}
-		app.Go(func() {
+		go func() {
 			sock := newTcpSocket(r, c)
-			if r.handler.OnNewMsgQue(sock) {
-				app.Go(func() {
-					logger.Debug("process read for msgque:%d", sock.id)
-					sock.read()
-					logger.Debug("process read end for msgque:%d", sock.id)
-				})
-				app.Go(func() {
-					logger.Debug("process write for msgque:%d", sock.id)
-					sock.write()
-					logger.Debug("process write end for msgque:%d", sock.id)
-				})
-			} else {
-				sock.Close()
+			if r.handler.OnConnect(sock) {
+				go sock.read()
+				go sock.write()
+			} else if sock.Close() {
+				sock.conn.Close()
 			}
-		})
+		}()
 	}
 }
 
-func NewTcpServer(addr string, msgTyp MsgType, handler IMsgHandler) (*tcpServer, error) {
+func NewTcpServer(addr string, msgTyp MsgType, handler MsgHandler) (*TcpServer, error) {
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
 		return nil, err
 	}
-	srv := &tcpServer{
-		defServer: defServer{msgTyp: msgTyp, netType: NetTypeTcp, handler: handler},
+	srv := &TcpServer{
+		NetServer: NewNetServer(msgTyp, handler, NetTypeTcp),
 		listener:  listener,
 	}
 	return srv, nil
 }
 
-type tcpSocket struct {
-	defSocket
+type TcpSocket struct {
+	*NetSocket
 	conn     net.Conn //连接
 	address  string
 	listener net.Listener //监听
 }
 
-func newTcpSocket(srv *tcpServer, conn net.Conn) *tcpSocket {
-	sock := &tcpSocket{
-		defSocket: defSocket{
-			id:        atomic.AddUint32(&msgqueId, 1),
-			cwrite:    make(chan *Message, Config.WriteChanSize),
-			heartbeat: timestamp,
-			server:    srv,
-		},
-		conn: conn,
+func newTcpSocket(srv *TcpServer, conn net.Conn) *TcpSocket {
+	sock := &TcpSocket{
+		conn:      conn,
+		NetSocket: NewNetSocket(srv),
 	}
-	msgqueMapSync.Lock()
-	msgqueMap[sock.id] = sock
-	msgqueMapSync.Unlock()
+	srv.sockets.Add(sock)
 	logger.Debug("new socket Id:%d from Addr:%s", sock.id, conn.RemoteAddr().String())
 	return sock
 }
 
-func (r *tcpSocket) LocalAddr() string {
+func (r *TcpSocket) LocalAddr() string {
 	if r.conn != nil {
 		return r.conn.LocalAddr().String()
 	} else if r.listener != nil {
@@ -94,7 +76,7 @@ func (r *tcpSocket) LocalAddr() string {
 	return ""
 }
 
-func (r *tcpSocket) RemoteAddr() string {
+func (r *TcpSocket) RemoteAddr() string {
 	if r.realRemoteAddr != "" {
 		return r.realRemoteAddr
 	}
@@ -104,13 +86,12 @@ func (r *tcpSocket) RemoteAddr() string {
 	return r.address
 }
 
-func (r *tcpSocket) readMsg() {
-	defer r.conn.Close()
+func (r *TcpSocket) readMsg() {
 	headData := make([]byte, MsgHeadSize)
 	var data []byte
 	var head *MsgHead
 
-	for !r.Done() {
+	for !r.Stoped() {
 		if head == nil {
 			_, err := io.ReadFull(r.conn, headData)
 			if err != nil {
@@ -146,25 +127,23 @@ func (r *tcpSocket) readMsg() {
 			head = nil
 			data = nil
 		}
-		r.heartbeat = timestamp
 	}
 }
 
-func (r *tcpSocket) writeMsg() {
+func (r *TcpSocket) writeMsg() {
 	var m *Message
 	var data []byte
 	writeCount := 0
-	tick := time.NewTimer(time.Millisecond * time.Duration(Config.ConnectHeartbeat))
-	for !r.Done() || m != nil {
+	for !r.Stoped() || m != nil {
 		if m == nil {
 			select {
 			case m = <-r.cwrite:
 				if m != nil {
 					data = m.Bytes()
 				}
-			case <-tick.C:
-				if r.isTimeout(tick) {
-					r.Close()
+			case <-r.ticker.C:
+				if r.timeout() {
+					return
 				}
 			}
 		}
@@ -186,22 +165,29 @@ func (r *tcpSocket) writeMsg() {
 			writeCount = 0
 			m = nil
 		}
-		r.heartbeat = timestamp
+		r.heartbeat = r.server.Timestamp()
 	}
-	tick.Stop()
 }
 
-func (r *tcpSocket) read() {
+func (r *TcpSocket) read() {
+	srv := r.server.(*TcpServer)
+	srv.wgp.Add(1)
+
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error("msgque read panic Id:%v err:%v", r.id, err)
 		}
+		srv.wgp.Done()
 		r.Close()
 	}()
+
 	r.readMsg()
 }
 
-func (r *tcpSocket) write() {
+func (r *TcpSocket) write() {
+	srv := r.server.(*TcpServer)
+	srv.wgp.Add(1)
+
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error("msgque write panic Id:%v err:%v", r.id, err)
@@ -209,7 +195,11 @@ func (r *tcpSocket) write() {
 		if r.conn != nil {
 			r.conn.Close()
 		}
+		srv.wgp.Done()
 		r.Close()
 	}()
+
+	r.tickerStart()
+	defer r.tickerStop()
 	r.writeMsg()
 }

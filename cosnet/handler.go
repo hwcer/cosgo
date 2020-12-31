@@ -1,31 +1,32 @@
 package cosnet
 
-type HandlerFunc func(msgque Socket, msg *Message) bool
+type MsgHandlerFunc func(Socket, *Message) bool
 
-type IMsgHandler interface {
-	OnNewMsgQue(msgque Socket) bool                         //新的消息队列
-	OnDelMsgQue(msgque Socket)                              //消息队列关闭
-	OnProcessMsg(msgque Socket, msg *Message) bool          //默认的消息处理函数
-	GetHandlerFunc(msgque Socket, msg *Message) HandlerFunc //根据消息获得处理函数
+type MsgHandler interface {
+	Register(int, MsgHandlerFunc)                   //注册消息
+	OnConnect(Socket) bool                          //新的消息队列
+	OnDisconnect(Socket)                            //消息队列关闭
+	OnProcessMsg(Socket, *Message) bool             //默认的消息处理函数
+	GetHandlerFunc(Socket, *Message) MsgHandlerFunc //根据消息获得处理函数
 }
 
 type DefMsgHandler struct {
-	msgMap map[int]HandlerFunc
+	msgMap map[int]MsgHandlerFunc
 }
 
-func (r *DefMsgHandler) OnNewMsgQue(socket Socket) bool                { return true }
-func (r *DefMsgHandler) OnDelMsgQue(socket Socket)                     {}
+func (r *DefMsgHandler) OnConnect(socket Socket) bool                  { return true }
+func (r *DefMsgHandler) OnDisconnect(socket Socket)                    {}
 func (r *DefMsgHandler) OnProcessMsg(socket Socket, msg *Message) bool { return true }
-func (r *DefMsgHandler) GetHandlerFunc(socket Socket, msg *Message) HandlerFunc {
+func (r *DefMsgHandler) GetHandlerFunc(socket Socket, msg *Message) MsgHandlerFunc {
 	if f, ok := r.msgMap[int(msg.Head.Proto)]; ok {
 		return f
 	}
 	return nil
 }
 
-func (r *DefMsgHandler) Register(act int, fun HandlerFunc) {
+func (r *DefMsgHandler) Register(act int, fun MsgHandlerFunc) {
 	if r.msgMap == nil {
-		r.msgMap = map[int]HandlerFunc{}
+		r.msgMap = map[int]MsgHandlerFunc{}
 	}
 	r.msgMap[act] = fun
 }
