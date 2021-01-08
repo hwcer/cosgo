@@ -29,7 +29,7 @@ var Config = struct {
 	ConnectMaxSize: 50000,
 
 	ConnectTimeout:   6000,
-	ConnectHeartbeat: 500,
+	ConnectHeartbeat: 1000,
 
 	ServerInterval: 100,
 }

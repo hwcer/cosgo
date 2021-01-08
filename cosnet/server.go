@@ -1,6 +1,7 @@
 package cosnet
 
 import (
+	"cosgo/app"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -52,7 +53,7 @@ func (s *sockets) Del(id ...uint32) {
 
 type Server interface {
 	Start() error
-	Close() bool
+	Close()
 	Stoped() bool
 	Sockets() *sockets
 	Timestamp() int64
@@ -67,19 +68,30 @@ type Server interface {
 func NewNetServer(msgTyp MsgType, handler MsgHandler, netType NetType) *NetServer {
 	s := &NetServer{
 		wgp:     &sync.WaitGroup{},
+		stop:    make(stopChan),
 		msgTyp:  msgTyp,
 		netType: netType,
 		handler: handler,
-		cancel:  make(chan struct{}),
 	}
 	go s.goTick()
 	return s
 }
 
+type stopChan chan struct{}
+
+func (s stopChan) Close() bool {
+	select {
+	case <-s:
+		return false
+	default:
+		close(s)
+		return false
+	}
+}
+
 type NetServer struct {
 	wgp     *sync.WaitGroup
-	stop    int32
-	cancel  chan struct{}
+	stop    stopChan
 	ticker  *time.Ticker
 	sockets *sockets //自增ID
 
@@ -91,19 +103,28 @@ type NetServer struct {
 	multiplex bool       //是否使用协程来处理MESSAGE
 }
 
-func (s *NetServer) Close() bool {
-	if !atomic.CompareAndSwapInt32(&s.stop, 0, 1) {
-		return false
-	}
-	close(s.cancel)
-	return true
+func (s *NetServer) Go(f func()) {
+	s.wgp.Add(1)
+	go func() {
+		defer s.wgp.Done()
+		app.Try(f)
+	}()
 }
+
+//仅供外部调用
+func (s *NetServer) Close() {
+	s.stop.Close()
+	s.wgp.Wait()
+}
+
 func (s *NetServer) Stoped() bool {
-	return s.stop > 0
+	return s.stop == nil
 }
+
 func (s *NetServer) Sockets() *sockets {
 	return s.sockets
 }
+
 func (s *NetServer) Timestamp() int64 {
 	return s.timestamp
 }
@@ -118,7 +139,7 @@ func (s *NetServer) goTick() {
 		select {
 		case <-s.ticker.C:
 			s.timestamp += Config.ServerInterval
-		case <-s.cancel:
+		case <-s.stop:
 			return
 		}
 	}

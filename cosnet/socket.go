@@ -101,7 +101,7 @@ func (r *NetSocket) Send(m *Message) (re bool) {
 	select {
 	case r.cwrite <- m:
 	default:
-		logger.Warn("msgque write channel full msgque:%v", r.id)
+		logger.Warn("socket write channel full id:%v", r.id)
 		r.Close() //通道已满，直接关闭
 	}
 
@@ -117,7 +117,7 @@ func (r *NetSocket) Close() bool {
 		close(r.cwrite)
 	}
 	r.server.Sockets().Del(r.Id())
-	logger.Debug("socket close Id:%d", r.id)
+	logger.Debug("socket Close Id:%d", r.id)
 	return true
 }
 
@@ -142,7 +142,7 @@ func (r *NetSocket) processMsgTrue(msgque Socket, msg *Message) bool {
 	if msg.Head != nil && msg.Head.HasFlag(MsgFlagCompress) && msg.Data != nil {
 		data, err := GZipUnCompress(msg.Data)
 		if err != nil {
-			logger.Error("msgque uncompress failed msgque:%v act:%v len:%v err:%v", msgque.Id(), msg.Head.Proto, msg.Head.Len, err)
+			logger.Error("socket uncompress failed msgque:%v act:%v len:%v err:%v", msgque.Id(), msg.Head.Proto, msg.Head.Len, err)
 			return false
 		}
 		msg.Data = data

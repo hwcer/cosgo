@@ -54,17 +54,21 @@ var levelPrefix = [LevelTrace + 1]string{
 }
 
 const (
-	logTimeDefaultFormat = "2006-01-02 15:04:05" // 日志输出默认格式
-	AdapterConsole       = "console"             // 控制台输出配置项
 	AdapterFile          = "file"                // 文件输出配置项
 	AdapterConn          = "conn"                // 网络输出配置项
+	AdapterConsole       = "console"             // 控制台输出配置项
+	logTimeDefaultFormat = "2006-01-02 15:04:05" // 日志输出默认格式
 )
 
 // log provider interface
 type Logger interface {
 	Init(config string) error
-	LogWrite(when time.Time, msg interface{}, level int) error
-	Destroy()
+	Close()
+	Write(when time.Time, msg interface{}, level int) error
+}
+
+func init() {
+	defaultLogger = NewLogger()
 }
 
 func DefaultLogger() *LocalLogger {
@@ -98,36 +102,20 @@ type nameLogger struct {
 
 type LocalLogger struct {
 	lock       sync.Mutex
-	init       bool
+	name       string
+	usePath    string
 	outputs    []*nameLogger
-	appName    string
 	callDepth  int
 	timeFormat string
-	usePath    string
 }
 
 func NewLogger(depth ...int) *LocalLogger {
 	dep := append(depth, 2)[0]
-	l := new(LocalLogger)
-	// appName用于记录网络传输时标记的程序发送方，
-	// 通过环境变量APPSN进行设置,默认为NONE,此时无法通过网络日志检索区分不同服务发送方
-	appSn := os.Getenv("APPSN")
-	if appSn == "" {
-		appSn = "NONE"
-	}
-	l.appName = "[" + appSn + "]"
+	l := &LocalLogger{}
 	l.callDepth = dep
 	l.SetLogger(AdapterConsole)
 	l.timeFormat = logTimeDefaultFormat
 	return l
-}
-
-//配置文件
-type logConfig struct {
-	TimeFormat string         `json:"TimeFormat"`
-	Console    *consoleLogger `json:"Console,omitempty"`
-	File       *fileLogger    `json:"File,omitempty"`
-	Conn       *connLogger    `json:"Conn,omitempty"`
 }
 
 func init() {
@@ -138,40 +126,16 @@ func (this *LocalLogger) SetLogger(adapterName string, configs ...string) error 
 	this.lock.Lock()
 	defer this.lock.Unlock()
 
-	if !this.init {
-		this.outputs = []*nameLogger{}
-		this.init = true
-	}
-
 	config := append(configs, "{}")[0]
-	var num int = -1
-	var i int
-	var l *nameLogger
-	for i, l = range this.outputs {
-		if l.name == adapterName {
-			if l.config == config {
-				//配置没有变动，不重新设置
-				return fmt.Errorf("you have set same config for this adaptername %s", adapterName)
-			}
-			l.Logger.Destroy()
-			num = i
-			break
-		}
-	}
 	logger, ok := adapters[adapterName]
 	if !ok {
 		return fmt.Errorf("unknown adaptername %s (forgotten Register?)", adapterName)
 	}
-
 	err := logger.Init(config)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "logger Init <%s> err:%v, %s output ignore!\n",
 			adapterName, err, adapterName)
 		return err
-	}
-	if num >= 0 {
-		this.outputs[i] = &nameLogger{name: adapterName, Logger: logger, config: config}
-		return nil
 	}
 	this.outputs = append(this.outputs, &nameLogger{name: adapterName, Logger: logger, config: config})
 	return nil
@@ -183,7 +147,7 @@ func (this *LocalLogger) DelLogger(adapterName string) error {
 	outputs := []*nameLogger{}
 	for _, lg := range this.outputs {
 		if lg.name == adapterName {
-			lg.Destroy()
+			lg.Close()
 		} else {
 			outputs = append(outputs, lg)
 		}
@@ -202,17 +166,15 @@ func (this *LocalLogger) SetLogPathTrim(trimPath string) {
 
 func (this *LocalLogger) writeToLoggers(when time.Time, msg *loginfo, level int) {
 	for _, l := range this.outputs {
+		var logMsg interface{}
 		if l.name == AdapterConn {
 			//网络日志，使用json格式发送,此处使用结构体，用于类似ElasticSearch功能检索
-			err := l.LogWrite(when, msg, level)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "unable to WriteMsg to adapter:%v,error:%v\n", l.name, err)
-			}
-			continue
+			logMsg = msg
+		} else {
+			logMsg = when.Format(this.timeFormat) + " [" + msg.Level + "] " + "[" + msg.Path + "] " + msg.Content
 		}
 
-		msgStr := when.Format(this.timeFormat) + " [" + msg.Level + "] " + "[" + msg.Path + "] " + msg.Content
-		err := l.LogWrite(when, msgStr, level)
+		err := l.Write(when, logMsg, level)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "unable to WriteMsg to adapter:%v,error:%v\n", l.name, err)
 		}
@@ -220,9 +182,6 @@ func (this *LocalLogger) writeToLoggers(when time.Time, msg *loginfo, level int)
 }
 
 func (this *LocalLogger) writeMsg(logLevel int, msg string, v ...interface{}) error {
-	if !this.init {
-		this.SetLogger(AdapterConsole)
-	}
 	msgSt := new(loginfo)
 	src := ""
 	if len(v) > 0 {
@@ -241,7 +200,7 @@ func (this *LocalLogger) writeMsg(logLevel int, msg string, v ...interface{}) er
 	msgSt.Level = levelPrefix[logLevel]
 	msgSt.Path = src
 	msgSt.Content = msg
-	msgSt.Name = this.appName
+	msgSt.Name = this.name
 	msgSt.Time = when.Format(this.timeFormat)
 	this.writeToLoggers(when, msgSt, logLevel)
 
@@ -299,17 +258,15 @@ func (this *LocalLogger) Trace(format string, v ...interface{}) {
 }
 
 func (this *LocalLogger) Close() {
-
 	for _, l := range this.outputs {
-		l.Destroy()
+		l.Close()
 	}
 	this.outputs = nil
-
 }
 
 func (this *LocalLogger) Reset() {
 	for _, l := range this.outputs {
-		l.Destroy()
+		l.Close()
 	}
 	this.outputs = nil
 }
@@ -341,7 +298,7 @@ func SetLogger(param ...string) error {
 	}
 
 	c := param[0]
-	conf := new(logConfig)
+	conf := new(config)
 	err := json.Unmarshal([]byte(c), conf)
 	if err != nil { //不是json，就认为是配置文件，如果都不是，打印日志，然后退出
 		// Open the configuration file

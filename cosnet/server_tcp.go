@@ -1,42 +1,10 @@
 package cosnet
 
 import (
-	"cosgo/app"
 	"cosgo/logger"
 	"io"
 	"net"
 )
-
-type TcpServer struct {
-	*NetServer
-	listener net.Listener //监听
-}
-
-func (r *TcpServer) Start() (err error) {
-	app.Go(r.listen)
-	return
-}
-
-func (r *TcpServer) listen() {
-	defer r.listener.Close()
-	defer r.Close()
-	for !r.Stoped() {
-		c, err := r.listener.Accept()
-		if err != nil {
-			logger.Error("tcp server accept failed:%v", err)
-			break
-		}
-		go func() {
-			sock := newTcpSocket(r, c)
-			if r.handler.OnConnect(sock) {
-				go sock.read()
-				go sock.write()
-			} else if sock.Close() {
-				sock.conn.Close()
-			}
-		}()
-	}
-}
 
 func NewTcpServer(addr string, msgTyp MsgType, handler MsgHandler) (*TcpServer, error) {
 	listener, err := net.Listen("tcp", addr)
@@ -57,14 +25,43 @@ type TcpSocket struct {
 	listener net.Listener //监听
 }
 
-func newTcpSocket(srv *TcpServer, conn net.Conn) *TcpSocket {
+type TcpServer struct {
+	*NetServer
+	listener net.Listener //监听
+}
+
+func (s *TcpServer) Start() (err error) {
+	s.Go(s.listen)
+	return
+}
+
+func (r *TcpServer) listen() {
+	defer r.stop.Close()
+	defer r.listener.Close()
+	for !r.Stoped() {
+		c, err := r.listener.Accept()
+		if err != nil {
+			logger.Error("tcp server accept failed:%v", err)
+			break
+		} else {
+			r.Go(func() { r.socket(c) })
+		}
+	}
+}
+
+func (r *TcpServer) socket(conn net.Conn) {
 	sock := &TcpSocket{
 		conn:      conn,
-		NetSocket: NewNetSocket(srv),
+		NetSocket: NewNetSocket(r),
 	}
-	srv.sockets.Add(sock)
-	logger.Debug("new socket Id:%d from Addr:%s", sock.id, conn.RemoteAddr().String())
-	return sock
+	if r.handler.OnConnect(sock) {
+		r.Go(sock.read)
+		r.Go(sock.write)
+		r.sockets.Add(sock)
+		logger.Debug("new socket Id:%d from Addr:%s", sock.id, conn.RemoteAddr().String())
+	} else if sock.Close() {
+		sock.conn.Close()
+	}
 }
 
 func (r *TcpSocket) LocalAddr() string {
@@ -96,17 +93,17 @@ func (r *TcpSocket) readMsg() {
 			_, err := io.ReadFull(r.conn, headData)
 			if err != nil {
 				if err != io.EOF {
-					logger.Debug("msgque:%v recv data err:%v", r.id, err)
+					logger.Debug("socket:%v recv data err:%v", r.id, err)
 				}
 				break
 			}
 			if head = NewMsgHead(headData); head == nil {
-				logger.Debug("msgque:%v read msg head failed", r.id)
+				logger.Debug("socket:%v read msg head failed", r.id)
 				break
 			}
 			if head.Len == 0 {
 				if !r.processMsg(r, &Message{Head: head}) {
-					logger.Debug("msgque:%v process msg act:%v", r.id, head.Proto)
+					logger.Debug("socket:%v process msg act:%v", r.id, head.Proto)
 					break
 				}
 				head = nil
@@ -116,11 +113,11 @@ func (r *TcpSocket) readMsg() {
 		} else {
 			_, err := io.ReadFull(r.conn, data)
 			if err != nil {
-				logger.Debug("msgque:%v recv data err:%v", r.id, err)
+				logger.Debug("socket:%v recv data err:%v", r.id, err)
 				break
 			}
 			if !r.processMsg(r, &Message{Head: head, Data: data}) {
-				logger.Debug("msgque:%v process msg act:%v ", r.id, head.Proto)
+				logger.Debug("socket:%v process msg act:%v ", r.id, head.Proto)
 				break
 			}
 
@@ -155,7 +152,7 @@ func (r *TcpSocket) writeMsg() {
 		if writeCount < len(data) {
 			n, err := r.conn.Write(data[writeCount:])
 			if err != nil {
-				logger.Error("msgque write Id:%v err:%v", r.id, err)
+				logger.Error("socket write error,Id:%v err:%v", r.id, err)
 				break
 			}
 			writeCount += n
@@ -170,32 +167,23 @@ func (r *TcpSocket) writeMsg() {
 }
 
 func (r *TcpSocket) read() {
-	srv := r.server.(*TcpServer)
-	srv.wgp.Add(1)
-
 	defer func() {
 		if err := recover(); err != nil {
-			logger.Error("msgque read panic Id:%v err:%v", r.id, err)
+			logger.Error("socket read panic Id:%v err:%v", r.id, err)
 		}
-		srv.wgp.Done()
 		r.Close()
 	}()
-
 	r.readMsg()
 }
 
 func (r *TcpSocket) write() {
-	srv := r.server.(*TcpServer)
-	srv.wgp.Add(1)
-
 	defer func() {
 		if err := recover(); err != nil {
-			logger.Error("msgque write panic Id:%v err:%v", r.id, err)
+			logger.Error("socket write panic Id:%v err:%v", r.id, err)
 		}
 		if r.conn != nil {
 			r.conn.Close()
 		}
-		srv.wgp.Done()
 		r.Close()
 	}()
 

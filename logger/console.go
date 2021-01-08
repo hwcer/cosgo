@@ -38,6 +38,13 @@ type consoleLogger struct {
 	LogLevel int
 }
 
+func init() {
+	Register(AdapterConsole, &consoleLogger{
+		LogLevel: LevelDebug,
+		Colorful: runtime.GOOS != "windows",
+	})
+}
+
 func (c *consoleLogger) Init(jsonConfig string) error {
 	if len(jsonConfig) == 0 {
 		return nil
@@ -59,7 +66,7 @@ func (c *consoleLogger) Init(jsonConfig string) error {
 	return err
 }
 
-func (c *consoleLogger) LogWrite(when time.Time, msgText interface{}, level int) error {
+func (c *consoleLogger) Write(when time.Time, msgText interface{}, level int) error {
 	if level > c.LogLevel {
 		return nil
 	}
@@ -74,7 +81,7 @@ func (c *consoleLogger) LogWrite(when time.Time, msgText interface{}, level int)
 	return nil
 }
 
-func (c *consoleLogger) Destroy() {
+func (c *consoleLogger) Close() {
 
 }
 
@@ -82,11 +89,4 @@ func (c *consoleLogger) printlnConsole(when time.Time, msg string) {
 	c.Lock()
 	defer c.Unlock()
 	os.Stdout.Write(append([]byte(msg), '\n'))
-}
-
-func init() {
-	Register(AdapterConsole, &consoleLogger{
-		LogLevel: LevelDebug,
-		Colorful: runtime.GOOS != "windows",
-	})
 }
