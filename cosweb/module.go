@@ -1,4 +1,4 @@
-package express
+package cosweb
 
 import (
 	"cosgo/app"
@@ -15,7 +15,7 @@ func New(id, addr string, handle interface{}, middleware ...MiddlewareFunc) *mod
 	mod.Prefix = "*"
 	mod.Handle = handle
 	mod.Middleware = middleware
-	app.Use(mod)
+	apps.Use(mod)
 	return mod
 }
 
@@ -42,7 +42,7 @@ func (this *module) ID() string {
 //自动通过config加载配置
 func (this *module) Init() (err error) {
 	if this.Flag != "" {
-		addr := app.Config.GetString(this.Flag)
+		addr := apps.Config.GetString(this.Flag)
 		if addr != "" {
 			this.Addr = addr
 		}
@@ -52,8 +52,8 @@ func (this *module) Init() (err error) {
 	}
 	var tlsConfig *tls.Config
 	if this.TLS == 1 {
-		tlspem := app.Config.GetString("tls.pem")
-		tlskey := app.Config.GetString("tls.key")
+		tlspem := apps.Config.GetString("tls.pem")
+		tlskey := apps.Config.GetString("tls.key")
 		if tlspem == "" || tlskey == "" {
 			return errors.New("Express Server TLS File empty")
 		}

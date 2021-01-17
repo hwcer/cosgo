@@ -1,4 +1,4 @@
-package express
+package cosweb
 
 import (
 	"cosgo/app"
@@ -16,7 +16,7 @@ type Static struct {
 
 func NewStatic(root string) *Static {
 	if !path.IsAbs(root) {
-		root = filepath.Join(app.Config.GetString("appWorkDir"), root)
+		root = filepath.Join(apps.Config.GetString("appWorkDir"), root)
 	}
 	return &Static{root: root}
 }

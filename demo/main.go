@@ -1,11 +1,10 @@
 package main
 
 import (
-	"cosgo/app"
+	"cosgo/apps"
 	"cosgo/cosnet"
-	"cosgo/demo/handle"
-	"cosgo/express"
 	"github.com/spf13/pflag"
+	"sync"
 )
 
 func init() {
@@ -13,14 +12,38 @@ func init() {
 	pflag.String("http", "0.0.0.0:80", "http address")
 
 	pflag.String("hwc", "", "test pflag")
-	app.Config.SetDefault("proAddr", "0.0.0.0:8080") //开启性能分析工具
+	//apps.Config.SetDefault("proAddr", "0.0.0.0:8080") //开启性能分析工具
+}
+
+type module struct {
+	Id  string
+	srv cosnet.Server
+}
+
+func (this *module) ID() string {
+	return this.Id
+}
+
+func (m *module) Init() (err error) {
+	addr := apps.Config.GetString("tcp")
+	m.srv, err = cosnet.NewServer(addr, nil)
+	return
+}
+
+func (m *module) Start(wg *sync.WaitGroup) error {
+	wg.Add(1)
+	m.srv.Start()
+	return nil
+}
+
+func (m *module) Close(wg *sync.WaitGroup) error {
+	wg.Done()
+	return m.srv.Close()
 }
 
 func main() {
-	tcp := cosnet.New("tpc srv", "", nil)
-	tcp.Flag = "tcp"
 
-	http := express.New("HTTPSRV", "", &handle.Remote{})
-	http.Flag = "http"
-	app.Start()
+	apps.Use(&module{Id: "test"})
+
+	apps.Start()
 }

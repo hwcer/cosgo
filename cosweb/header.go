@@ -1,4 +1,4 @@
-package express
+package cosweb
 
 // Headers
 const (
@@ -24,7 +24,7 @@ const (
 	HeaderXForwardedSsl       = "X-Forwarded-Ssl"
 	HeaderXUrlScheme          = "X-Url-Protocol"
 	HeaderXHTTPMethodOverride = "X-HTTP-value-Override"
-	HeaderXRealIP             = "X-Real-IP"
+	HeaderXRealIP             = "X-Real-Addr"
 	HeaderXRequestID          = "X-Request-ID"
 	HeaderXRequestedWith      = "X-Requested-With"
 	HeaderServer              = "Server"

@@ -1,7 +1,7 @@
 package cosnet
 
 import (
-	"cosgo/app"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -53,113 +53,89 @@ func (s *sockets) Del(id ...uint32) {
 
 type Server interface {
 	Start() error
-	Close()
+	Close() error
 	Stoped() bool
 	Sockets() *sockets
 	Timestamp() int64
-
-	GetHandler() MsgHandler
+	GetHandler() Handler
 	GetMsgType() MsgType
 	GetNetType() NetType
 	SetMultiplex(bool)
 	GetMultiplex() bool
 }
 
-func NewNetServer(msgTyp MsgType, handler MsgHandler, netType NetType) *NetServer {
+func NewNetServer(msgTyp MsgType, handler Handler, netType NetType) *NetServer {
 	s := &NetServer{
-		wgp:     &sync.WaitGroup{},
-		stop:    make(stopChan),
+		wgp:     new(sync.WaitGroup),
 		msgTyp:  msgTyp,
 		netType: netType,
 		handler: handler,
+		sockets: new(sockets),
 	}
-	go s.goTick()
+	s.starTimestampTicker()
 	return s
 }
 
-type stopChan chan struct{}
-
-func (s stopChan) Close() bool {
-	select {
-	case <-s:
-		return false
-	default:
-		close(s)
-		return false
-	}
-}
-
 type NetServer struct {
-	wgp     *sync.WaitGroup
-	stop    stopChan
-	ticker  *time.Ticker
-	sockets *sockets //自增ID
+	wgp       *sync.WaitGroup
+	stop      int32
+	ticker    *time.Ticker
+	timestamp int64 //时间
 
 	msgTyp    MsgType //消息类型
 	netType   NetType
 	address   string
-	handler   MsgHandler //消息处理器
-	timestamp int64      //时间
-	multiplex bool       //是否使用协程来处理MESSAGE
+	sockets   *sockets //自增ID
+	handler   Handler  //消息处理器
+	multiplex bool     //是否使用协程来处理MESSAGE
 }
 
-func (s *NetServer) Go(f func()) {
-	s.wgp.Add(1)
-	go func() {
-		defer s.wgp.Done()
-		app.Try(f)
-	}()
-}
-
-//仅供外部调用
-func (s *NetServer) Close() {
-	s.stop.Close()
-	s.wgp.Wait()
+func (s *NetServer) Close() error {
+	if !atomic.CompareAndSwapInt32(&s.stop, 0, 1) {
+		return errors.New("server stoping")
+	}
+	return nil
 }
 
 func (s *NetServer) Stoped() bool {
-	return s.stop == nil
+	return s.stop == 1
 }
 
 func (s *NetServer) Sockets() *sockets {
 	return s.sockets
 }
 
+func (s *NetServer) GetMsgType() MsgType {
+	return s.msgTyp
+}
+
+func (s *NetServer) GetNetType() NetType {
+	return s.netType
+}
+
+func (s *NetServer) GetHandler() Handler {
+	return s.handler
+}
+
+func (s *NetServer) SetMultiplex(multiplex bool) {
+	s.multiplex = multiplex
+}
+func (s *NetServer) GetMultiplex() bool {
+	return s.multiplex
+}
 func (s *NetServer) Timestamp() int64 {
 	return s.timestamp
 }
 
-func (s *NetServer) goTick() {
-	if s.ticker != nil {
-		return
-	}
-	s.ticker = time.NewTicker(time.Millisecond * time.Duration(Config.ServerInterval))
-	defer s.ticker.Stop()
-	for {
-		select {
-		case <-s.ticker.C:
-			s.timestamp += Config.ServerInterval
-		case <-s.stop:
-			return
+func (s *NetServer) starTimestampTicker() {
+	Go(s.wgp, func() {
+		s.ticker = time.NewTicker(time.Millisecond * time.Duration(Config.ServerInterval))
+		defer s.ticker.Stop()
+		for !s.Stoped() {
+			select {
+			case <-s.ticker.C:
+				s.timestamp += Config.ServerInterval
+			}
 		}
-	}
-}
-
-func (r *NetServer) GetMsgType() MsgType {
-	return r.msgTyp
-}
-
-func (r *NetServer) GetNetType() NetType {
-	return r.netType
-}
-
-func (r *NetServer) GetHandler() MsgHandler {
-	return r.handler
-}
-
-func (r *NetServer) SetMultiplex(multiplex bool) {
-	r.multiplex = multiplex
-}
-func (r *NetServer) GetMultiplex() bool {
-	return r.multiplex
+	})
 }

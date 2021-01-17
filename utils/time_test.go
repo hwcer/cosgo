@@ -18,7 +18,7 @@ func TestGetDayStartTime(t *testing.T) {
 	//if err != nil {
 	//	t.Log("错误：", err)
 	//} else {
-	//	t.Log(addr.Network(), addr.IP)
+	//	t.Log(addr.Network(), addr.Addr)
 	//}
 
 	//ip := net.ParseIP("192.168.0.1")

@@ -1,7 +1,10 @@
 package cosnet
 
 import (
+	"cosgo/logger"
 	"runtime"
+	"strings"
+	"sync"
 )
 
 var Config = struct {
@@ -36,4 +39,44 @@ var Config = struct {
 
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
+}
+
+func Go(wgp *sync.WaitGroup, f func()) {
+	go func() {
+		wgp.Add(1)
+		defer wgp.Done()
+		f()
+	}()
+}
+
+func Try(f func(), handler ...func(interface{})) {
+	defer func() {
+		if err := recover(); err != nil {
+			if len(handler) == 0 {
+				logger.Error("%v", err)
+			} else {
+				handler[0](err)
+			}
+		}
+	}()
+	f()
+}
+
+func SafeGo(wgp *sync.WaitGroup, f func(), handler ...func(interface{})) {
+	Go(wgp, func() {
+		Try(f, handler...)
+	})
+}
+
+//启动服务器,根据
+func NewServer(addr string, handler Handler) (srv Server, err error) {
+	addrs := strings.Split(addr, "://")
+	if addrs[0] == "tcp" {
+		srv, err = NewTcpServer(addrs[1], handler)
+	} else if addrs[0] == "udp" {
+		//TODO UDP
+	} else if addrs[0] == "ws" || addrs[0] == "wss" {
+		//TODO wss
+	}
+	return
 }

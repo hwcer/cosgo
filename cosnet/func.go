@@ -4,24 +4,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
-	"errors"
-	"fmt"
 	"io/ioutil"
-	"strings"
 )
-
-//启动服务器,根据
-func NewServer(addr string, typ MsgType, handler MsgHandler) (Server, error) {
-	addrs := strings.Split(addr, "://")
-	if addrs[0] == "tcp" {
-		return NewTcpServer(addrs[1], typ, handler)
-	} else if addrs[0] == "udp" {
-		//TODO UDP
-	} else if addrs[0] == "ws" || addrs[0] == "wss" {
-		//TODO wss
-	}
-	return nil, errors.New(fmt.Sprintf("server address error:%v", addr))
-}
 
 func ZlibCompress(data []byte) []byte {
 	var in bytes.Buffer
