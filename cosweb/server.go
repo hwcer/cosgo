@@ -2,7 +2,7 @@ package cosweb
 
 import (
 	stdContext "context"
-	"cosgo/app"
+	"cosgo/apps"
 	"cosgo/logger"
 	"crypto/tls"
 	"io"
@@ -35,13 +35,13 @@ type (
 		HTTPErrorHandler HTTPErrorHandler
 	}
 
-	// MiddlewareFunc defines a function to process middleware.
+	// MiddlewareFunc defines a function to process Middleware.
 	MiddlewareFunc func(*Context, func())
 
 	// HandlerFunc defines a function to serve HTTP requests.
 	HandlerFunc func(*Context) error
 
-	// HTTPErrorHandler is a centralized HTTP error handler.
+	// HTTPErrorHandler is a centralized HTTP error Handler.
 	HTTPErrorHandler func(*Context, error)
 
 	// Renderer is the interface that wraps the Render function.
@@ -92,7 +92,7 @@ func (e *Engine) Router() *Router {
 	return e.router
 }
 
-// DefaultHTTPErrorHandler is the default HTTP error handler. It sends a JSON Response
+// DefaultHTTPErrorHandler is the default HTTP error Handler. It sends a JSON Response
 // with status code.
 func (e *Engine) DefaultHTTPErrorHandler(c *Context, err error) {
 	if c.Response.committed {
@@ -128,73 +128,73 @@ func (e *Engine) DefaultHTTPErrorHandler(c *Context, err error) {
 
 }
 
-// Use adds middleware to the chain which is run after router.
+// Use adds Middleware to the chain which is run after router.
 func (e *Engine) Use(middleware ...MiddlewareFunc) {
 	e.middleware = append(e.middleware, middleware...)
 }
 
-// CONNECT registers a new CONNECT route for a path with matching handler in the
-// router with optional route-level middleware.
+// CONNECT registers a new CONNECT Route for a path with matching Handler in the
+// router with optional Route-level Middleware.
 func (e *Engine) CONNECT(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Route([]string{http.MethodConnect}, path, h, m...)
 }
 
-// DELETE registers a new DELETE route for a path with matching handler in the router
-// with optional route-level middleware.
+// DELETE registers a new DELETE Route for a path with matching Handler in the router
+// with optional Route-level Middleware.
 func (e *Engine) DELETE(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Route([]string{http.MethodDelete}, path, h, m...)
 }
 
-// GET registers a new GET route for a path with matching handler in the router
-// with optional route-level middleware.
+// GET registers a new GET Route for a path with matching Handler in the router
+// with optional Route-level Middleware.
 func (e *Engine) GET(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Route([]string{http.MethodGet}, path, h, m...)
 }
 
-// HEAD registers a new HEAD route for a path with matching handler in the
-// router with optional route-level middleware.
+// HEAD registers a new HEAD Route for a path with matching Handler in the
+// router with optional Route-level Middleware.
 func (e *Engine) HEAD(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Route([]string{http.MethodHead}, path, h, m...)
 }
 
-// OPTIONS registers a new OPTIONS route for a path with matching handler in the
-// router with optional route-level middleware.
+// OPTIONS registers a new OPTIONS Route for a path with matching Handler in the
+// router with optional Route-level Middleware.
 func (e *Engine) OPTIONS(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Route([]string{http.MethodOptions}, path, h, m...)
 }
 
-// PATCH registers a new PATCH route for a path with matching handler in the
-// router with optional route-level middleware.
+// PATCH registers a new PATCH Route for a path with matching Handler in the
+// router with optional Route-level Middleware.
 func (e *Engine) PATCH(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Route([]string{http.MethodPatch}, path, h, m...)
 }
 
-// POST registers a new POST route for a path with matching handler in the
-// router with optional route-level middleware.
+// POST registers a new POST Route for a path with matching Handler in the
+// router with optional Route-level Middleware.
 func (e *Engine) POST(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Route([]string{http.MethodPost}, path, h, m...)
 }
 
-// PUT registers a new PUT route for a path with matching handler in the
-// router with optional route-level middleware.
+// PUT registers a new PUT Route for a path with matching Handler in the
+// router with optional Route-level Middleware.
 func (e *Engine) PUT(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Route([]string{http.MethodPut}, path, h, m...)
 }
 
-// TRACE registers a new TRACE route for a path with matching handler in the
-// router with optional route-level middleware.
+// TRACE registers a new TRACE Route for a path with matching Handler in the
+// router with optional Route-level Middleware.
 func (e *Engine) TRACE(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Route([]string{http.MethodTrace}, path, h, m...)
 }
 
-// Any registers a new route for all HTTP methods and path with matching handler
-// in the router with optional route-level middleware.
+// Any registers a new Route for all HTTP methods and path with matching Handler
+// in the router with optional Route-level Middleware.
 func (e *Engine) Any(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
 	return e.Route([]string{HttpMethodAny}, path, h, m...)
 }
 
-// AddTarget registers a new route for an HTTP value and path with matching handler
-// in the router with optional route-level middleware.
+// AddTarget registers a new Route for an HTTP value and path with matching Handler
+// in the router with optional Route-level Middleware.
 func (e *Engine) Route(method []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
 	return e.router.Route(method, path, handler, middleware...)
 }
@@ -225,7 +225,7 @@ func (e *Engine) RESTful(prefix string, handle iRESTful, middleware ...Middlewar
 	return route, rest
 }
 
-// Static registers a new route with path prefix to serve static files from the
+// Static registers a new Route with path prefix to serve static files from the
 // provided root directory.
 // 如果root 不是绝对路径 将以程序的WorkDir为基础
 func (e *Engine) Static(prefix, root string, middleware ...MiddlewareFunc) (*Route, *Static) {
@@ -252,7 +252,7 @@ func (e *Engine) ReleaseContext(c *Context) {
 	e.pool.Put(c)
 }
 
-// ServeHTTP implements `http.handler` interface, which serves HTTP requests.
+// ServeHTTP implements `http.Handler` interface, which serves HTTP requests.
 func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Acquire Context
 	c := e.AcquireContext(w, r)
@@ -266,7 +266,7 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	c.Path = r.URL.Path
 	c.middleware.reset(e.middleware...)
-	//do middleware
+	//do Middleware
 	c.next()
 	var err error
 	for i := 0; i < len(e.router.route) && !c.Aborted(); i++ {
@@ -310,14 +310,12 @@ func (e *Engine) Start() (err error) {
 	return
 }
 
-// shutdown immediately stops the server.
-// It internally calls `http.Server#shutdown()`.
+//立即关闭
 func (e *Engine) Close() error {
 	return e.Server.Close()
 }
 
-// Shutdown stops the server gracefully.
-// It internally calls `http.Server#Shutdown()`.
+//优雅关闭，等所有协程结束
 func (e *Engine) Shutdown(ctx stdContext.Context) error {
 	return e.Server.Shutdown(ctx)
 }

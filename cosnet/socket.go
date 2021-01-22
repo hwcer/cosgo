@@ -99,11 +99,11 @@ func (s *NetSocket) Write(m *Message) (re bool) {
 			re = false
 		}
 	}()
-	//if Config.AutoCompressLen > 0 && m.Head != nil && m.Head.Len >= Config.AutoCompressLen && !m.Head.HasFlag(MsgFlagCompress){
-	//	m.Head.AddFlag(MsgFlagCompress)
-	//	m.Data = GZipCompress(m.Data)
-	//	m.Head.Len = uint32(len(m.Data))
-	//}
+	if Config.AutoCompressSize > 0 && m.Head != nil && m.Head.Size >= Config.AutoCompressSize && !m.Head.Flags.Has(MsgFlagCompress) {
+		m.Head.Flags.Add(MsgFlagCompress)
+		m.Data = GZipCompress(m.Data)
+		m.Head.Size = int32(len(m.Data))
+	}
 	select {
 	case s.cwrite <- m:
 	default:
@@ -132,15 +132,15 @@ func (s *NetSocket) processMsg(msgque Socket, msg *Message) bool {
 	return true
 }
 func (s *NetSocket) processMsgTrue(sock Socket, msg *Message) bool {
-	if msg.Head != nil && msg.Head.HasFlag(MsgFlagCompress) && msg.Data != nil {
+	if msg.Head != nil && msg.Head.Flags.Has(MsgFlagCompress) && msg.Data != nil {
 		data, err := GZipUnCompress(msg.Data)
 		if err != nil {
 			logger.Error("uncompress failed socket:%v err:%v", sock.Id(), err)
 			return false
 		}
 		msg.Data = data
-		msg.Head.SubFlag(MsgFlagCompress)
-		msg.Head.Len = uint32(len(msg.Data))
+		msg.Head.Flags.Del(MsgFlagCompress)
+		msg.Head.Size = int32(len(msg.Data))
 	}
 	return s.handler.OnMessage(sock, msg)
 }

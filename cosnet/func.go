@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
+	"encoding/binary"
 	"io/ioutil"
 )
 
@@ -43,4 +44,19 @@ func GZipUnCompress(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return undatas, nil
+}
+
+//整形转换成字节
+func IntToBytes(n interface{}) []byte {
+	bytesBuffer := bytes.NewBuffer([]byte{})
+	binary.Write(bytesBuffer, binary.BigEndian, n)
+	return bytesBuffer.Bytes()
+}
+
+//字节转换成整形,n 必须是指针
+// var a int32
+// BytesToInt([]byte{1},&a)
+func BytesToInt(b []byte, n interface{}) {
+	bytesBuffer := bytes.NewBuffer(b)
+	binary.Read(bytesBuffer, binary.BigEndian, n)
 }

@@ -1,7 +1,7 @@
 package cosweb
 
 import (
-	"cosgo/app"
+	"cosgo/apps"
 	"crypto/tls"
 	"errors"
 	"sync"

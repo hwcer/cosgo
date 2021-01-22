@@ -85,7 +85,7 @@ func (c *Context) writeContentType(value string) {
 	}
 }
 
-// Next should be used only inside middleware.
+// Next should be used only inside Middleware.
 func (c *Context) next() {
 	handle, ok := c.middleware.unshift()
 	if ok {

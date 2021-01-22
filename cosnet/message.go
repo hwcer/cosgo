@@ -2,15 +2,19 @@ package cosnet
 
 import (
 	"bytes"
+	"encoding/json"
+	"encoding/xml"
 	"errors"
-	"unsafe"
+	"github.com/golang/protobuf/proto"
 )
 
-const MsgHeadSize = 12
+//TCP MESSAGE
 
-var MaxMsgDataSize uint32 = 1024 * 1024
+var MsgHeadSize = 12
+var MsgDataSize = 1024 * 1024
 
-type MsgFlagType uint16
+type MsgFlagType uint8
+type MsgDataType uint8
 
 const (
 	MsgFlagEncrypt  MsgFlagType = 1 << 0 //数据是经过加密的
@@ -22,89 +26,106 @@ const (
 	MsgFlagClient   MsgFlagType = 1 << 6 //消息来自客服端，用于判断index来之服务器还是其他玩家
 )
 
-type MsgHead struct {
-	Len   uint32 //数据长度 4294967295 4
-	Index uint32 //消息报序号 4
-	Proto uint16 //协议号 65535   2
-	Flags uint16 //标记    2
+const (
+	MsgDataTypeString MsgDataType = 1
+	MsgDataTypeInt32  MsgDataType = 2
+	MsgDataTypeJson   MsgDataType = 3
+	MsgDataTypeProto  MsgDataType = 4
+	MsgDataTypeXml    MsgDataType = 5
+)
+
+type Header struct {
+	Size     int32  //数据长度 4294967295 4
+	Index    int32  //消息序号 4
+	Proto    uint16 //协议号 2
+	Flags    MsgFlagType
+	DataType MsgDataType //DATA 格式
 }
 
 type Message struct {
-	Head *MsgHead //消息头，可能为nil
-	Data []byte   //消息数据
+	Head *Header //消息头，可能为nil
+	Data []byte  //消息数据
 }
 
-type sliceMock struct {
-	addr uintptr
-	len  int
-	cap  int
+func NewMsg(b []byte) (*Message, error) {
+	head := &Header{}
+	if err := head.Parse(b); err != nil {
+		return nil, err
+	}
+	return &Message{Head: head}, nil
 }
 
 //Bytes 生成成byte类型head
-func (m *MsgHead) Bytes(data ...[]byte) []byte {
-	s := &sliceMock{addr: uintptr(unsafe.Pointer(m)), cap: MsgHeadSize, len: MsgHeadSize}
-	head := *(*[]byte)(unsafe.Pointer(s))
-	if len(data) > 0 {
-		return bytes.Join([][]byte{head, data[0]}, []byte{})
-	} else {
-		return head
-	}
+func (m *Header) Bytes() []byte {
+	var b [][]byte
+	b = append(b, IntToBytes(m.Size))
+	b = append(b, IntToBytes(m.Index))
+	b = append(b, IntToBytes(m.Proto))
+	b = append(b, IntToBytes(m.DataType))
+	b = append(b, IntToBytes(m.Flags))
+	return bytes.Join(b, []byte{})
 }
 
 //parse 解析[]byte并填充字段
-func (m *MsgHead) Parse(head []byte) error {
+func (m *Header) Parse(head []byte) error {
 	if len(head) != MsgHeadSize {
 		return errors.New("head len error")
 	}
-	*m = **(**MsgHead)(unsafe.Pointer(&head))
+	BytesToInt(head[0:4], &m.Size)
+	BytesToInt(head[4:8], &m.Index)
+	BytesToInt(head[8:10], &m.Proto)
+	BytesToInt(head[10:11], &m.DataType)
+	BytesToInt(head[11:12], &m.Flags)
 	return nil
-}
-
-func (m *MsgHead) HasFlag(f MsgFlagType) bool {
-	return (m.Flags & uint16(f)) > 0
-}
-
-func (m *MsgHead) AddFlag(f MsgFlagType) {
-	m.Flags |= uint16(f)
-}
-func (m *MsgHead) SubFlag(f MsgFlagType) {
-	m.Flags -= uint16(f)
 }
 
 //Bytes 生成二进制文件
 func (r *Message) Bytes() []byte {
-	if r.Head != nil {
-		if len(r.Data) > 0 {
-			return r.Head.Bytes(r.Data)
-		} else {
-			return r.Head.Bytes()
-		}
+	var b [][]byte
+	b = append(b, r.Head.Bytes())
+	if len(r.Data) > 0 {
+		b = append(b, r.Data)
 	}
-	return r.Data
+	return bytes.Join(b, []byte{})
 }
 
-func NewMsgHead(head []byte) *MsgHead {
-	msg := &MsgHead{}
-	if err := msg.Parse(head); err != nil {
-		return nil
-	}
-	return msg
-}
-
-func NewMsg(proto uint16, data []byte) *Message {
+func (r *Message) NewMsg(proto uint16, data []byte) *Message {
 	return &Message{
-		Head: &MsgHead{
-			Len:   uint32(len(data)),
+		Head: &Header{
+			Size:  int32(len(data)),
+			Index: r.Head.Index,
 			Proto: proto,
 		},
 		Data: data,
 	}
 }
-func NewMsgData(data []byte) *Message {
-	return &Message{
-		Head: &MsgHead{
-			Len: uint32(len(data)),
-		},
-		Data: data,
+
+func (r *Message) Bind(i interface{}) error {
+	dt := r.Head.DataType
+	if dt == 0 {
+		dt = Config.MsgDataType
+	}
+	switch dt {
+	case MsgDataTypeJson:
+		return json.Unmarshal(r.Data, i)
+	case MsgDataTypeProto:
+		return proto.Unmarshal(r.Data, i.(proto.Message))
+	case MsgDataTypeXml:
+		return xml.Unmarshal(r.Data, i.(proto.Message))
+	default:
+		return errors.New("unknown MsgDataType")
+	}
+}
+
+func (m *MsgFlagType) Has(f MsgFlagType) bool {
+	return (*m & f) > 0
+}
+
+func (m *MsgFlagType) Add(f MsgFlagType) {
+	*m |= f
+}
+func (m *MsgFlagType) Del(f MsgFlagType) {
+	if m.Has(f) {
+		*m -= f
 	}
 }

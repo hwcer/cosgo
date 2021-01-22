@@ -8,8 +8,8 @@ import (
 )
 
 var Config = struct {
-	AutoCompressLen uint32
-	UdpServerGoCnt  int
+	AutoCompressSize int32 //自动压缩
+	UdpServerGoCnt   int
 
 	SSLCrtPath     string
 	SSLKeyPath     string
@@ -23,6 +23,8 @@ var Config = struct {
 	ConnectHeartbeat int32 //心跳(MS)每隔多久检查一次客户端状态
 
 	ServerInterval int64 //服务器时钟(MS)
+
+	MsgDataType MsgDataType //默认包体编码方式
 }{
 	UdpServerGoCnt: 64,
 	ReadDataBuffer: 1 << 12,
@@ -35,6 +37,8 @@ var Config = struct {
 	ConnectHeartbeat: 1000,
 
 	ServerInterval: 100,
+
+	MsgDataType: MsgDataTypeProto,
 }
 
 func init() {

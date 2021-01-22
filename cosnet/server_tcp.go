@@ -83,36 +83,32 @@ func (s *TcpSocket) RemoteAddr() string {
 
 func (s *TcpSocket) readMsg() {
 	defer s.Close()
-
-	headData := make([]byte, MsgHeadSize)
-	var data []byte
-
+	head := make([]byte, MsgHeadSize)
 	for !s.Stoped() {
-		_, err := io.ReadFull(s.Conn, headData)
+		_, err := io.ReadFull(s.Conn, head)
 		if err != nil {
 			if err != io.EOF {
 				logger.Debug("socket:%v recv data err:%v", s.id, err)
 			}
 			break
 		}
-		head := NewMsgHead(headData)
-		if head == nil {
-			logger.Debug("socket:%v read msg head failed", s.id)
+		msg, err := NewMsg(head)
+		if err != nil {
+			logger.Debug("socket:%v read msg msg failed:%v", err)
 			break
 		}
-		if head.Len > 0 {
-			data = make([]byte, head.Len)
-			_, err := io.ReadFull(s.Conn, data)
+		if msg.Head.Size > 0 {
+			msg.Data = make([]byte, msg.Head.Size)
+			_, err := io.ReadFull(s.Conn, msg.Data)
 			if err != nil {
 				logger.Debug("socket:%v recv data err:%v", s.id, err)
 				break
 			}
 		}
-		if !s.processMsg(s, &Message{Head: head, Data: data}) {
-			logger.Debug("socket:%v process msg act:%v ", s.id, head.Proto)
+		if !s.processMsg(s, msg) {
+			logger.Debug("socket:%v process msg act:%v ", s.id, msg.Head.Proto)
 			break
 		}
-		data = nil
 	}
 }
 

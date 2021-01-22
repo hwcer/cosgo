@@ -9,7 +9,7 @@ import (
 
 type (
 	// Response wraps an http.ResponseWriter and implements its interface to be used
-	// by an HTTP handler to construct an HTTP Response.
+	// by an HTTP Handler to construct an HTTP Response.
 	// See: https://golang.org/pkg/net/http/#ResponseWriter
 	Response struct {
 		engine         *Engine
@@ -72,14 +72,14 @@ func (r *Response) Write(b []byte) (n int, err error) {
 	return
 }
 
-// Flush implements the http.Flusher interface to allow an HTTP handler to flush
+// Flush implements the http.Flusher interface to allow an HTTP Handler to flush
 // buffered data to the client.
 // See [http.Flusher](https://golang.org/pkg/net/http/#Flusher)
 func (r *Response) Flush() {
 	r.Writer.(http.Flusher).Flush()
 }
 
-// Hijack implements the http.Hijacker interface to allow an HTTP handler to
+// Hijack implements the http.Hijacker interface to allow an HTTP Handler to
 // take over the connection.
 // See [http.Hijacker](https://golang.org/pkg/net/http/#Hijacker)
 func (r *Response) Hijack() (net.Conn, *bufio.ReadWriter, error) {

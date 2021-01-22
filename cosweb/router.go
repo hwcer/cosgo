@@ -1,171 +1,170 @@
 package cosweb
 
 import (
+	"fmt"
 	"strings"
 )
 
-type Route struct {
-	path        string
-	prefix      string
-	matching    []string
-	staticMatch bool             //静态路由
-	suffixMatch bool             //匹配规则是否以 * 结束
-	method      map[string]bool  //匹配方式
-	handler     HandlerFunc      //handler入口
-	formatted   bool             //路径是否已经格式化
-	middleware  []MiddlewareFunc //中间件
+const (
+	RoutePathName_Param string = ":"
+	RoutePathName_Vague string = "*"
+)
 
+type Node struct {
+	step       int              //层级
+	name       string           // string,:,*,当前层匹配规则
+	child      map[string]*Node //子路径
+	Route      []string         //当前路由绝对路径
+	Handler    HandlerFunc      //handler入口
+	Middleware []MiddlewareFunc //中间件
 }
 
 // Router is the registry of all registered Routes for an `Engine` instance for
 // Request matching and URL path parameter parsing.
 type Router struct {
-	route  []*Route
+	root   map[string]*Node //method->Node
 	engine *Engine
 }
 
-func NewRoute(path string, method []string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
-	route := &Route{
-		path:       path,
-		method:     make(map[string]bool),
-		handler:    handler,
-		middleware: middleware,
+func NewNode(p *Node, name string, route ...string) *Node {
+	var step int
+	if p != nil {
+		step = p.step + 1
 	}
-	for _, k := range method {
-		route.method[k] = true
+	return &Node{
+		step:  step,
+		name:  name,
+		Route: route,
+		child: make(map[string]*Node),
 	}
-	route.format()
-	return route
 }
 
-// NewRouter returns a new Router instance.
 func NewRouter(e *Engine) *Router {
-	return &Router{
+	r := &Router{
+		root:   make(map[string]*Node),
 		engine: e,
-		route:  make([]*Route, 0),
 	}
+	return r
 }
 
-//加入中间件
-func (r *Route) Use(m ...MiddlewareFunc) {
-	r.middleware = append(r.middleware, m...)
-}
-
-//原始路径
-func (r *Route) Path() string {
-	return r.path
-}
-
-//启用method
-func (r *Route) Enable(method string) {
-	r.method[method] = true
-}
-
-//禁用method
-func (r *Route) Disable(method string) {
-	r.method[method] = false
-}
-
-//匹配路由
-func (r *Route) match(c *Context) (ok bool) {
-	path := c.Path
-	method := c.Request.Method
-	c.params = make(map[string]string)
-	c.values = make([]string, 0)
-
-	if !(r.method[method] || r.method[HttpMethodAny]) {
-		return false
-	}
-	r.format()
-	if !strings.HasPrefix(path, r.prefix) {
-		return false
-	}
-	//静态路由
-	if r.staticMatch {
-		if r.suffixMatch && len(path) >= len(r.prefix) {
-			ok = true
-			c.values = append(c.values, strings.TrimPrefix(path, r.prefix))
-		} else if !r.suffixMatch && path == r.prefix {
-			ok = true
-		}
-		return
-	}
-
-	arrPath := strings.Split(strings.TrimPrefix(path, r.prefix), "/")
-	//通配符尾缀
-	var suffix string
-	if r.suffixMatch {
-		if len(arrPath) < len(r.matching) {
-			return false
-		}
-		suffix = strings.Join(arrPath[len(r.matching):], "/")
-		arrPath = arrPath[0:len(r.matching)]
-	} else if len(arrPath) != len(r.matching) {
-		return false
-	}
-
-	for i := 0; i < len(r.matching); i++ {
-		if r.matching[i] == "*" {
-			c.values = append(c.values, arrPath[i])
-		} else if strings.HasPrefix(r.matching[i], ":") {
-			k := strings.TrimPrefix(r.matching[i], ":")
-			c.params[k] = arrPath[i]
-		} else if r.matching[i] != arrPath[i] {
-			return false
-		}
-	}
-	if r.suffixMatch {
-		c.values = append(c.values, suffix)
-	}
-	return true
-}
-
-//预先格式化路径
-func (r *Route) format() {
-	if r.formatted {
-		return
-	}
-	path := r.path
-	if strings.HasSuffix(path, "*") {
-		path = strings.TrimSuffix(path, "*")
-		r.suffixMatch = true
-	}
-	if !strings.Contains(path, "*") && !strings.Contains(path, ":") {
-		r.prefix = path
-		r.staticMatch = true
-		return
-	}
-	if r.suffixMatch {
-		path = strings.TrimSuffix(path, "/")
-	}
-	//解析路径
-	arr := strings.Split(path, "/")
-	var prefix, matching []string
-	//prefix
-	for _, s := range arr {
-		if len(matching) > 0 || strings.Contains(s, ":") || strings.Contains(s, "*") {
-			matching = append(matching, s)
-		} else {
-			prefix = append(prefix, s)
-		}
-	}
-
-	if len(prefix) > 0 {
-		prefix = append(prefix, "") //以"/"结束
-	}
-	r.prefix = strings.Join(prefix, "/")
-	r.matching = matching
-
-	r.formatted = true
-
-}
-
-// AddTarget registers a new route for value and path with matching handler.
-func (r *Router) Route(method []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
+//
+func (r *Router) Match(method, path string) *Node {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	route := NewRoute(path, method, handler, middleware...)
-	r.route = append(r.route, route)
-	return route
+	method = strings.ToUpper(method)
+	nextNode := r.root[method]
+	if path == "/" {
+		return nextNode //匹配（/） 根目录
+	}
+
+	var index int
+	var spareNode []*Node
+	arr := strings.Split(path, "/")
+
+	for index < (len(arr)-1) && nextNode != nil {
+		index = nextNode.step + 1
+		if node := nextNode.child[RoutePathName_Vague]; node != nil {
+			spareNode = append(spareNode, node)
+		}
+		if node := nextNode.child[RoutePathName_Param]; node != nil {
+			spareNode = append(spareNode, node)
+		}
+		if node := nextNode.child[arr[index]]; node != nil {
+			nextNode = node
+		} else if len(spareNode) > 0 {
+			ni := len(spareNode) - 1
+			nextNode = spareNode[ni]
+			spareNode = spareNode[0:ni]
+		} else {
+			nextNode = nil
+		}
+
+		if nextNode != nil {
+			if strings.HasPrefix(nextNode.Route[nextNode.step], RoutePathName_Vague) {
+				break //遇见*立即结束
+			} else {
+				index = nextNode.step
+			}
+		}
+	}
+
+	return nextNode
+}
+
+func (r *Router) Register(method []string, route string, handler HandlerFunc, middleware ...MiddlewareFunc) {
+	if !strings.HasPrefix(route, "/") {
+		route = "/" + route
+	}
+	arr := strings.Split(route, "/")
+	for _, m := range method {
+		m = strings.ToUpper(m)
+		if r.root[m] == nil {
+			r.root[m] = NewNode(nil, "")
+		}
+		if route != "/" {
+			r.root[m].addChild(m, arr, handler, middleware...)
+		}
+	}
+}
+
+func (this *Node) addChild(method string, arr []string, handler HandlerFunc, middleware ...MiddlewareFunc) {
+	var (
+		key, name string
+	)
+	i := this.step + 1
+	j := i + 1
+	if strings.HasPrefix(arr[0], RoutePathName_Param) {
+		key = strings.TrimPrefix(arr[i], RoutePathName_Param)
+		name = RoutePathName_Param
+	} else if strings.HasPrefix(arr[i], RoutePathName_Vague) {
+		key = strings.TrimPrefix(arr[i], RoutePathName_Vague)
+		name = RoutePathName_Vague
+	} else {
+		name = arr[0]
+	}
+	//(*)必须放在结尾
+	if name == RoutePathName_Vague && j != len(arr) {
+		panic(fmt.Sprintf("router(*) must be at the end:%v", strings.Join(arr, "/")))
+	}
+
+	childNode := this.child[name]
+	//最后一层不能被覆盖
+	if j == len(arr) && childNode != nil {
+		panic(fmt.Sprintf("router conflict,%v:%v", method, strings.Join(arr, "/")))
+	}
+
+	if childNode == nil {
+		childNode = NewNode(this, key, name, strings.Join(arr[0:j], "/"))
+		this.child[name] = childNode
+	}
+
+	if j == len(arr) {
+		childNode.Handler = handler
+		childNode.Middleware = middleware
+	} else {
+		childNode.addChild(method, arr, handler, middleware...)
+	}
+}
+
+func (this *Node) Params(paths []string) map[string]string {
+	r := make(map[string]string)
+	m := len(paths)
+	if m > len(this.Route) {
+		m = len(this.Route)
+	}
+	for i := 0; i < m; i++ {
+		s := this.Route[i]
+		if strings.HasPrefix(s, RoutePathName_Param) {
+			k := strings.TrimPrefix(s, RoutePathName_Param)
+			r[k] = paths[i]
+		} else if strings.HasPrefix(s, RoutePathName_Vague) {
+			k := strings.TrimPrefix(s, RoutePathName_Vague)
+			if k != "" {
+				r[k] = strings.Join(paths[i:], "/")
+			}
+		}
+
+	}
+	return r
 }
