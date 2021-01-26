@@ -47,7 +47,10 @@ func NewRouter(e *Engine) *Router {
 	return r
 }
 
-//
+/*
+  /s/:id/update
+	/s/123
+*/
 func (r *Router) Match(method, path string) *Node {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
@@ -58,34 +61,34 @@ func (r *Router) Match(method, path string) *Node {
 		return nextNode //匹配（/） 根目录
 	}
 
-	var index int
 	var spareNode []*Node
 	arr := strings.Split(path, "/")
-
-	for index < (len(arr)-1) && nextNode != nil {
-		index = nextNode.step + 1
+	for nextNode != nil {
+		i := nextNode.step + 1
+		k := arr[i]
 		if node := nextNode.child[RoutePathName_Vague]; node != nil {
 			spareNode = append(spareNode, node)
 		}
 		if node := nextNode.child[RoutePathName_Param]; node != nil {
 			spareNode = append(spareNode, node)
 		}
-		if node := nextNode.child[arr[index]]; node != nil {
+		if node := nextNode.child[k]; node != nil {
 			nextNode = node
-		} else if len(spareNode) > 0 {
-			ni := len(spareNode) - 1
-			nextNode = spareNode[ni]
-			spareNode = spareNode[0:ni]
 		} else {
 			nextNode = nil
 		}
 
-		if nextNode != nil {
-			if strings.HasPrefix(nextNode.Route[nextNode.step], RoutePathName_Vague) {
-				break //遇见*立即结束
-			} else {
-				index = nextNode.step
-			}
+		if nextNode == nil && len(spareNode) > 0 {
+			ni := len(spareNode) - 1
+			nextNode = spareNode[ni]
+			spareNode = spareNode[0:ni]
+		}
+		if nextNode != nil && len(nextNode.Route) > len(arr) {
+			nextNode = nil
+		}
+		//模糊匹配 || 精确匹配
+		if nextNode != nil && (strings.HasPrefix(nextNode.Route[nextNode.step], RoutePathName_Vague) || len(nextNode.Route) == len(arr)) {
+			break
 		}
 	}
 
@@ -167,4 +170,12 @@ func (this *Node) Params(paths []string) map[string]string {
 
 	}
 	return r
+}
+
+func (this *Node) String() string {
+	if len(this.Route) < 2 {
+		return "/"
+	} else {
+		return strings.Join(this.Route, "/")
+	}
 }

@@ -133,107 +133,107 @@ func (e *Engine) Use(middleware ...MiddlewareFunc) {
 	e.middleware = append(e.middleware, middleware...)
 }
 
-// CONNECT registers a new CONNECT Route for a path with matching Handler in the
-// router with optional Route-level Middleware.
-func (e *Engine) CONNECT(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Route([]string{http.MethodConnect}, path, h, m...)
+// CONNECT registers a new CONNECT Register for a path with matching Handler in the
+// router with optional Register-level Middleware.
+func (e *Engine) CONNECT(path string, h HandlerFunc, m ...MiddlewareFunc) {
+	e.Register([]string{http.MethodConnect}, path, h, m...)
 }
 
-// DELETE registers a new DELETE Route for a path with matching Handler in the router
-// with optional Route-level Middleware.
-func (e *Engine) DELETE(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Route([]string{http.MethodDelete}, path, h, m...)
+// DELETE registers a new DELETE Register for a path with matching Handler in the router
+// with optional Register-level Middleware.
+func (e *Engine) DELETE(path string, h HandlerFunc, m ...MiddlewareFunc) {
+	e.Register([]string{http.MethodDelete}, path, h, m...)
 }
 
-// GET registers a new GET Route for a path with matching Handler in the router
-// with optional Route-level Middleware.
-func (e *Engine) GET(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Route([]string{http.MethodGet}, path, h, m...)
+// GET registers a new GET Register for a path with matching Handler in the router
+// with optional Register-level Middleware.
+func (e *Engine) GET(path string, h HandlerFunc, m ...MiddlewareFunc) {
+	e.Register([]string{http.MethodGet}, path, h, m...)
 }
 
-// HEAD registers a new HEAD Route for a path with matching Handler in the
-// router with optional Route-level Middleware.
-func (e *Engine) HEAD(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Route([]string{http.MethodHead}, path, h, m...)
+// HEAD registers a new HEAD Register for a path with matching Handler in the
+// router with optional Register-level Middleware.
+func (e *Engine) HEAD(path string, h HandlerFunc, m ...MiddlewareFunc) {
+	e.Register([]string{http.MethodHead}, path, h, m...)
 }
 
-// OPTIONS registers a new OPTIONS Route for a path with matching Handler in the
-// router with optional Route-level Middleware.
-func (e *Engine) OPTIONS(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Route([]string{http.MethodOptions}, path, h, m...)
+// OPTIONS registers a new OPTIONS Register for a path with matching Handler in the
+// router with optional Register-level Middleware.
+func (e *Engine) OPTIONS(path string, h HandlerFunc, m ...MiddlewareFunc) {
+	e.Register([]string{http.MethodOptions}, path, h, m...)
 }
 
-// PATCH registers a new PATCH Route for a path with matching Handler in the
-// router with optional Route-level Middleware.
-func (e *Engine) PATCH(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Route([]string{http.MethodPatch}, path, h, m...)
+// PATCH registers a new PATCH Register for a path with matching Handler in the
+// router with optional Register-level Middleware.
+func (e *Engine) PATCH(path string, h HandlerFunc, m ...MiddlewareFunc) {
+	e.Register([]string{http.MethodPatch}, path, h, m...)
 }
 
-// POST registers a new POST Route for a path with matching Handler in the
-// router with optional Route-level Middleware.
-func (e *Engine) POST(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Route([]string{http.MethodPost}, path, h, m...)
+// POST registers a new POST Register for a path with matching Handler in the
+// router with optional Register-level Middleware.
+func (e *Engine) POST(path string, h HandlerFunc, m ...MiddlewareFunc) {
+	e.Register([]string{http.MethodPost}, path, h, m...)
 }
 
-// PUT registers a new PUT Route for a path with matching Handler in the
-// router with optional Route-level Middleware.
-func (e *Engine) PUT(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Route([]string{http.MethodPut}, path, h, m...)
+// PUT registers a new PUT Register for a path with matching Handler in the
+// router with optional Register-level Middleware.
+func (e *Engine) PUT(path string, h HandlerFunc, m ...MiddlewareFunc) {
+	e.Register([]string{http.MethodPut}, path, h, m...)
 }
 
-// TRACE registers a new TRACE Route for a path with matching Handler in the
-// router with optional Route-level Middleware.
-func (e *Engine) TRACE(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Route([]string{http.MethodTrace}, path, h, m...)
+// TRACE registers a new TRACE Register for a path with matching Handler in the
+// router with optional Register-level Middleware.
+func (e *Engine) TRACE(path string, h HandlerFunc, m ...MiddlewareFunc) {
+	e.Register([]string{http.MethodTrace}, path, h, m...)
 }
 
-// Any registers a new Route for all HTTP methods and path with matching Handler
-// in the router with optional Route-level Middleware.
-func (e *Engine) Any(path string, h HandlerFunc, m ...MiddlewareFunc) *Route {
-	return e.Route([]string{HttpMethodAny}, path, h, m...)
+// Any registers a new Register for all HTTP methods and path with matching Handler
+// in the router with optional Register-level Middleware.
+func (e *Engine) Any(path string, h HandlerFunc, m ...MiddlewareFunc) {
+	e.Register([]string{HttpMethodAny}, path, h, m...)
 }
 
-// AddTarget registers a new Route for an HTTP value and path with matching Handler
-// in the router with optional Route-level Middleware.
-func (e *Engine) Route(method []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) *Route {
-	return e.router.Route(method, path, handler, middleware...)
+// AddTarget registers a new Register for an HTTP value and path with matching Handler
+// in the router with optional Register-level Middleware.
+func (e *Engine) Register(method []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) {
+	e.router.Register(method, path, handler, middleware...)
 }
 
 //
-func (e *Engine) Group(prefix string, i interface{}, middleware ...MiddlewareFunc) (*Route, *Group) {
+func (e *Engine) Group(prefix string, i interface{}, middleware ...MiddlewareFunc) *Group {
 	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + iGroupRoutePath, ":" + iGroupRouteName}
 	nsp := NewGroup()
 	nsp.Register(i)
-	route := e.router.Route([]string{HttpMethodAny}, strings.Join(arr, "/"), nsp.handler, middleware...)
-	return route, nsp
+	e.router.Register([]string{HttpMethodAny}, strings.Join(arr, "/"), nsp.handler, middleware...)
+	return nsp
 }
 
 //代理服务器
-func (e *Engine) Proxy(prefix, address string, middleware ...MiddlewareFunc) (*Route, *Proxy) {
+func (e *Engine) Proxy(prefix, address string, middleware ...MiddlewareFunc) *Proxy {
 	arr := []string{strings.TrimSuffix(prefix, "/"), iProxyRoutePath}
 	proxy := NewProxy(address)
-	route := e.router.Route([]string{HttpMethodAny}, strings.Join(arr, "/"), proxy.handle, middleware...)
-	return route, proxy
+	e.router.Register([]string{HttpMethodAny}, strings.Join(arr, "/"), proxy.handle, middleware...)
+	return proxy
 }
 
-func (e *Engine) RESTful(prefix string, handle iRESTful, middleware ...MiddlewareFunc) (*Route, *RESTful) {
+func (e *Engine) RESTful(prefix string, handle iRESTful, middleware ...MiddlewareFunc) *RESTful {
 	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + iRESTfulRoutePath}
 	rest := NewRESTful()
 	rest.Register(handle)
 	method := append([]string{}, RESTfulMethods...)
-	route := e.router.Route(method, strings.Join(arr, "/"), rest.handler, middleware...)
-	return route, rest
+	e.router.Register(method, strings.Join(arr, "/"), rest.handler, middleware...)
+	return rest
 }
 
-// Static registers a new Route with path prefix to serve static files from the
+// Static registers a new Register with path prefix to serve static files from the
 // provided root directory.
 // 如果root 不是绝对路径 将以程序的WorkDir为基础
-func (e *Engine) Static(prefix, root string, middleware ...MiddlewareFunc) (*Route, *Static) {
+func (e *Engine) Static(prefix, root string, middleware ...MiddlewareFunc) *Static {
 	arr := []string{strings.TrimSuffix(prefix, "/"), iStaticRoutePath}
 	static := NewStatic(root)
 	method := append([]string{}, HttpMethodAny)
-	route := e.router.Route(method, strings.Join(arr, "/"), static.handler, middleware...)
-	return route, static
+	e.router.Register(method, strings.Join(arr, "/"), static.handler, middleware...)
+	return static
 }
 
 // AcquireContext returns an empty `Context` instance from the pool.
@@ -269,30 +269,24 @@ func (e *Engine) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	//do Middleware
 	c.next()
 	var err error
-	for i := 0; i < len(e.router.route) && !c.Aborted(); i++ {
-		route := e.router.route[i]
-		if route.match(c) {
+	if !c.Aborted() {
+		node := e.router.Match(c.Path, c.Request.Method)
+		if node != nil && node.Handler != nil {
 			if c.Engine.Debug {
-				logger.Debug("router match success:%v ==> %v", c.Path, route.path)
+				logger.Debug("router match success:%v ==> %v", c.Path, node.String())
 			}
-			if len(route.middleware) > 0 {
-				c.middleware.reset(route.middleware...)
+			if len(node.Middleware) > 0 {
+				c.middleware.reset(node.Middleware...)
 				c.next()
 			}
 			if !c.Aborted() {
-				err = route.handler(c)
-			} else {
-				c.middleware.reset()
+				err = node.Handler(c)
 			}
 			if err != nil {
 				c.Engine.HTTPErrorHandler(c, err)
 			}
-		} else if c.Engine.Debug {
-			logger.Debug("router match fail:%v ==> %v", c.Path, route.path)
 		}
-
 	}
-
 	if !c.Response.committed {
 		e.HTTPErrorHandler(c, ErrNotFound)
 	}
