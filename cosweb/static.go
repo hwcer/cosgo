@@ -1,7 +1,7 @@
 package cosweb
 
 import (
-	"cosgo/app"
+	"cosgo/apps"
 	"net/http"
 	"path"
 	"path/filepath"

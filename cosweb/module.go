@@ -24,8 +24,8 @@ type module struct {
 	TLS      uint8  //启用TLS，，0-关闭，1-配置路径（必须配置tls.key  tls.pem 路径）2-自动证书
 	Addr     string //默认地址
 	Flag     string //启动参数，允许在启动参数中定义Addr,高优先级
-	Server   *Engine
-	Register func(*Engine)
+	Server   *Server
+	Register func(*Server)
 
 	Prefix     string
 	Handle     interface{}

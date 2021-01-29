@@ -3,6 +3,7 @@ package main
 import (
 	"cosgo/apps"
 	"cosgo/cosnet"
+	"cosgo/cosweb"
 	"github.com/spf13/pflag"
 	"sync"
 )
@@ -17,6 +18,7 @@ func init() {
 
 type module struct {
 	Id  string
+	web cosweb.Server
 	srv cosnet.Server
 }
 

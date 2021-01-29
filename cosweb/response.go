@@ -12,7 +12,7 @@ type (
 	// by an HTTP Handler to construct an HTTP Response.
 	// See: https://golang.org/pkg/net/http/#ResponseWriter
 	Response struct {
-		engine         *Engine
+		engine         *Server
 		Writer         http.ResponseWriter
 		committed      bool
 		contentSize    int64
@@ -21,7 +21,7 @@ type (
 )
 
 // NewResponse creates a new instance of Response.
-func NewResponse(w http.ResponseWriter, e *Engine) (r *Response) {
+func NewResponse(w http.ResponseWriter, e *Server) (r *Response) {
 	return &Response{Writer: w, engine: e}
 }
 

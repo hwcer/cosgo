@@ -28,4 +28,11 @@ func TestMessage(t *testing.T) {
 	t.Logf("flag has %v:%b", msg.Head.Flags.Has(MsgFlagCompress), msg.Head.Flags)
 	msg.Head.Flags.Del(MsgFlagCompress)
 	t.Logf("flag has %v:%b", msg.Head.Flags.Has(MsgFlagCompress), msg.Head.Flags)
+
+	a := map[int]int{1: 1, 2: 2, 3: 3, 4: 4, 5: 5}
+	for k, v := range a {
+		t.Logf("%v:%v", k, v)
+		delete(a, k)
+	}
+
 }

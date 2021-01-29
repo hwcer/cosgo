@@ -19,30 +19,23 @@ type Node struct {
 	Middleware []MiddlewareFunc //中间件
 }
 
-// Router is the registry of all registered Routes for an `Engine` instance for
+// Router is the registry of all registered Routes for an `Server` instance for
 // Request matching and URL path parameter parsing.
 type Router struct {
-	root   map[string]*Node //method->Node
-	engine *Engine
+	root map[string]*Node //method->Node
 }
 
-func NewNode(p *Node, name string, route ...string) *Node {
-	var step int
-	if p != nil {
-		step = p.step + 1
-	}
+func NewNode(step int, name string) *Node {
 	return &Node{
 		step:  step,
 		name:  name,
-		Route: route,
 		child: make(map[string]*Node),
 	}
 }
 
-func NewRouter(e *Engine) *Router {
+func NewRouter() *Router {
 	r := &Router{
-		root:   make(map[string]*Node),
-		engine: e,
+		root: make(map[string]*Node),
 	}
 	return r
 }
@@ -56,103 +49,104 @@ func (r *Router) Match(method, path string) *Node {
 		path = "/" + path
 	}
 	method = strings.ToUpper(method)
+	arr := strings.Split(method+path, "/")
+	lastPathIndex := len(arr) - 1
+
 	nextNode := r.root[method]
-	if path == "/" {
-		return nextNode //匹配（/） 根目录
-	}
-
 	var spareNode []*Node
-	arr := strings.Split(path, "/")
-	for nextNode != nil {
-		i := nextNode.step + 1
-		k := arr[i]
-		if node := nextNode.child[RoutePathName_Vague]; node != nil {
-			spareNode = append(spareNode, node)
-		}
-		if node := nextNode.child[RoutePathName_Param]; node != nil {
-			spareNode = append(spareNode, node)
-		}
-		if node := nextNode.child[k]; node != nil {
-			nextNode = node
-		} else {
-			nextNode = nil
-		}
 
-		if nextNode == nil && len(spareNode) > 0 {
+	for nextNode != nil || len(spareNode) > 0 {
+		if nextNode == nil {
 			ni := len(spareNode) - 1
 			nextNode = spareNode[ni]
 			spareNode = spareNode[0:ni]
+		} else {
+			i := nextNode.step + 1
+			k := arr[i]
+			if node := nextNode.child[RoutePathName_Vague]; node != nil {
+				spareNode = append(spareNode, node)
+			}
+			if node := nextNode.child[RoutePathName_Param]; node != nil {
+				spareNode = append(spareNode, node)
+			}
+			if node := nextNode.child[k]; node != nil {
+				nextNode = node
+			} else {
+				nextNode = nil
+			}
 		}
-		if nextNode != nil && len(nextNode.Route) > len(arr) {
-			nextNode = nil
-		}
-		//模糊匹配 || 精确匹配
-		if nextNode != nil && (strings.HasPrefix(nextNode.Route[nextNode.step], RoutePathName_Vague) || len(nextNode.Route) == len(arr)) {
-			break
+		if nextNode != nil {
+			if nextNode.name == RoutePathName_Vague {
+				break //模糊匹配
+			} else if nextNode.step == lastPathIndex && len(nextNode.Route) > 0 {
+				break //精确匹配
+			} else if nextNode.step >= lastPathIndex {
+				nextNode = nil
+			}
 		}
 	}
-
 	return nextNode
 }
 
 func (r *Router) Register(method []string, route string, handler HandlerFunc, middleware ...MiddlewareFunc) {
+	if len(method) == 0 || route == "" {
+		panic("router.Register method or route empty")
+	}
 	if !strings.HasPrefix(route, "/") {
 		route = "/" + route
 	}
-	arr := strings.Split(route, "/")
 	for _, m := range method {
 		m = strings.ToUpper(m)
+		arr := strings.Split(m+route, "/")
 		if r.root[m] == nil {
-			r.root[m] = NewNode(nil, "")
+			r.root[m] = NewNode(0, m)
 		}
-		if route != "/" {
-			r.root[m].addChild(m, arr, handler, middleware...)
-		}
+		r.root[m].addChild(arr, handler, middleware)
 	}
 }
 
-func (this *Node) addChild(method string, arr []string, handler HandlerFunc, middleware ...MiddlewareFunc) {
-	var (
-		key, name string
-	)
-	i := this.step + 1
-	j := i + 1
-	if strings.HasPrefix(arr[0], RoutePathName_Param) {
-		key = strings.TrimPrefix(arr[i], RoutePathName_Param)
+func (this *Node) addChild(arr []string, handler HandlerFunc, middleware []MiddlewareFunc) {
+	var name string
+	step := this.step + 1
+	length := step + 1
+	if strings.HasPrefix(arr[step], RoutePathName_Param) {
 		name = RoutePathName_Param
-	} else if strings.HasPrefix(arr[i], RoutePathName_Vague) {
-		key = strings.TrimPrefix(arr[i], RoutePathName_Vague)
+	} else if strings.HasPrefix(arr[step], RoutePathName_Vague) {
 		name = RoutePathName_Vague
 	} else {
-		name = arr[0]
+		name = arr[step]
 	}
 	//(*)必须放在结尾
-	if name == RoutePathName_Vague && j != len(arr) {
+	if name == RoutePathName_Vague && len(arr) != length {
 		panic(fmt.Sprintf("router(*) must be at the end:%v", strings.Join(arr, "/")))
 	}
 
 	childNode := this.child[name]
-	//最后一层不能被覆盖
-	if j == len(arr) && childNode != nil {
-		panic(fmt.Sprintf("router conflict,%v:%v", method, strings.Join(arr, "/")))
-	}
 
 	if childNode == nil {
-		childNode = NewNode(this, key, name, strings.Join(arr[0:j], "/"))
+		childNode = NewNode(step, name)
 		this.child[name] = childNode
+	} else if len(childNode.Route) > 0 {
+		panic(fmt.Sprintf("router conflict,%v == %v", childNode.String(), strings.Join(arr, "/")))
 	}
 
-	if j == len(arr) {
+	if length == len(arr) {
+		childNode.Route = arr
 		childNode.Handler = handler
 		childNode.Middleware = middleware
 	} else {
-		childNode.addChild(method, arr, handler, middleware...)
+		childNode.addChild(arr, handler, middleware)
 	}
 }
 
-func (this *Node) Params(paths []string) map[string]string {
+func (this *Node) Params(path string) map[string]string {
 	r := make(map[string]string)
-	m := len(paths)
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	arr := strings.Split(path, "/")
+
+	m := len(arr)
 	if m > len(this.Route) {
 		m = len(this.Route)
 	}
@@ -160,11 +154,11 @@ func (this *Node) Params(paths []string) map[string]string {
 		s := this.Route[i]
 		if strings.HasPrefix(s, RoutePathName_Param) {
 			k := strings.TrimPrefix(s, RoutePathName_Param)
-			r[k] = paths[i]
+			r[k] = arr[i]
 		} else if strings.HasPrefix(s, RoutePathName_Vague) {
 			k := strings.TrimPrefix(s, RoutePathName_Vague)
 			if k != "" {
-				r[k] = strings.Join(paths[i:], "/")
+				r[k] = strings.Join(arr[i:], "/")
 			}
 		}
 
@@ -173,9 +167,5 @@ func (this *Node) Params(paths []string) map[string]string {
 }
 
 func (this *Node) String() string {
-	if len(this.Route) < 2 {
-		return "/"
-	} else {
-		return strings.Join(this.Route, "/")
-	}
+	return strings.Join(this.Route, "/")
 }

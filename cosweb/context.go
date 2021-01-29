@@ -47,7 +47,7 @@ type Context struct {
 	values []string //路由通过通配符"*"匹配到的值
 
 	Path     string
-	Engine   *Engine
+	Engine   *Server
 	Request  *http.Request
 	Response *Response
 
@@ -55,7 +55,7 @@ type Context struct {
 }
 
 // context returns a Context instance.
-func NewContext(e *Engine, r *http.Request, w http.ResponseWriter) *Context {
+func NewContext(e *Server, r *http.Request, w http.ResponseWriter) *Context {
 	return &Context{
 		Engine:     e,
 		Request:    r,
