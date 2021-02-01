@@ -42,22 +42,19 @@ func (this *contextMiddleware) aborted() bool {
 }
 
 type Context struct {
-	query  url.Values
-	params map[string]string
-	values []string //路由通过通配符"*"匹配到的值
-
-	Path     string
-	Engine   *Server
-	Request  *http.Request
-	Response *Response
-
+	query      url.Values
+	Path       string
+	Server     *Server
+	Params     map[string]string
+	Request    *http.Request
+	Response   *Response
 	middleware *contextMiddleware
 }
 
 // context returns a Context instance.
 func NewContext(e *Server, r *http.Request, w http.ResponseWriter) *Context {
 	return &Context{
-		Engine:     e,
+		Server:     e,
 		Request:    r,
 		Response:   NewResponse(w, e),
 		middleware: &contextMiddleware{},
@@ -71,7 +68,7 @@ const (
 
 func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
 	c.query = nil
-	c.params = nil
+	c.Params = nil
 
 	c.Path = ""
 	c.Request = r
@@ -144,11 +141,7 @@ func (c *Context) RemoteAddr() string {
 }
 
 func (c *Context) Param(name string) string {
-	return c.params[name]
-}
-
-func (c *Context) Params() map[string]string {
-	return c.params
+	return c.Params[name]
 }
 
 //获取查询参数
@@ -211,15 +204,15 @@ func (c *Context) Cookies() []*http.Cookie {
 //}
 
 func (c *Context) Bind(i interface{}) error {
-	return c.Engine.Binder.Bind(c, i)
+	return c.Server.Binder.Bind(c, i)
 }
 
 func (c *Context) Render(name string, data interface{}) (err error) {
-	if c.Engine.Renderer == nil {
+	if c.Server.Renderer == nil {
 		return ErrRendererNotRegistered
 	}
 	buf := new(bytes.Buffer)
-	if err = c.Engine.Renderer.Render(buf, name, data, c); err != nil {
+	if err = c.Server.Renderer.Render(buf, name, data, c); err != nil {
 		return
 	}
 	return c.Blob(MIMETextHTMLCharsetUTF8, buf.Bytes())
@@ -328,5 +321,5 @@ func (c *Context) Redirect(url string) error {
 }
 
 func (c *Context) Error(err error) {
-	c.Engine.HTTPErrorHandler(c, err)
+	c.Server.HTTPErrorHandler(c, err)
 }

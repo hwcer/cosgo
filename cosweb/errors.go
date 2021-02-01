@@ -34,7 +34,7 @@ var (
 )
 
 // NewHTTPError creates a new HTTPError instance.
-func NewHTTPError(code int, message ...interface{}) *HTTPError {
+func NewHTTPError(code int, message ...string) *HTTPError {
 	he := &HTTPError{Code: code}
 	if len(message) > 0 {
 		he.Message = message[0]
@@ -44,11 +44,17 @@ func NewHTTPError(code int, message ...interface{}) *HTTPError {
 	return he
 }
 
-func NewHTTPError500(message interface{}) *HTTPError {
-	return &HTTPError{Code: http.StatusInternalServerError, Message: message}
-}
-
 // Error makes it compatible with `error` interface.
 func (he *HTTPError) Error() string {
 	return fmt.Sprintf("code:%d, message:%v", he.Code, he.Message)
+}
+
+func NewHTTPError500(message interface{}, debug bool) *HTTPError {
+	var err string
+	if m, ok := message.(error); ok && debug {
+		err = m.Error()
+	} else {
+		err = http.StatusText(http.StatusInternalServerError)
+	}
+	return &HTTPError{Code: http.StatusInternalServerError, Message: err}
 }

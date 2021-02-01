@@ -7,11 +7,12 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 //反向代理服务器
 
-const iProxyRoutePath = "*"
+const iProxyRoutePath = "_ProxyRoutePath"
 
 func NewProxy(address ...string) *Proxy {
 	proxy := &Proxy{}
@@ -27,13 +28,21 @@ type Proxy struct {
 	GetTarget func(*Context, []*url.URL) url.URL //获取目标服务器地址,适用于负载均衡
 }
 
+func (this *Proxy) Route(prefix string) string {
+	arr := []string{strings.TrimSuffix(prefix, "/"), "*" + iProxyRoutePath}
+	r := strings.Join(arr, "/")
+	return r
+}
+
 func (this *Proxy) handle(c *Context) error {
 	target := this.GetTarget(c, this.target)
 	if &target == nil {
 		return errors.New("Proxy AddTarget empty")
 	}
-	path := c.values[len(c.values)-1]
-
+	path := c.Param(iProxyRoutePath)
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
 	target.Path = path
 	target.RawQuery = c.Request.URL.RawQuery
 	target.Fragment = c.Request.URL.Fragment

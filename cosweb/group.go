@@ -3,11 +3,12 @@ package cosweb
 import (
 	"cosgo/logger"
 	"reflect"
+	"strings"
 )
 
 const (
-	iGroupRoutePath = "_GROUP_PATH"
-	iGroupRouteName = "_GROUP_NAME"
+	iGroupRoutePath = "_GroupRoutePath"
+	iGroupRouteName = "_GroupRouteName"
 )
 
 var typeOfContext = reflect.TypeOf(&Context{})
@@ -39,8 +40,14 @@ func NewGroupNode(handle interface{}) *GroupNode {
 	}
 }
 
+func (this *Group) Route(prefix string) string {
+	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + iGroupRoutePath, ":" + iGroupRouteName}
+	r := strings.Join(arr, "/")
+	return r
+}
+
 //Handle 路由入口
-func (this *Group) handler(c *Context) error {
+func (this *Group) handler(c *Context) (err error) {
 	path := c.Param(iGroupRoutePath)
 	name := c.Param(iGroupRouteName)
 	nsp := this.nodes[path]
@@ -57,12 +64,12 @@ func (this *Group) handler(c *Context) error {
 	if method, ok = nsp.value[name]; !ok {
 		return nil
 	}
+	// nsp.proto.IsNil()
 	ret := method.Call([]reflect.Value{nsp.proto, reflect.ValueOf(c)})
-	if ret[0].IsNil() {
-		return nil
-	} else {
-		return ret[0].Interface().(error)
+	if !ret[0].IsNil() {
+		err = ret[0].Interface().(error)
 	}
+	return
 }
 
 //Register 注册一组handle，重名忽略
@@ -75,16 +82,17 @@ func (this *Group) Register(handle interface{}) {
 	name := strFirstToLower(handleType.Elem().Name())
 	if _, ok := this.nodes[name]; ok {
 		logger.Error("Group Register error:%v exist", name)
+		return
 	}
 	node := NewGroupNode(handle)
 
 	this.nodes[name] = node
-	//fmt.Printf("Register:%v\n",Group.name)
+	logger.Debug("Register:%v\n", name)
 	for m := 0; m < handleType.NumMethod(); m++ {
 		method := handleType.Method(m)
 		methodType := method.Type
 		methodName := method.Name
-		//fmt.Println("打印Method", methodName, methodType)
+		logger.Debug("Method,name:%v,type:%v", methodName, methodType)
 		// value must be exported.
 		if method.PkgPath != "" {
 			logger.Debug("Register value PkgPath Not End,value:%v.%v(),PkgPath:%v", name, methodName, method.PkgPath)

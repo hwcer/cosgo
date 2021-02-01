@@ -90,7 +90,7 @@ func (r *Router) Match(method, path string) *Node {
 
 func (r *Router) Register(method []string, route string, handler HandlerFunc, middleware ...MiddlewareFunc) {
 	if len(method) == 0 || route == "" {
-		panic("router.Register method or route empty")
+		panic("Router.Register method or route empty")
 	}
 	if !strings.HasPrefix(route, "/") {
 		route = "/" + route
@@ -103,6 +103,7 @@ func (r *Router) Register(method []string, route string, handler HandlerFunc, mi
 		}
 		r.root[m].addChild(arr, handler, middleware)
 	}
+
 }
 
 func (this *Node) addChild(arr []string, handler HandlerFunc, middleware []MiddlewareFunc) {
@@ -118,7 +119,7 @@ func (this *Node) addChild(arr []string, handler HandlerFunc, middleware []Middl
 	}
 	//(*)必须放在结尾
 	if name == RoutePathName_Vague && len(arr) != length {
-		panic(fmt.Sprintf("router(*) must be at the end:%v", strings.Join(arr, "/")))
+		panic(fmt.Sprintf("Router(*) must be at the end:%v", strings.Join(arr, "/")))
 	}
 
 	childNode := this.child[name]
@@ -127,7 +128,7 @@ func (this *Node) addChild(arr []string, handler HandlerFunc, middleware []Middl
 		childNode = NewNode(step, name)
 		this.child[name] = childNode
 	} else if len(childNode.Route) > 0 {
-		panic(fmt.Sprintf("router conflict,%v == %v", childNode.String(), strings.Join(arr, "/")))
+		panic(fmt.Sprintf("Router conflict,%v == %v", childNode.String(), strings.Join(arr, "/")))
 	}
 
 	if length == len(arr) {

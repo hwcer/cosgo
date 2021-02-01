@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const iStaticRoutePath = "*"
+const iStaticRoutePath = "_StaticRoutePath"
 
 type Static struct {
 	root string
@@ -21,11 +21,17 @@ func NewStatic(root string) *Static {
 	return &Static{root: root}
 }
 
+func (this *Static) Route(prefix string) string {
+	arr := []string{strings.TrimSuffix(prefix, "/"), "*" + iStaticRoutePath}
+	r := strings.Join(arr, "/")
+	return r
+}
+
 func (this *Static) handler(c *Context) error {
-	if len(c.values) < 1 {
+	name := c.Param(iStaticRoutePath)
+	if name == "" {
 		return nil
 	}
-	name := c.values[len(c.values)-1]
 	file := filepath.Join(this.root, name)
 	if !strings.HasPrefix(file, this.root) {
 		return nil

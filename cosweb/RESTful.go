@@ -4,9 +4,10 @@ import (
 	"cosgo/logger"
 	"net/http"
 	"reflect"
+	"strings"
 )
 
-const iRESTfulRoutePath = "_RESTful_PATH"
+const iRESTfulRoutePath = "_RESTfulRoutePath"
 
 var RESTfulMethods = []string{
 	http.MethodGet,
@@ -30,6 +31,11 @@ func NewRESTful() *RESTful {
 	return &RESTful{
 		nodes: make(map[string]iRESTful),
 	}
+}
+func (this *RESTful) Route(prefix string) string {
+	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + iRESTfulRoutePath}
+	r := strings.Join(arr, "/")
+	return r
 }
 
 //Handle 路由入口
@@ -67,6 +73,7 @@ func (this *RESTful) Register(handle iRESTful) {
 	name := strFirstToLower(handleType.Elem().Name())
 	if _, ok := this.nodes[name]; ok {
 		logger.Error("RESTful Register error:%v exist", name)
+		return
 	}
 	this.nodes[name] = handle
 }

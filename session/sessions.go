@@ -193,7 +193,7 @@ func NewCookie(name, value string, options *Options) *http.Cookie {
 
 // MultiError stores multiple errors.
 //
-// Borrowed from the App Engine SDK.
+// Borrowed from the App Server SDK.
 type MultiError []error
 
 func (m MultiError) Error() string {
