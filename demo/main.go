@@ -4,8 +4,9 @@ import (
 	"cosgo/apps"
 	"cosgo/cosnet"
 	"cosgo/cosweb"
-	handle2 "cosgo/demo/handle"
+	"cosgo/demo/handle"
 	"github.com/spf13/pflag"
+	"reflect"
 	"sync"
 )
 
@@ -30,14 +31,22 @@ func (this *module) ID() string {
 func (m *module) Init() (err error) {
 	//addr := apps.Config.GetString("tcp")
 	//m.srv, err = cosnet.NewServer(addr, nil)
-
 	http := apps.Config.GetString("http")
 	m.web = cosweb.NewServer(http)
 	m.web.Debug = true
-	m.web.Group("/", &handle2.Remote{})
+	g := m.web.Group("/", nil)
 	m.web.Proxy("/", "https://www.jianshu.com")
 	m.web.Static("/static", "wwwroot")
+
+	//封装caller 避免使用reflect.Value.Call()方法
+	g.Register(&handle.Remote{}, caller)
 	return
+}
+
+func caller(proto, method reflect.Value, c *cosweb.Context) error {
+	p := proto.Interface().(*handle.Remote)
+	f := method.Interface().(func(*handle.Remote, *cosweb.Context) error)
+	return f(p, c)
 }
 
 func (m *module) Start(wg *sync.WaitGroup) error {

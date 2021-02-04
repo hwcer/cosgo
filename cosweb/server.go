@@ -130,10 +130,13 @@ func (s *Server) Register(method []string, path string, handler HandlerFunc, mid
 
 //
 func (s *Server) Group(prefix string, i interface{}, middleware ...MiddlewareFunc) *Group {
-	nsp := NewGroup()
-	nsp.Register(i)
-	s.Router.Register(AnyHttpMethod, nsp.Route(prefix), nsp.handler, middleware...)
-	return nsp
+	group := NewGroup()
+	if i != nil {
+		group.Register(i)
+	}
+
+	s.Router.Register(AnyHttpMethod, group.Route(prefix), group.handler, middleware...)
+	return group
 }
 
 //代理服务器

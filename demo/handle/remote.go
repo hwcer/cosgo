@@ -3,13 +3,16 @@ package handle
 import (
 	"cosgo/cosweb"
 	"errors"
+	"strconv"
 )
 
 type Remote struct {
+	v int
 }
 
 func (this *Remote) Test(c *cosweb.Context) error {
-	return c.String("remote test")
+	this.v++
+	return c.String(strconv.Itoa(this.v))
 }
 
 func (this *Remote) Error(c *cosweb.Context) error {
