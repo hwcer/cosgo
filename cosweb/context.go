@@ -215,7 +215,7 @@ func (c *Context) Render(name string, data interface{}) (err error) {
 	if err = c.Server.Renderer.Render(buf, name, data, c); err != nil {
 		return
 	}
-	return c.Blob(MIMETextHTMLCharsetUTF8, buf.Bytes())
+	return c.Bytes(MIMETextHTMLCharsetUTF8, buf.Bytes())
 }
 
 //结束响应，返回空内容
@@ -229,16 +229,16 @@ func (c *Context) XML(i interface{}, indent string) (err error) {
 	if err != nil {
 		return err
 	}
-	c.Blob(MIMEApplicationXMLCharsetUTF8, data)
+	c.Bytes(MIMEApplicationXMLCharsetUTF8, data)
 	return
 }
 
 func (c *Context) HTML(html string) (err error) {
-	return c.Blob(MIMETextHTMLCharsetUTF8, []byte(html))
+	return c.Bytes(MIMETextHTMLCharsetUTF8, []byte(html))
 }
 
 func (c *Context) String(s string) (err error) {
-	return c.Blob(MIMETextPlainCharsetUTF8, []byte(s))
+	return c.Bytes(MIMETextPlainCharsetUTF8, []byte(s))
 }
 
 func (c *Context) JSON(i interface{}) error {
@@ -246,7 +246,7 @@ func (c *Context) JSON(i interface{}) error {
 	if err != nil {
 		return err
 	}
-	return c.Blob(MIMEApplicationJSONCharsetUTF8, data)
+	return c.Bytes(MIMEApplicationJSONCharsetUTF8, data)
 }
 
 func (c *Context) JSONP(callback string, i interface{}) (err error) {
@@ -264,7 +264,7 @@ func (c *Context) JSONP(callback string, i interface{}) (err error) {
 	return
 }
 
-func (c *Context) Blob(contentType string, b []byte) (err error) {
+func (c *Context) Bytes(contentType string, b []byte) (err error) {
 	c.writeContentType(contentType)
 	_, err = c.Response.Write(b)
 	return
@@ -307,17 +307,17 @@ func (c *Context) Attachment(file, name string) error {
 	return c.contentDisposition(file, name, "attachment")
 }
 
-func (c *Context) contentDisposition(file, name, dispositionType string) error {
-	c.Response.Header().Set(HeaderContentDisposition, fmt.Sprintf("%s; filename=%q", dispositionType, name))
-	return c.File(file)
-}
-
 func (c *Context) Redirect(url string) error {
 	c.Response.Header().Set(HeaderLocation, url)
 	if c.Response.httpStatusCode == 0 {
 		c.Response.Status(http.StatusMultipleChoices)
 	}
 	return nil
+}
+
+func (c *Context) contentDisposition(file, name, dispositionType string) error {
+	c.Response.Header().Set(HeaderContentDisposition, fmt.Sprintf("%s; filename=%q", dispositionType, name))
+	return c.File(file)
 }
 
 func (c *Context) Error(err error) {

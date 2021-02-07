@@ -27,6 +27,8 @@ func (b *DefaultBinder) Bind(c *Context, i interface{}) (err error) {
 		return json.NewDecoder(req.Body).Decode(i)
 	case strings.HasPrefix(ctype, MIMEApplicationXML), strings.HasPrefix(ctype, MIMETextXML):
 		return xml.NewDecoder(req.Body).Decode(i)
+	//case strings.HasPrefix(ctype, MIMEApplicationProtobuf):
+	//	return proto.NewDecoder(req.Body).Decode(i)
 	default:
 		return ErrUnsupportedMediaType
 	}

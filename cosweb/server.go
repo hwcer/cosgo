@@ -201,7 +201,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if node != nil {
 			c.Params = node.Params(c.Path)
 			if c.Server.Debug {
-				logger.Debug("Router match success:%v ==> %v", c.Path, node.String())
+				logger.Debug("Router matchT success:%v ==> %v", c.Path, node.String())
 			}
 			if len(node.Middleware) > 0 {
 				c.middleware.reset(node.Middleware...)
