@@ -111,7 +111,7 @@ func (r *Message) Bind(i interface{}) error {
 	case MsgDataTypeProto:
 		return proto.Unmarshal(r.Data, i.(proto.Message))
 	case MsgDataTypeXml:
-		return xml.Unmarshal(r.Data, i.(proto.Message))
+		return xml.Unmarshal(r.Data, i)
 	default:
 		return errors.New("unknown MsgDataType")
 	}
