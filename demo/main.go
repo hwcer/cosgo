@@ -5,6 +5,7 @@ import (
 	"cosgo/cosnet"
 	"cosgo/cosweb"
 	"cosgo/demo/handle"
+	"cosgo/logger"
 	"github.com/spf13/pflag"
 	"reflect"
 	"sync"
@@ -33,6 +34,7 @@ func (m *module) Init() (err error) {
 	//m.srv, err = cosnet.NewServer(addr, nil)
 	http := apps.Config.GetString("http")
 	m.web = cosweb.NewServer(http)
+	m.web.Use(middleware)
 	m.web.Debug = true
 	g := m.web.Group("/", nil)
 	m.web.Proxy("/", "https://www.jianshu.com")
@@ -41,6 +43,12 @@ func (m *module) Init() (err error) {
 	//封装caller 避免使用reflect.Value.Call()方法
 	g.Register(&handle.Remote{}, caller)
 	return
+}
+
+func middleware(ctx *cosweb.Context, next func()) {
+	logger.Debug("do middleware")
+	ctx.JSON("middleware return")
+	//next()
 }
 
 func caller(proto, method reflect.Value, c *cosweb.Context) error {

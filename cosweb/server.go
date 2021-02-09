@@ -39,20 +39,19 @@ type (
 	}
 )
 
-var AnyHttpMethod = []string{
-	http.MethodGet,
-	http.MethodHead,
-	http.MethodPost,
-	http.MethodPut,
-	http.MethodPatch,
-	http.MethodDelete,
-	http.MethodConnect,
-	http.MethodOptions,
-	http.MethodTrace,
-}
-
-// Error handlers
 var (
+	AnyHttpMethod = []string{
+		http.MethodGet,
+		http.MethodHead,
+		http.MethodPost,
+		http.MethodPut,
+		http.MethodPatch,
+		http.MethodDelete,
+		http.MethodConnect,
+		http.MethodOptions,
+		http.MethodTrace,
+	}
+	// Error handlers
 	MethodNotFoundHandler = func(c *Context) error {
 		return ErrNotFound
 	}
@@ -106,60 +105,65 @@ func (s *Server) Use(middleware ...MiddlewareFunc) {
 
 // GET registers a new GET Register for a path with matching Handler in the Router
 // with optional Register-level Middleware.
-func (s *Server) GET(path string, h HandlerFunc, m ...MiddlewareFunc) {
-	s.Register([]string{http.MethodGet}, path, h, m...)
+func (s *Server) GET(path string, h HandlerFunc) {
+	s.Register(path, h, http.MethodGet)
 }
 
 // POST registers a new POST Register for a path with matching Handler in the
 // Router with optional Register-level Middleware.
-func (s *Server) POST(path string, h HandlerFunc, m ...MiddlewareFunc) {
-	s.Register([]string{http.MethodPost}, path, h, m...)
+func (s *Server) POST(path string, h HandlerFunc) {
+	s.Register(path, h, http.MethodPost)
 }
 
 // Any registers a new Register for all HTTP methods and path with matching Handler
 // in the Router with optional Register-level Middleware.
-func (s *Server) Any(path string, h HandlerFunc, m ...MiddlewareFunc) {
-	s.Register(AnyHttpMethod, path, h, m...)
+func (s *Server) Any(path string, h HandlerFunc) {
+	s.Register(path, h)
 }
 
 // AddTarget registers a new Register for an HTTP value and path with matching Handler
 // in the Router with optional Register-level Middleware.
-func (s *Server) Register(method []string, path string, handler HandlerFunc, middleware ...MiddlewareFunc) {
-	s.Router.Register(method, path, handler, middleware...)
+func (s *Server) Register(path string, handler HandlerFunc, method ...string) {
+	if len(method) == 0 {
+		method = AnyHttpMethod
+	}
+	s.Router.Register(path, handler, method...)
 }
 
 //
-func (s *Server) Group(prefix string, i interface{}, middleware ...MiddlewareFunc) *Group {
+func (s *Server) Group(prefix string, i interface{}, method ...string) *Group {
 	group := NewGroup()
 	if i != nil {
 		group.Register(i)
 	}
 
-	s.Router.Register(AnyHttpMethod, group.Route(prefix), group.handler, middleware...)
+	s.Register(group.Route(prefix), group.handler, method...)
 	return group
 }
 
 //代理服务器
-func (s *Server) Proxy(prefix, address string, middleware ...MiddlewareFunc) *Proxy {
+func (s *Server) Proxy(prefix, address string, method ...string) *Proxy {
 	proxy := NewProxy(address)
-	s.Router.Register(AnyHttpMethod, proxy.Route(prefix), proxy.handle, middleware...)
+	s.Register(proxy.Route(prefix), proxy.handle, method...)
 	return proxy
 }
 
-func (s *Server) RESTful(prefix string, handle iRESTful, middleware ...MiddlewareFunc) *RESTful {
+func (s *Server) RESTful(prefix string, handle iRESTful, method ...string) *RESTful {
 	rest := NewRESTful()
 	rest.Register(handle)
-	method := append([]string{}, RESTfulMethods...)
-	s.Router.Register(method, rest.Route(prefix), rest.handler, middleware...)
+	if len(method) == 0 {
+		method = RESTfulMethods
+	}
+	s.Register(rest.Route(prefix), rest.handler, method...)
 	return rest
 }
 
 // Static registers a new Register with path prefix to serve static files from the
 // provided root directory.
 // 如果root 不是绝对路径 将以程序的WorkDir为基础
-func (s *Server) Static(prefix, root string, middleware ...MiddlewareFunc) *Static {
+func (s *Server) Static(prefix, root string, method ...string) *Static {
 	static := NewStatic(root)
-	s.Router.Register(AnyHttpMethod, static.Route(prefix), static.handler, middleware...)
+	s.Register(static.Route(prefix), static.handler, method...)
 	return static
 }
 
@@ -176,6 +180,7 @@ func (s *Server) AcquireContext(w http.ResponseWriter, r *http.Request) *Context
 // ReleaseContext returns the `Context` instance back to the pool.
 // You must call it after `AcquireContext()`.
 func (s *Server) ReleaseContext(c *Context) {
+	c.release()
 	s.pool.Put(c)
 }
 
@@ -192,9 +197,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	c.Path = r.URL.Path
-	c.middleware.reset(s.middleware...)
-	//do Middleware
-	c.next()
+	if len(s.middleware) > 0 {
+		c.Aborted(true)
+		c.middleware = append(c.middleware, s.middleware...)
+		c.next()
+	}
 	var err error
 	if !c.Aborted() {
 		node := s.Router.Match(c.Request.Method, c.Path)
@@ -203,11 +210,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if c.Server.Debug {
 				logger.Debug("Router matchT success:%v ==> %v", c.Path, node.String())
 			}
-			if len(node.Middleware) > 0 {
-				c.middleware.reset(node.Middleware...)
-				c.next()
-			}
-			if !c.Aborted() && node.Handler != nil {
+			if node.Handler != nil {
 				err = node.Handler(c)
 			}
 			if err != nil {
@@ -215,6 +218,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	//last return 404
 	if !c.Response.committed {
 		s.HTTPErrorHandler(c, ErrNotFound)
 	}

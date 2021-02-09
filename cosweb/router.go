@@ -11,12 +11,12 @@ const (
 )
 
 type Node struct {
-	step       int              //层级
-	name       string           // string,:,*,当前层匹配规则
-	child      map[string]*Node //子路径
-	Route      []string         //当前路由绝对路径
-	Handler    HandlerFunc      //handler入口
-	Middleware []MiddlewareFunc //中间件
+	step    int              //层级
+	name    string           // string,:,*,当前层匹配规则
+	child   map[string]*Node //子路径
+	Route   []string         //当前路由绝对路径
+	Handler HandlerFunc      //handler入口
+	//Middleware []MiddlewareFunc //中间件
 }
 
 // Router is the registry of all registered Routes for an `Server` instance for
@@ -88,7 +88,7 @@ func (r *Router) Match(method, path string) *Node {
 	return nextNode
 }
 
-func (r *Router) Register(method []string, route string, handler HandlerFunc, middleware ...MiddlewareFunc) {
+func (r *Router) Register(route string, handler HandlerFunc, method ...string) {
 	if len(method) == 0 || route == "" {
 		panic("Router.Register method or route empty")
 	}
@@ -101,12 +101,12 @@ func (r *Router) Register(method []string, route string, handler HandlerFunc, mi
 		if r.root[m] == nil {
 			r.root[m] = NewNode(0, m)
 		}
-		r.root[m].addChild(arr, handler, middleware)
+		r.root[m].addChild(arr, handler)
 	}
 
 }
 
-func (this *Node) addChild(arr []string, handler HandlerFunc, middleware []MiddlewareFunc) {
+func (this *Node) addChild(arr []string, handler HandlerFunc) {
 	var name string
 	step := this.step + 1
 	length := step + 1
@@ -134,9 +134,9 @@ func (this *Node) addChild(arr []string, handler HandlerFunc, middleware []Middl
 	if length == len(arr) {
 		childNode.Route = arr
 		childNode.Handler = handler
-		childNode.Middleware = middleware
+		//childNode.Middleware = middleware
 	} else {
-		childNode.addChild(arr, handler, middleware)
+		childNode.addChild(arr, handler)
 	}
 }
 

@@ -15,31 +15,10 @@ import (
 	"strings"
 )
 
-type contextMiddleware struct {
-	finish bool
-	handle []MiddlewareFunc
-}
-
-func (this *contextMiddleware) reset(m ...MiddlewareFunc) {
-	this.finish = len(m) == 0
-	this.handle = m
-
-}
-
-func (this *contextMiddleware) unshift() (MiddlewareFunc, bool) {
-	if len(this.handle) == 0 {
-		this.finish = true
-		return nil, false
-	}
-	handle := this.handle[0]
-	this.handle = this.handle[1:]
-	return handle, true
-}
-
-//Middleware 终止执行
-func (this *contextMiddleware) aborted() bool {
-	return !this.finish
-}
+const (
+	indexPage     = "index.html"
+	defaultMemory = 32 << 20 // 32 MB
+)
 
 type Context struct {
 	query      url.Values
@@ -48,33 +27,35 @@ type Context struct {
 	Params     map[string]string
 	Request    *http.Request
 	Response   *Response
-	middleware *contextMiddleware
+	aborted    bool
+	middleware []MiddlewareFunc
 }
 
 // context returns a Context instance.
 func NewContext(e *Server, r *http.Request, w http.ResponseWriter) *Context {
 	return &Context{
-		Server:     e,
-		Request:    r,
-		Response:   NewResponse(w, e),
-		middleware: &contextMiddleware{},
+		Server:   e,
+		Request:  r,
+		Response: NewResponse(w, e),
 	}
 }
 
-const (
-	indexPage     = "index.html"
-	defaultMemory = 32 << 20 // 32 MB
-)
-
 func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
-	c.query = nil
-	c.Params = nil
-
-	c.Path = ""
 	c.Request = r
 	c.Response.reset(w)
-	c.middleware.reset()
 }
+
+//释放资源,准备进入缓存池
+func (c *Context) release() {
+	c.Path = ""
+	c.query = nil
+	c.Params = nil
+	c.Request = nil
+	c.aborted = false
+	c.middleware = nil
+	c.Response.release()
+}
+
 func (c *Context) writeContentType(value string) {
 	header := c.Response.Header()
 	if header.Get(HeaderContentType) == "" {
@@ -84,8 +65,11 @@ func (c *Context) writeContentType(value string) {
 
 // Next should be used only inside Middleware.
 func (c *Context) next() {
-	handle, ok := c.middleware.unshift()
-	if ok {
+	if len(c.middleware) == 0 {
+		c.aborted = false
+	} else {
+		handle := c.middleware[0]
+		c.middleware = c.middleware[1:]
 		handle(c, c.next)
 	}
 }
@@ -96,8 +80,11 @@ func (c *Context) IsWebSocket() bool {
 }
 
 //是否已经被中断
-func (c *Context) Aborted() bool {
-	return c.middleware.aborted() || c.Response.committed
+func (c *Context) Aborted(aborted ...bool) bool {
+	if len(aborted) > 0 {
+		c.aborted = aborted[0]
+	}
+	return c.aborted
 }
 
 //设置状态码
@@ -138,6 +125,11 @@ func (c *Context) RemoteAddr() string {
 	}
 	ra, _, _ := net.SplitHostPort(c.Request.RemoteAddr)
 	return ra
+}
+
+//获取BODY中的参数
+func (c *Context) Get(name string) string {
+	return c.Params[name]
 }
 
 func (c *Context) Param(name string) string {

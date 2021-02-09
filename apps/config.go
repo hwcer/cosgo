@@ -73,6 +73,7 @@ func initFlag() error {
 		}
 	}
 	//设置日志
+
 	logdir := Config.GetString("logdir")
 	if logdir != "" {
 		logger.SetLogPathTrim(Config.GetString(logdir))

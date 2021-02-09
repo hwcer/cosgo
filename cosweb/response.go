@@ -12,10 +12,10 @@ type (
 	// by an HTTP Handler to construct an HTTP Response.
 	// See: https://golang.org/pkg/net/http/#ResponseWriter
 	Response struct {
-		server         *Server
-		Writer         http.ResponseWriter
-		committed      bool
-		contentSize    int64
+		server    *Server
+		Writer    http.ResponseWriter
+		committed bool
+		//contentSize    int64
 		httpStatusCode int
 	}
 )
@@ -23,6 +23,16 @@ type (
 // NewResponse creates a new instance of Response.
 func NewResponse(w http.ResponseWriter, e *Server) (r *Response) {
 	return &Response{Writer: w, server: e}
+}
+
+func (r *Response) reset(w http.ResponseWriter) {
+	r.Writer = w
+}
+func (r *Response) release() {
+	r.Writer = nil
+	r.committed = false
+	//r.contentSize = 0
+	r.httpStatusCode = 0
 }
 
 // Header returns the header map for the writer that will be sent by
@@ -68,7 +78,7 @@ func (r *Response) Write(b []byte) (n int, err error) {
 		r.WriteHeader(r.httpStatusCode)
 	}
 	n, err = r.Writer.Write(b)
-	r.contentSize += int64(n)
+	//r.contentSize += int64(n)
 	return
 }
 
@@ -84,11 +94,4 @@ func (r *Response) Flush() {
 // See [http.Hijacker](https://golang.org/pkg/net/http/#Hijacker)
 func (r *Response) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	return r.Writer.(http.Hijacker).Hijack()
-}
-
-func (r *Response) reset(w http.ResponseWriter) {
-	r.Writer = w
-	r.committed = false
-	r.contentSize = 0
-	r.httpStatusCode = 0
 }
