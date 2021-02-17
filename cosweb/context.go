@@ -63,11 +63,12 @@ func (c *Context) writeContentType(value string) {
 	}
 }
 
-// Next should be used only inside Middleware.
+// Next should be used only inside middleware.
 func (c *Context) next() {
 	if len(c.middleware) == 0 {
 		c.aborted = false
 	} else {
+		c.aborted = true
 		handle := c.middleware[0]
 		c.middleware = c.middleware[1:]
 		handle(c, c.next)
@@ -80,10 +81,7 @@ func (c *Context) IsWebSocket() bool {
 }
 
 //是否已经被中断
-func (c *Context) Aborted(aborted ...bool) bool {
-	if len(aborted) > 0 {
-		c.aborted = aborted[0]
-	}
+func (c *Context) Aborted() bool {
 	return c.aborted
 }
 

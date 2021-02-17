@@ -24,7 +24,7 @@ type (
 		HTTPErrorHandler HTTPErrorHandler
 	}
 
-	// MiddlewareFunc defines a function to process Middleware.
+	// MiddlewareFunc defines a function to process middleware.
 	MiddlewareFunc func(*Context, func())
 
 	// HandlerFunc defines a function to serve HTTP requests.
@@ -98,31 +98,31 @@ func (s *Server) DefaultHTTPErrorHandler(c *Context, err error) {
 	}
 }
 
-// Use adds Middleware to the chain which is run after Router.
+// Use adds middleware to the chain which is run after Router.
 func (s *Server) Use(middleware ...MiddlewareFunc) {
 	s.middleware = append(s.middleware, middleware...)
 }
 
 // GET registers a new GET Register for a path with matching Handler in the Router
-// with optional Register-level Middleware.
+// with optional Register-level middleware.
 func (s *Server) GET(path string, h HandlerFunc) {
 	s.Register(path, h, http.MethodGet)
 }
 
 // POST registers a new POST Register for a path with matching Handler in the
-// Router with optional Register-level Middleware.
+// Router with optional Register-level middleware.
 func (s *Server) POST(path string, h HandlerFunc) {
 	s.Register(path, h, http.MethodPost)
 }
 
 // Any registers a new Register for all HTTP methods and path with matching Handler
-// in the Router with optional Register-level Middleware.
+// in the Router with optional Register-level middleware.
 func (s *Server) Any(path string, h HandlerFunc) {
 	s.Register(path, h)
 }
 
 // AddTarget registers a new Register for an HTTP value and path with matching Handler
-// in the Router with optional Register-level Middleware.
+// in the Router with optional Register-level middleware.
 func (s *Server) Register(path string, handler HandlerFunc, method ...string) {
 	if len(method) == 0 {
 		method = AnyHttpMethod
@@ -133,10 +133,7 @@ func (s *Server) Register(path string, handler HandlerFunc, method ...string) {
 //
 func (s *Server) Group(prefix string, i interface{}, method ...string) *Group {
 	group := NewGroup()
-	if i != nil {
-		group.Register(i)
-	}
-
+	group.Register(i)
 	s.Register(group.Route(prefix), group.handler, method...)
 	return group
 }
@@ -198,7 +195,6 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	c.Path = r.URL.Path
 	if len(s.middleware) > 0 {
-		c.Aborted(true)
 		c.middleware = append(c.middleware, s.middleware...)
 		c.next()
 	}

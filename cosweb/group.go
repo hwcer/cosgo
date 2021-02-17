@@ -16,7 +16,9 @@ var typeOfContext = reflect.TypeOf(&Context{})
 //Group 使用反射集中注册方法
 //可以使用 /path/$Group/$value 的格式访问
 type Group struct {
-	nodes map[string]*GroupNode
+	nodes  map[string]*GroupNode
+	caller GroupCaller
+	prefix string
 }
 
 //proto method ctx
@@ -27,7 +29,6 @@ type GroupNode struct {
 	proto  reflect.Value
 	value  map[string]reflect.Value
 	method GroupHandler
-	caller GroupCaller
 }
 type GroupHandler map[string]HandlerFunc
 
@@ -51,6 +52,11 @@ func (this *Group) Route(prefix string) string {
 	return r
 }
 
+func (this *Group) Caller(f GroupCaller) *Group {
+	this.caller = f
+	return this
+}
+
 //Handle 路由入口
 func (this *Group) handler(c *Context) (err error) {
 	path := c.Param(iGroupRoutePath)
@@ -69,8 +75,8 @@ func (this *Group) handler(c *Context) (err error) {
 	if method, ok = node.value[name]; !ok {
 		return nil
 	}
-	if node.caller != nil {
-		return node.caller(node.proto, method, c)
+	if this.caller != nil {
+		return this.caller(node.proto, method, c)
 	} else {
 		ret := method.Call([]reflect.Value{node.proto, reflect.ValueOf(c)})
 		if !ret[0].IsNil() {
@@ -81,7 +87,7 @@ func (this *Group) handler(c *Context) (err error) {
 }
 
 //Register 注册一组handle，重名忽略
-func (this *Group) Register(handle interface{}, caller ...GroupCaller) {
+func (this *Group) Register(handle interface{}) {
 	handleType := reflect.TypeOf(handle)
 	if handleType.Kind() != reflect.Ptr {
 		logger.Error("Group Register error:handle not pointer")
@@ -93,10 +99,6 @@ func (this *Group) Register(handle interface{}, caller ...GroupCaller) {
 		return
 	}
 	node := NewGroupNode(handle)
-	if len(caller) > 0 && caller[0] != nil {
-		node.caller = caller[0]
-	}
-
 	this.nodes[name] = node
 	logger.Debug("Register:%v\n", name)
 	for m := 0; m < handleType.NumMethod(); m++ {

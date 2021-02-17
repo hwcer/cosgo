@@ -16,7 +16,7 @@ type Node struct {
 	child   map[string]*Node //子路径
 	Route   []string         //当前路由绝对路径
 	Handler HandlerFunc      //handler入口
-	//Middleware []MiddlewareFunc //中间件
+	//middleware []MiddlewareFunc //中间件
 }
 
 // Router is the registry of all registered Routes for an `Server` instance for
@@ -134,7 +134,7 @@ func (this *Node) addChild(arr []string, handler HandlerFunc) {
 	if length == len(arr) {
 		childNode.Route = arr
 		childNode.Handler = handler
-		//childNode.Middleware = middleware
+		//childNode.middleware = middleware
 	} else {
 		childNode.addChild(arr, handler)
 	}

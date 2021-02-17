@@ -36,19 +36,16 @@ func (m *module) Init() (err error) {
 	m.web = cosweb.NewServer(http)
 	m.web.Use(middleware)
 	m.web.Debug = true
-	g := m.web.Group("/", nil)
+	m.web.Group("/", &handle.Remote{}).Caller(caller)
 	m.web.Proxy("/", "https://www.jianshu.com")
 	m.web.Static("/static", "wwwroot")
-
-	//封装caller 避免使用reflect.Value.Call()方法
-	g.Register(&handle.Remote{}, caller)
 	return
 }
 
 func middleware(ctx *cosweb.Context, next func()) {
 	logger.Debug("do middleware")
-	ctx.JSON("middleware return")
-	//next()
+	//ctx.JSON("middleware return")
+	next()
 }
 
 func caller(proto, method reflect.Value, c *cosweb.Context) error {
