@@ -21,6 +21,7 @@ const (
 	MIMEApplicationForm = "application/x-www-form-urlencoded"
 )
 
+//MIME UTF8 types
 const (
 	MIMETextHTMLCharsetUTF8  = MIMETextHTML + "; " + charsetUTF8
 	MIMETextPlainCharsetUTF8 = MIMETextPlain + "; " + charsetUTF8

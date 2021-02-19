@@ -1,5 +1,5 @@
 package cosweb
-
+/*
 import (
 	"context"
 	"fmt"
@@ -105,3 +105,4 @@ func Refresh(ctx *gin.Context) (session.Store, error) {
 	}
 	return v.(*session.Manager).Refresh(nil, ctx.Writer, ctx.Request)
 }
+*/

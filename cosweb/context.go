@@ -20,6 +20,7 @@ const (
 	defaultMemory = 32 << 20 // 32 MB
 )
 
+//Context API上下文.
 type Context struct {
 	query      url.Values
 	Path       string
@@ -31,7 +32,7 @@ type Context struct {
 	middleware []MiddlewareFunc
 }
 
-// context returns a Context instance.
+// NewContext returns a Context instance.
 func NewContext(e *Server, r *http.Request, w http.ResponseWriter) *Context {
 	return &Context{
 		Server:   e,
@@ -63,7 +64,7 @@ func (c *Context) writeContentType(value string) {
 	}
 }
 
-// Next should be used only inside middleware.
+// next should be used only inside middleware.
 func (c *Context) next() {
 	if len(c.middleware) == 0 {
 		c.aborted = false
@@ -75,23 +76,24 @@ func (c *Context) next() {
 	}
 }
 
+//IsWebSocket 判断是否WebSocket
 func (c *Context) IsWebSocket() bool {
 	upgrade := c.Request.Header.Get(HeaderUpgrade)
 	return strings.ToLower(upgrade) == "websocket"
 }
 
-//是否已经被中断
+//Aborted 是否已经被中断
 func (c *Context) Aborted() bool {
 	return c.aborted
 }
 
-//设置状态码
+//Status 设置状态码
 func (c *Context) Status(code int) *Context {
 	c.Response.Status(code)
 	return c
 }
 
-//协议
+//Protocol 协议
 func (c *Context) Protocol() string {
 	// Can't use `r.Request.URL.Protocol`
 	// See: https://groups.google.com/forum/#!topic/golang-nuts/pMUkBlQBDF0
@@ -113,6 +115,7 @@ func (c *Context) Protocol() string {
 	return "http"
 }
 
+//RemoteAddr 客户端地址
 func (c *Context) RemoteAddr() string {
 	// Fall back to legacy behavior
 	if ip := c.Request.Header.Get(HeaderXForwardedFor); ip != "" {
@@ -125,16 +128,17 @@ func (c *Context) RemoteAddr() string {
 	return ra
 }
 
-//获取BODY中的参数
+//Get 获取BODY中的参数
 func (c *Context) Get(name string) string {
 	return c.Params[name]
 }
 
+//Param 获取路径中的参数
 func (c *Context) Param(name string) string {
 	return c.Params[name]
 }
 
-//获取查询参数
+//Query 获取查询参数
 func (c *Context) Query(name string) string {
 	if c.query == nil {
 		c.query = c.Request.URL.Query()
@@ -185,14 +189,7 @@ func (c *Context) Cookies() []*http.Cookie {
 	return c.Request.Cookies()
 }
 
-//func (c *Context) Get(key string) interface{} {
-//
-//}
-//
-//func (c *Context) Set(key string, val interface{}) {
-//
-//}
-
+//Bind 绑定JSON XML
 func (c *Context) Bind(i interface{}) error {
 	return c.Server.Binder.Bind(c, i)
 }

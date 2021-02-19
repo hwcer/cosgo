@@ -32,5 +32,4 @@ func (b *DefaultBinder) Bind(c *Context, i interface{}) (err error) {
 	default:
 		return ErrUnsupportedMediaType
 	}
-	return
 }

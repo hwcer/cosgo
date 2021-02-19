@@ -9,15 +9,15 @@ var router *Router
 func init() {
 	router = NewRouter()
 
-	router.Register([]string{"POST"}, "/", nil)
-	router.Register([]string{"POST"}, "/*", nil)
-	router.Register([]string{"POST"}, "/a/*", nil)
-	router.Register([]string{"POST"}, "/a/b/*", nil)
-	router.Register([]string{"POST"}, "/:a/b/c", nil)
-	router.Register([]string{"POST"}, "/a/:b/c", nil)
-	router.Register([]string{"POST"}, "/:a/:b/c", nil)
-	router.Register([]string{"POST"}, "/:a/:b/:c", nil)
-	router.Register([]string{"POST"}, "/a/b/c", nil)
+	router.Register("/", nil)
+	router.Register("/*", nil)
+	router.Register("/a/*", nil)
+	router.Register("/a/b/*", nil)
+	router.Register("/:a/b/c", nil)
+	router.Register("/a/:b/c", nil)
+	router.Register("/:a/:b/c", nil)
+	router.Register("/:a/:b/:c", nil)
+	router.Register("/a/b/c", nil)
 }
 
 func TestRoute(t *testing.T) {
