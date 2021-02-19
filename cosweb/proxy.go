@@ -28,10 +28,10 @@ type Proxy struct {
 	GetTarget func(*Context, []*url.URL) url.URL //获取目标服务器地址,适用于负载均衡
 }
 
-func (this *Proxy) Route(prefix string) string {
+func (this *Proxy) Route(s *Server, prefix string, method ...string) {
 	arr := []string{strings.TrimSuffix(prefix, "/"), "*" + iProxyRoutePath}
 	r := strings.Join(arr, "/")
-	return r
+	s.Register(r, this.handle, method...)
 }
 
 func (this *Proxy) handle(c *Context) error {

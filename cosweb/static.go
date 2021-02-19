@@ -21,13 +21,13 @@ func NewStatic(root string) *Static {
 	return &Static{root: root}
 }
 
-func (this *Static) Route(prefix string) string {
+func (this *Static) Route(s *Server, prefix string, method ...string) {
 	arr := []string{strings.TrimSuffix(prefix, "/"), "*" + iStaticRoutePath}
-	r := strings.Join(arr, "/")
-	return r
+	route := strings.Join(arr, "/")
+	s.Register(route, this.handle, method...)
 }
 
-func (this *Static) handler(c *Context) error {
+func (this *Static) handle(c *Context) error {
 	name := c.Param(iStaticRoutePath)
 	if name == "" {
 		return nil

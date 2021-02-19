@@ -141,17 +141,14 @@ func (s *Server) Group(prefix string, i interface{}, method ...string) *Group {
 //代理服务器
 func (s *Server) Proxy(prefix, address string, method ...string) *Proxy {
 	proxy := NewProxy(address)
-	s.Register(proxy.Route(prefix), proxy.handle, method...)
+	proxy.Route(s, prefix, method...)
 	return proxy
 }
 
 func (s *Server) RESTful(prefix string, handle iRESTful, method ...string) *RESTful {
 	rest := NewRESTful()
 	rest.Register(handle)
-	if len(method) == 0 {
-		method = RESTfulMethods
-	}
-	s.Register(rest.Route(prefix), rest.handler, method...)
+	rest.Route(s, prefix, method...)
 	return rest
 }
 
@@ -160,7 +157,7 @@ func (s *Server) RESTful(prefix string, handle iRESTful, method ...string) *REST
 // 如果root 不是绝对路径 将以程序的WorkDir为基础
 func (s *Server) Static(prefix, root string, method ...string) *Static {
 	static := NewStatic(root)
-	s.Register(static.Route(prefix), static.handler, method...)
+	static.Route(s, prefix, method...)
 	return static
 }
 

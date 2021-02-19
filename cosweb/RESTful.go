@@ -32,14 +32,32 @@ func NewRESTful() *RESTful {
 		nodes: make(map[string]iRESTful),
 	}
 }
-func (this *RESTful) Route(prefix string) string {
+func (this *RESTful) Route(s *Server, prefix string, method ...string) {
 	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + iRESTfulRoutePath}
-	r := strings.Join(arr, "/")
-	return r
+	route := strings.Join(arr, "/")
+	if len(method) == 0 {
+		method = RESTfulMethods
+	}
+	s.Register(route, this.handle, method...)
+}
+
+//Register 注册一组handle，重名忽略
+func (this *RESTful) Register(handle iRESTful) {
+	handleType := reflect.TypeOf(handle)
+	if handleType.Kind() != reflect.Ptr {
+		logger.Error("RESTful Register error:handle not pointer")
+		return
+	}
+	name := strFirstToLower(handleType.Elem().Name())
+	if _, ok := this.nodes[name]; ok {
+		logger.Error("RESTful Register error:%v exist", name)
+		return
+	}
+	this.nodes[name] = handle
 }
 
 //Handle 路由入口
-func (this *RESTful) handler(c *Context) error {
+func (this *RESTful) handle(c *Context) error {
 	name := c.Param(iRESTfulRoutePath)
 	if name == "" {
 		return nil
@@ -61,19 +79,4 @@ func (this *RESTful) handler(c *Context) error {
 	default:
 		return nil
 	}
-}
-
-//Register 注册一组handle，重名忽略
-func (this *RESTful) Register(handle iRESTful) {
-	handleType := reflect.TypeOf(handle)
-	if handleType.Kind() != reflect.Ptr {
-		logger.Error("RESTful Register error:handle not pointer")
-		return
-	}
-	name := strFirstToLower(handleType.Elem().Name())
-	if _, ok := this.nodes[name]; ok {
-		logger.Error("RESTful Register error:%v exist", name)
-		return
-	}
-	this.nodes[name] = handle
 }
