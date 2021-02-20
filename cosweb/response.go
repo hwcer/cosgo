@@ -56,8 +56,7 @@ func (r *Response) WriteHeader(code int) {
 	}
 	if code > 0 {
 		r.httpStatusCode = code
-	}
-	if r.httpStatusCode == 0 {
+	} else if r.httpStatusCode == 0 {
 		r.httpStatusCode = http.StatusOK
 	}
 	r.Writer.WriteHeader(r.httpStatusCode)
@@ -75,7 +74,7 @@ func (r *Response) Status(code int) {
 // Write writes the data to the connection as part of an HTTP reply.
 func (r *Response) Write(b []byte) (n int, err error) {
 	if !r.committed {
-		r.WriteHeader(r.httpStatusCode)
+		r.WriteHeader(0)
 	}
 	n, err = r.Writer.Write(b)
 	//r.contentSize += int64(n)

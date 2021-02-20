@@ -191,17 +191,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	c.Path = r.URL.Path
-	if len(s.middleware) > 0 {
-		c.middleware = append(c.middleware, s.middleware...)
-		c.next()
-	}
+	c.doMiddleware(s.middleware)
 	var err error
 	if !c.Aborted() {
 		node := s.Router.Match(c.Request.Method, c.Path)
 		if node != nil {
 			c.Params = node.Params(c.Path)
 			if c.Server.Debug {
-				logger.Debug("Router matchT success:%v ==> %v", c.Path, node.String())
+				logger.Debug("Router match success:%v ==> %v", c.Path, node.String())
 			}
 			if node.Handler != nil {
 				err = node.Handler(c)

@@ -37,12 +37,14 @@ func (m *module) Init() (err error) {
 	m.web.Use(middleware)
 	m.web.Debug = true
 	//使用Group并在每个Group上添加不同的中间件
-	g := cosweb.NewGroup()
-	g.Caller(caller)
-	g.Register(&handle.Remote{}, groupMiddleware)
-	g.Route(m.web, "/")
-
-	//m.web.Group("/", &handle.Remote{}).Caller(caller)
+	//g := cosweb.NewGroup()
+	//g.Use(groupMiddleware)
+	//g.SetCaller(caller)
+	//g.Register(&handle.Remote{})
+	//g.Route(m.web, "/")
+	g2 := m.web.Group("/", &handle.Remote{})
+	g2.Use(groupMiddleware)
+	g2.SetCaller(caller)
 
 	m.web.Proxy("/", "https://www.jianshu.com")
 	m.web.Static("/static", "wwwroot")
@@ -51,13 +53,16 @@ func (m *module) Init() (err error) {
 
 func middleware(ctx *cosweb.Context, next func()) {
 	logger.Debug("do middleware")
-	//ctx.JSON("middleware return")
+	ctx.Header("X-TEST-HEADER", "TEST")
+	ctx.JSON("JSON:middleware return")
+	ctx.String("STRING:middleware return")
 	next()
 }
 
 func groupMiddleware(ctx *cosweb.Context, next func()) {
 	logger.Debug("do group middleware")
-	ctx.JSON("middleware return")
+
+	ctx.JSON("group middleware return")
 	next()
 }
 

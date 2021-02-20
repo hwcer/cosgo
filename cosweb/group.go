@@ -2,6 +2,7 @@ package cosweb
 
 import (
 	"cosgo/logger"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -17,15 +18,15 @@ var typeOfContext = reflect.TypeOf(&Context{})
 //Group 使用反射集中注册方法
 //可以使用 /prefix/$Group/$value 的格式访问
 type Group struct {
-	nodes  map[string]*GroupNode
-	caller GroupCaller
+	nodes      map[string]*GroupNode
+	caller     GroupCaller
+	middleware []MiddlewareFunc
 }
 
 //GroupNode 节点，每个节点对应一个容器以及容器下面的所有接口
 type GroupNode struct {
-	proto      reflect.Value
-	value      map[string]reflect.Value
-	middleware []MiddlewareFunc
+	proto reflect.Value
+	value map[string]reflect.Value
 }
 
 //GroupCaller 建议为每个注册的struct对象封装一个caller方法可以避免使用 reflect.Value.Call()方法
@@ -46,32 +47,34 @@ func NewGroupNode(handle interface{}) *GroupNode {
 	}
 }
 
+//Use 使用中间件，只针对GROUP下的API
+func (g *Group) Use(m ...MiddlewareFunc) {
+	g.middleware = append(g.middleware, m...)
+}
+
 //Route 将Route添加到服务
-func (g *Group) Route(s *Server, prefix string, method ...string) *Group {
+func (g *Group) Route(s *Server, prefix string, method ...string) {
 	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + iGroupRoutePath, ":" + iGroupRouteName}
 	r := strings.Join(arr, "/")
 	s.Register(r, g.handle, method...)
-	return g
 }
 
-//Caller 设置Group的caller
-func (g *Group) Caller(f GroupCaller) *Group {
+//SetCaller 设置Group的caller
+func (g *Group) SetCaller(f GroupCaller) {
 	g.caller = f
-	return g
 }
 
 //Register 注册一组handle，重名忽略
-func (g *Group) Register(handle interface{}, middleware ...MiddlewareFunc) *Group {
+func (g *Group) Register(handle interface{}) error {
 	handleType := reflect.TypeOf(handle)
 	if handleType.Kind() != reflect.Ptr {
-		panic("Group Register error:handle not pointer")
+		return errors.New("Group Register error:handle not pointer")
 	}
 	name := strFirstToLower(handleType.Elem().Name())
 	if _, ok := g.nodes[name]; ok {
-		panic(fmt.Sprintf("Group Register error:%v exist", name))
+		return errors.New(fmt.Sprintf("Group Register error:%v exist", name))
 	}
 	node := NewGroupNode(handle)
-	node.middleware = middleware
 	g.nodes[name] = node
 	//logger.Debug("Register:%v\n", name)
 	for m := 0; m < handleType.NumMethod(); m++ {
@@ -109,25 +112,23 @@ func (g *Group) Register(handle interface{}, middleware ...MiddlewareFunc) *Grou
 		node.value[strFirstToLower(methodName)] = method.Func
 
 	}
-	return g
+	return nil
 }
 
 //handle 路由入口
 func (g *Group) handle(c *Context) (err error) {
+	//group middleware
+	c.doMiddleware(g.middleware)
+	if c.Aborted() {
+		return nil
+	}
 	path := c.Param(iGroupRoutePath)
 	name := c.Param(iGroupRouteName)
 	node := g.nodes[path]
 	if node == nil {
 		return nil
 	}
-	//node.middleware
-	if len(node.middleware) > 0 {
-		c.middleware = append(c.middleware, node.middleware...)
-		c.next()
-		if c.Aborted() {
-			return nil
-		}
-	}
+
 	//反射方法
 	var ok bool
 	var method reflect.Value

@@ -2,6 +2,7 @@ package cosweb
 
 import (
 	"bytes"
+	"cosgo/logger"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -57,22 +58,23 @@ func (c *Context) release() {
 	c.Response.release()
 }
 
-func (c *Context) writeContentType(value string) {
-	header := c.Response.Header()
-	if header.Get(HeaderContentType) == "" {
-		header.Set(HeaderContentType, value)
-	}
-}
-
 // next should be used only inside middleware.
 func (c *Context) next() {
 	if len(c.middleware) == 0 {
 		c.aborted = false
 	} else {
-		c.aborted = true
 		handle := c.middleware[0]
 		c.middleware = c.middleware[1:]
 		handle(c, c.next)
+	}
+}
+
+//doMiddleware 执行中间件
+func (c *Context) doMiddleware(m []MiddlewareFunc) {
+	if len(m) > 0 {
+		c.aborted = true
+		c.middleware = m
+		c.next()
 	}
 }
 
@@ -84,7 +86,17 @@ func (c *Context) IsWebSocket() bool {
 
 //Aborted 是否已经被中断
 func (c *Context) Aborted() bool {
-	return c.aborted
+	return c.aborted || c.Response.committed
+}
+
+//Header 设置头信息
+func (c *Context) Header(name, value string) {
+	if c.Response.committed {
+		logger.Warn("set Response Header but already committed,%v=%v", name, value)
+		return
+	}
+	header := c.Response.Header()
+	header.Set(name, value)
 }
 
 //Status 设置状态码
@@ -302,6 +314,9 @@ func (c *Context) Redirect(url string) error {
 	return nil
 }
 
+func (c *Context) writeContentType(value string) {
+	c.Header(HeaderContentType, value)
+}
 func (c *Context) contentDisposition(file, name, dispositionType string) error {
 	c.Response.Header().Set(HeaderContentDisposition, fmt.Sprintf("%s; filename=%q", dispositionType, name))
 	return c.File(file)
