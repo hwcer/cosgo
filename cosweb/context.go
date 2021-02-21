@@ -2,12 +2,10 @@ package cosweb
 
 import (
 	"bytes"
-	"cosgo/logger"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net"
 	"net/http"
 	"net/url"
@@ -23,12 +21,12 @@ const (
 
 //Context API上下文.
 type Context struct {
-	query      url.Values
 	Path       string
 	Server     *Server
-	Params     map[string]string
 	Request    *http.Request
 	Response   *Response
+	query      url.Values
+	params     map[string]string
 	aborted    bool
 	middleware []MiddlewareFunc
 }
@@ -50,9 +48,9 @@ func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
 //释放资源,准备进入缓存池
 func (c *Context) release() {
 	c.Path = ""
-	c.query = nil
-	c.Params = nil
 	c.Request = nil
+	c.query = nil
+	c.params = nil
 	c.aborted = false
 	c.middleware = nil
 	c.Response.release()
@@ -86,17 +84,7 @@ func (c *Context) IsWebSocket() bool {
 
 //Aborted 是否已经被中断
 func (c *Context) Aborted() bool {
-	return c.aborted || c.Response.committed
-}
-
-//Header 设置头信息
-func (c *Context) Header(name, value string) {
-	if c.Response.committed {
-		logger.Warn("set Response Header but already committed,%v=%v", name, value)
-		return
-	}
-	header := c.Response.Header()
-	header.Set(name, value)
+	return c.aborted
 }
 
 //Status 设置状态码
@@ -140,53 +128,19 @@ func (c *Context) RemoteAddr() string {
 	return ra
 }
 
-//Get 获取BODY中的参数
-func (c *Context) Get(name string) string {
-	return c.Params[name]
+//Get 获取参数,优先路径中的params
+//其他方式直接使用c.Request...
+func (c *Context) Get(key string) string {
+	if v, ok := c.params[key]; ok {
+		return v
+	} else {
+		return c.Request.FormValue(key)
+	}
 }
 
 //Param 获取路径中的参数
-func (c *Context) Param(name string) string {
-	return c.Params[name]
-}
-
-//Query 获取查询参数
-func (c *Context) Query(name string) string {
-	if c.query == nil {
-		c.query = c.Request.URL.Query()
-	}
-	return c.query.Get(name)
-}
-
-func (c *Context) FormValue(name string) string {
-	return c.Request.FormValue(name)
-}
-
-func (c *Context) FormParams() (url.Values, error) {
-	if strings.HasPrefix(c.Request.Header.Get(HeaderContentType), MIMEMultipartForm) {
-		if err := c.Request.ParseMultipartForm(defaultMemory); err != nil {
-			return nil, err
-		}
-	} else {
-		if err := c.Request.ParseForm(); err != nil {
-			return nil, err
-		}
-	}
-	return c.Request.Form, nil
-}
-
-func (c *Context) FormFile(name string) (*multipart.FileHeader, error) {
-	f, fh, err := c.Request.FormFile(name)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	return fh, nil
-}
-
-func (c *Context) MultipartForm() (*multipart.Form, error) {
-	err := c.Request.ParseMultipartForm(defaultMemory)
-	return c.Request.MultipartForm, err
+func (c *Context) Param(key string) string {
+	return c.params[key]
 }
 
 func (c *Context) GetCookie(name string) (*http.Cookie, error) {
@@ -195,10 +149,6 @@ func (c *Context) GetCookie(name string) (*http.Cookie, error) {
 
 func (c *Context) SetCookie(cookie *http.Cookie) {
 	http.SetCookie(c.Response, cookie)
-}
-
-func (c *Context) Cookies() []*http.Cookie {
-	return c.Request.Cookies()
 }
 
 //Bind 绑定JSON XML
@@ -248,19 +198,13 @@ func (c *Context) JSON(i interface{}) error {
 	return c.Bytes(MIMEApplicationJSONCharsetUTF8, data)
 }
 
-func (c *Context) JSONP(callback string, i interface{}) (err error) {
-	enc := json.NewEncoder(c.Response)
-	c.writeContentType(MIMEApplicationJSCharsetUTF8)
-	if _, err = c.Response.Write([]byte(callback + "(")); err != nil {
-		return
+func (c *Context) JSONP(callback string, i interface{}) error {
+	data, err := json.Marshal(i)
+	if err != nil {
+		return err
 	}
-	if err = enc.Encode(i); err != nil {
-		return
-	}
-	if _, err = c.Response.Write([]byte(");")); err != nil {
-		return
-	}
-	return
+	data = bytes.Join([][]byte{[]byte(callback), []byte("("), data, []byte(")")}, []byte{})
+	return c.Bytes(MIMEApplicationJSCharsetUTF8, data)
 }
 
 func (c *Context) Bytes(contentType string, b []byte) (err error) {
@@ -315,8 +259,10 @@ func (c *Context) Redirect(url string) error {
 }
 
 func (c *Context) writeContentType(value string) {
-	c.Header(HeaderContentType, value)
+	header := c.Response.Header()
+	header.Set(HeaderContentType, value)
 }
+
 func (c *Context) contentDisposition(file, name, dispositionType string) error {
 	c.Response.Header().Set(HeaderContentDisposition, fmt.Sprintf("%s; filename=%q", dispositionType, name))
 	return c.File(file)

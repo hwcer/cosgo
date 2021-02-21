@@ -196,7 +196,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !c.Aborted() {
 		node := s.Router.Match(c.Request.Method, c.Path)
 		if node != nil {
-			c.Params = node.Params(c.Path)
+			c.params = node.Params(c.Path)
 			if c.Server.Debug {
 				logger.Debug("Router match success:%v ==> %v", c.Path, node.String())
 			}

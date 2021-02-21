@@ -46,23 +46,23 @@ func (m *module) Init() (err error) {
 	g2.Use(groupMiddleware)
 	g2.SetCaller(caller)
 
-	m.web.Proxy("/", "https://www.jianshu.com")
+	m.web.Proxy("/", "https://www.jd.com")
 	m.web.Static("/static", "wwwroot")
 	return
 }
 
 func middleware(ctx *cosweb.Context, next func()) {
 	logger.Debug("do middleware")
-	ctx.Header("X-TEST-HEADER", "TEST")
-	ctx.JSON("JSON:middleware return")
-	ctx.String("STRING:middleware return")
+	header := ctx.Response.Header()
+	header.Set("X-TEST-HEADER", "TEST")
+	//ctx.String("STRING:middleware return\n")
 	next()
 }
 
 func groupMiddleware(ctx *cosweb.Context, next func()) {
-	logger.Debug("do group middleware")
+	//logger.Debug("do group middleware")
 
-	ctx.JSON("group middleware return")
+	//ctx.String("group middleware return\n")
 	next()
 }
 

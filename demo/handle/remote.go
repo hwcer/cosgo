@@ -19,14 +19,13 @@ func (this *Remote) Error(c *cosweb.Context) error {
 	return errors.New("remote error")
 }
 
-func (this *Remote) NONE(a int) error {
-	return errors.New("remote NONE")
+func (this *Remote) Addr(c *cosweb.Context) error {
+	return c.String(c.RemoteAddr())
 }
-
-func (this *Remote) NONE2(c *cosweb.Context) int {
-	return 0
-}
-
-func (this *Remote) unExportedFunc(c *cosweb.Context) error {
-	return c.String("remote unExportedFunc")
+func (this *Remote) Jsonp(c *cosweb.Context) error {
+	k := c.Get("callback")
+	d := make(map[string]string)
+	d["a"] = "x"
+	d["b"] = "y"
+	return c.JSONP(k, d)
 }

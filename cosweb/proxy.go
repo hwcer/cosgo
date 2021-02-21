@@ -80,7 +80,7 @@ func (this *Proxy) handle(c *Context) error {
 	copyHeader(resp.Header, &header)
 	header.Add("Requested-Host", req.Host)
 
-	c.Response.Status(resp.StatusCode)
+	c.Response.WriteHeader(resp.StatusCode)
 	c.Response.Write(body)
 
 	return nil

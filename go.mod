@@ -4,19 +4,18 @@ go 1.14
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
-	github.com/abronan/valkeyrie v0.1.0
+	github.com/abronan/valkeyrie v0.1.0 // indirect
 	github.com/coreos/etcd v3.3.13+incompatible
-	github.com/docker/libkv v0.2.1
 	github.com/go-ole/go-ole v1.2.4 // indirect
-	github.com/go-session/session v2.4.0+incompatible
+	github.com/go-session/session v2.4.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.4.3
 	github.com/gorilla/securecookie v1.1.1
-	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475
+	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
 	github.com/shirou/gopsutil v2.20.8+incompatible
-	github.com/smallnest/libkv-etcdv3-store v1.1.9
-	github.com/smallnest/rpcx v0.0.0-20210112131606-478e4d5146db
+	github.com/smallnest/libkv-etcdv3-store v1.1.9 // indirect
+	github.com/smallnest/rpcx v0.0.0-20210112131606-478e4d5146db // indirect
 	github.com/spf13/pflag v1.0.3
 	github.com/spf13/viper v1.7.1
 	github.com/tidwall/buntdb v1.2.0 // indirect
