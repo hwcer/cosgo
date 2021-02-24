@@ -1,4 +1,4 @@
-package apps
+package app
 
 import (
 	"cosgo/debug"
@@ -38,8 +38,8 @@ func waitForSystemExit() {
 
 func signalNotify(sig os.Signal) {
 	switch sig {
-	case syscall.SIGHUP: // reload config  1
-		logger.Info("SIGHUP reload config")
+	case syscall.SIGHUP: // reload Config  1
+		logger.Info("SIGHUP reload Config")
 		//TODO
 	case syscall.SIGINT: // app close   2
 		logger.Info("SIGINT stop app")

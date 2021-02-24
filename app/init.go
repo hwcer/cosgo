@@ -1,4 +1,4 @@
-package apps
+package app
 
 import (
 	"cosgo/logger"
@@ -7,13 +7,12 @@ import (
 )
 
 var (
-	wgp    *sync.WaitGroup
+	wgp    sync.WaitGroup
 	stop   int32 //停止标志
 	cancel chan struct{}
 )
 
 func init() {
-	wgp = &sync.WaitGroup{}
 	cancel = make(chan struct{})
 }
 

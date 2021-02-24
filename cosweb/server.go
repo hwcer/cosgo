@@ -2,7 +2,7 @@ package cosweb
 
 import (
 	ctx "context"
-	"cosgo/apps"
+	"cosgo/app"
 	"cosgo/logger"
 	"crypto/tls"
 	"io"
@@ -216,7 +216,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Start starts an HTTP server.
 func (s *Server) Start() (err error) {
-	err = apps.Timeout(time.Second, func() error {
+	err = app.Timeout(time.Second, func() error {
 		if s.Server.TLSConfig != nil {
 			return s.Server.ListenAndServeTLS("", "")
 		} else {

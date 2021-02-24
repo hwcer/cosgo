@@ -1,14 +1,14 @@
 package main
 
 import (
-	"cosgo/apps"
+	"cosgo/app"
 	"cosgo/cosnet"
 	"cosgo/cosweb"
 	"cosgo/demo/handle"
 	"cosgo/logger"
+	"fmt"
 	"github.com/spf13/pflag"
 	"reflect"
-	"sync"
 )
 
 func init() {
@@ -32,7 +32,7 @@ func (this *module) ID() string {
 func (m *module) Init() (err error) {
 	//addr := apps.Config.GetString("tcp")
 	//m.srv, err = cosnet.NewServer(addr, nil)
-	http := apps.Config.GetString("http")
+	http := app.Config.GetString("http")
 	m.web = cosweb.NewServer(http)
 	m.web.Use(middleware)
 	m.web.Debug = true
@@ -72,20 +72,21 @@ func caller(proto, method reflect.Value, c *cosweb.Context) error {
 	return f(p, c)
 }
 
-func (m *module) Start(wg *sync.WaitGroup) error {
-	wg.Add(1)
+func (m *module) Start() error {
 	m.web.Start()
 	return nil
 }
 
-func (m *module) Close(wg *sync.WaitGroup) error {
-	defer wg.Done()
-	return m.srv.Close()
+func (m *module) Close() error {
+	return m.web.Close()
 }
 
 func main() {
 
-	apps.Use(&module{Id: "test"})
+	app.SetAppMain(func() {
+		fmt.Printf("================START=================")
+	})
+	app.Use(&module{Id: "test"})
 
-	apps.Start()
+	app.Start()
 }

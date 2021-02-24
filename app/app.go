@@ -1,4 +1,4 @@
-package apps
+package app
 
 import (
 	"cosgo/logger"
@@ -16,7 +16,7 @@ var (
 	modules []Module
 )
 
-func assert(err error, s string) {
+func assert(err interface{}, s string) {
 	if err != nil {
 		logger.Fatal("app failed, %v: %v", s, err)
 	} else {
@@ -59,6 +59,11 @@ func Start(mods ...Module) {
 		modules = append(modules, mod)
 	}
 	rand.Seed(time.Now().UnixNano())
+	writePidFile()
+	defer func() {
+		deletePidFile()
+		fmt.Printf("Say byebye to the world")
+	}()
 	//=========================加载模块=============================
 	initFlag()
 	initBuild()
@@ -71,7 +76,8 @@ func Start(mods ...Module) {
 	showConfig()
 	//=========================启动模块=============================
 	for _, v := range modules {
-		assert(v.Start(wgp), fmt.Sprintf("mod [%v] start", v.ID()))
+		wgp.Add(1)
+		assert(v.Start(), fmt.Sprintf("mod [%v] start", v.ID()))
 	}
 
 	if appMain != nil {
@@ -80,12 +86,11 @@ func Start(mods ...Module) {
 		defAppMain()
 	}
 
-	writePidFile()
 	wgp.Add(1)
 	Go(waitForSystemExit)
 	wgp.Wait()
-	deletePidFile()
-	logger.Warn("Say byebye to the world")
+
+	//logger.Warn("Say byebye to the world")
 }
 
 func Close() {
@@ -94,22 +99,29 @@ func Close() {
 		logger.Error("Server Close error")
 		return
 	}
+	defer wgp.Done()
+
 	for _, v := range modules {
 		func(m Module) {
-			assert(m.Close(wgp), fmt.Sprintf("mod [%v] stop", m.ID()))
+			defer func() {
+				wgp.Done()
+				if err := recover(); err != nil {
+					logger.Error("%v", err)
+				}
+			}()
+			assert(v.Close(), fmt.Sprintf("mod [%v] stop", m.ID()))
 		}(v)
 	}
 	if cancel != nil {
 		close(cancel)
 	}
-	wgp.Done()
 	logger.Info("App stop done")
 }
 
 func showConfig() {
 	var log []string
 	log = append(log, "")
-	log = append(log, "=============== show app config ======================")
+	log = append(log, "=============== show app Config ======================")
 	log = append(log, fmt.Sprintf(">> AppName:%v", Config.GetString("name")))
 	log = append(log, fmt.Sprintf(">> AppBinDir:%v", Config.GetString("AppBinDir")))
 	log = append(log, fmt.Sprintf(">> AppLogDir:%v", Config.GetString("logdir")))

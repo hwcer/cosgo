@@ -1,12 +1,10 @@
-package apps
-
-import "sync"
+package app
 
 type Module interface {
 	ID() string
 	Init() error
-	Start(*sync.WaitGroup) error
-	Close(*sync.WaitGroup) error
+	Start() error
+	Close() error
 }
 
 type DefModule struct {
@@ -21,12 +19,10 @@ func (m *DefModule) Init() error {
 	return nil
 }
 
-func (m *DefModule) Start(wg *sync.WaitGroup) error {
-	wg.Add(1)
+func (m *DefModule) Start() error {
 	return nil
 }
 
-func (m *DefModule) Close(wg *sync.WaitGroup) error {
-	wg.Done()
+func (m *DefModule) Close() error {
 	return nil
 }
