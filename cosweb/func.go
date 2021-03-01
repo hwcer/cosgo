@@ -1,10 +1,10 @@
 package cosweb
 
 import (
+	"cosgo/ioutil"
 	"crypto/tls"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
-	"io/ioutil"
 	"reflect"
 	"runtime"
 	"unicode"

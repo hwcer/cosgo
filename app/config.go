@@ -12,9 +12,10 @@ import (
 
 //其他模块可以使用pflag设置额外的参数
 var (
-	appName    string
-	appWorkDir string
-	Config     *viper.Viper
+	appDir  string
+	appName string
+
+	Config *viper.Viper
 )
 
 func init() {
@@ -30,17 +31,17 @@ func init() {
 		appBinDir  string
 		appBinFile string
 	)
-	appWorkDir, _ = os.Getwd()
+	appDir, _ = os.Getwd()
 	appBinFile, _ = exec.LookPath(os.Args[0])
 	tmpDir, appName = filepath.Split(appBinFile)
 
 	if filepath.IsAbs(appBinFile) {
 		appBinDir = filepath.Dir(tmpDir)
-		appWorkDir = filepath.Dir(appBinDir)
+		appDir = filepath.Dir(appBinDir)
 	} else {
-		appBinDir = filepath.Join(appWorkDir, filepath.Dir(appBinFile))
-		appWorkDir, _ = filepath.Split(appBinDir)
-		appWorkDir = filepath.Dir(appWorkDir)
+		appBinDir = filepath.Join(appDir, filepath.Dir(appBinFile))
+		appDir, _ = filepath.Split(appBinDir)
+		appDir = filepath.Dir(appDir)
 	}
 
 	ext := filepath.Ext(appBinFile)
@@ -48,8 +49,8 @@ func init() {
 		appName = strings.TrimRight(appName, ext)
 	}
 	//设置配置默认值
-	Config.SetDefault("logs", filepath.Join(appWorkDir, "logs"))
-	Config.SetDefault("pidfile", filepath.Join(appWorkDir, appName+".pid"))
+	Config.SetDefault("logs", filepath.Join(appDir, "logs"))
+	Config.SetDefault("pidfile", appName+".pid")
 }
 
 func initFlag() error {
@@ -59,7 +60,7 @@ func initFlag() error {
 	if Config.IsSet("Config") {
 		f := Config.GetString("Config")
 		if !filepath.IsAbs(f) {
-			f = filepath.Join(appWorkDir, f)
+			f = filepath.Join(appDir, f)
 		}
 		Config.AddConfigPath(f)
 		err := Config.ReadInConfig()
@@ -67,22 +68,28 @@ func initFlag() error {
 			return err
 		}
 	}
+	//设置PIDfile
+	pidfile := Config.GetString("pidfile")
+	if !filepath.IsAbs(pidfile) {
+		Config.Set("pidfile", filepath.Join(appDir, pidfile))
+	}
+
 	//设置日志
 	logs := Config.GetString("logs")
 	if !filepath.IsAbs(logs) {
-		logs = filepath.Join(appWorkDir, logs)
+		logs = filepath.Join(appDir, logs)
 	}
 	logger.SetLogPathTrim(logs)
 
 	return nil
 }
 
-//GetAppName 项目内部获取appName
-func GetAppName() string {
-	return appName
+//GetDir 项目内部获取appWorkDir
+func GetDir() string {
+	return appDir
 }
 
-//GetAppWorkDir 项目内部获取appWorkDir
-func GetAppWorkDir() string {
-	return appWorkDir
+//GetName 项目内部获取appName
+func GetName() string {
+	return appName
 }

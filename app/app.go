@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	appMain func()
+	banner  func()
 	modules []Module
 )
 
@@ -24,8 +24,8 @@ func assert(err interface{}, s string) {
 	}
 }
 
-func defAppMain() {
-	banner := `
+func defBanner() {
+	str := `
   _________  _____________ 
  / ___/ __ \/ __/ ___/ __ \
 / /__/ /_/ /\ \/ (_ / /_/ /
@@ -33,12 +33,12 @@ func defAppMain() {
 ____________________________________O/_______
                                     O\
 `
-	logger.Info(banner)
+	logger.Info(str)
 }
 
 //设置默认启动界面，启动完所有MOD后执行
-func SetAppMain(m func()) {
-	appMain = m
+func SetBanner(m func()) {
+	banner = m
 }
 
 func Use(mods ...Module) {
@@ -49,9 +49,6 @@ func Use(mods ...Module) {
 
 /**
  * 应用程序启动
- * @param name 应用程序名
- * @param defConf 默认配置文件名
- * @param iFlag  自定义的flag配置，可以为空
  * @param m 需注册的模块
  */
 func Start(mods ...Module) {
@@ -59,14 +56,21 @@ func Start(mods ...Module) {
 		modules = append(modules, mod)
 	}
 	rand.Seed(time.Now().UnixNano())
-	writePidFile()
+	var err error
+	if err = initFlag(); err != nil {
+		panic(err)
+	}
+	if err = initBuild(); err != nil {
+		panic(err)
+	}
+	if err = writePidFile(); err != nil {
+		panic(err)
+	}
 	defer func() {
 		deletePidFile()
 		fmt.Printf("Say byebye to the world")
 	}()
 	//=========================加载模块=============================
-	initFlag()
-	initBuild()
 	initProfile()
 
 	for _, v := range modules {
@@ -80,17 +84,15 @@ func Start(mods ...Module) {
 		assert(v.Start(), fmt.Sprintf("mod [%v] start", v.ID()))
 	}
 
-	if appMain != nil {
-		appMain()
+	if banner != nil {
+		banner()
 	} else {
-		defAppMain()
+		defBanner()
 	}
 
 	wgp.Add(1)
 	Go(waitForSystemExit)
 	wgp.Wait()
-
-	//logger.Warn("Say byebye to the world")
 }
 
 func Close() {
@@ -121,16 +123,14 @@ func Close() {
 func showConfig() {
 	var log []string
 	log = append(log, "")
-	log = append(log, "=============== show app Config ======================")
-	log = append(log, fmt.Sprintf(">> AppName:%v", Config.GetString("name")))
-	log = append(log, fmt.Sprintf(">> AppBinDir:%v", Config.GetString("AppBinDir")))
-	log = append(log, fmt.Sprintf(">> AppLogDir:%v", Config.GetString("logdir")))
-	log = append(log, fmt.Sprintf(">> AppWorkDir:%v", Config.GetString("AppWorkDir")))
-	log = append(log, fmt.Sprintf(">> appExecFile:%v", Config.GetString("appExecFile")))
-	log = append(log, fmt.Sprintf(">> AppPidFile:%v", Config.GetString("pidfile")))
+	log = append(log, "====================== Show App Config ======================")
+	log = append(log, fmt.Sprintf(">> AppName:%v", GetName()))
+	log = append(log, fmt.Sprintf(">> AppRoot:%v", GetDir()))
+	log = append(log, fmt.Sprintf(">> AppLogs:%v", Config.GetString("logs")))
+	log = append(log, fmt.Sprintf(">> PidFile:%v", Config.GetString("pidfile")))
 	log = append(log, fmt.Sprintf(">> BUIND GO:%v VER:%v  TIME:%v", BUIND_GO, BUIND_VER, BUIND_TIME))
 	log = append(log, fmt.Sprintf(">> RUNTIME GO:%v  CPU:%v  Pid:%v", runtime.Version(), runtime.NumCPU(), os.Getpid()))
-	log = append(log, "======================================================")
+	log = append(log, "=============================================================")
 	log = append(log, "")
 	logger.Info(strings.Join(log, "\n"))
 }

@@ -6,7 +6,6 @@ import (
 	"cosgo/cosweb"
 	"cosgo/demo/handle"
 	"cosgo/logger"
-	"fmt"
 	"github.com/spf13/pflag"
 	"reflect"
 )
@@ -83,9 +82,6 @@ func (m *module) Close() error {
 
 func main() {
 
-	app.SetAppMain(func() {
-		fmt.Printf("================START=================")
-	})
 	app.Use(&module{Id: "test"})
 
 	app.Start()
