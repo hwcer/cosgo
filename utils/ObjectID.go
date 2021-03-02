@@ -5,11 +5,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
-func Guid() string {
-	return bson.NewObjectId().String()
-}
-
-func ObjectId(s ...string) (bson.ObjectId, error) {
+func ObjectID(s ...string) (bson.ObjectId, error) {
 	if len(s) == 0 {
 		return bson.NewObjectId(), nil
 	} else if bson.IsObjectIdHex(s[0]) {

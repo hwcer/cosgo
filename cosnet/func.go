@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
+	"cosgo/ioutil"
 	"encoding/binary"
-	"io/ioutil"
 )
 
 func ZlibCompress(data []byte) []byte {

@@ -1,9 +1,9 @@
 package cosweb
 
 import (
+	"cosgo/ioutil"
 	"cosgo/logger"
 	"errors"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/url"

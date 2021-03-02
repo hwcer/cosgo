@@ -5,6 +5,9 @@ import (
 	"time"
 )
 
+//每周开始时间 1:周一，0:周日
+var WeekStartDay = 1
+
 //通过时间戳获取SIGN
 func GetSignFromStamp(s int64) int32 {
 	var t time.Time
@@ -30,55 +33,34 @@ func GetTimeFromSign(sign int32) time.Time {
 	return time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.Local)
 }
 
-//获取一天的开始时间,day：天偏移，0：今天凌晨,1:明天凌晨
-//args:  addDays,dayResetHour
-func GetTimeDayStart(t time.Time, args ...int32) time.Time {
-	var addDays, dayResetHour int
+//获取一天的开始时间
+//addDays：天偏移，0：今天凌晨,1:明天凌晨
+func GetDayTime(t time.Time, addDays int) time.Time {
+	r := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 
-	if len(args) > 0 {
-		addDays = int(args[0])
-	}
-	if len(args) > 1 {
-		dayResetHour = int(args[1])
-	}
-
-	if dayResetHour > 0 && t.Hour() < dayResetHour {
-		t = t.AddDate(0, 0, -1) //不到凌晨6点算前一天
-	}
-
-	//fmt.Printf("addDays:%v,dayResetHour:%v\n", addDays, dayResetHour)
-
-	r := time.Date(t.Year(), t.Month(), t.Day(), dayResetHour, 0, 0, 0, t.Location())
-
-	if addDays > 0 {
+	if addDays != 0 {
 		r = r.AddDate(0, 0, addDays)
 	}
 	return r
 }
 
 //获取本周开始时间
-//args:  addWeeks,dayResetHour
-func GetTimeWeekStart(t time.Time, args ...int32) time.Time {
-	var addWeeks, dayResetHour int
-	if len(args) > 0 {
-		addWeeks = int(args[0])
+//addWeeks：周偏移，0：本周,1:下周 -1:上周
+func GetWeekTime(t time.Time, addWeeks int) time.Time {
+	var addDay int
+	week := int(t.Weekday())
+
+	if week > WeekStartDay {
+		addDay = -(week - WeekStartDay)
+	} else if week < WeekStartDay {
+		addDay = WeekStartDay - week - 7
 	}
-	if len(args) > 1 {
-		dayResetHour = int(args[1])
-	}
-	if dayResetHour > 0 && t.Hour() < dayResetHour {
-		t = t.AddDate(0, 0, -1) //不到凌晨6点算前一天
+	if addDay != 0 {
+		t = t.AddDate(0, 0, addDay)
 	}
 
-	week := int(t.Weekday())
-	if week == 0 {
-		week = 7
-	}
-	if week > 1 {
-		t = t.AddDate(0, 0, -(week - 1)) //定位到周一
-	}
-	r := time.Date(t.Year(), t.Month(), t.Day(), dayResetHour, 0, 0, 0, t.Location())
-	if addWeeks > 0 {
+	r := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	if addWeeks != 0 {
 		r = r.AddDate(0, 0, addWeeks*7)
 	}
 	return r

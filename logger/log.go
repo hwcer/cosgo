@@ -1,9 +1,9 @@
 package logger
 
 import (
+	"cosgo/ioutil"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"

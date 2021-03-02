@@ -1,28 +1,21 @@
 package utils
 
 import (
-	"net"
 	"testing"
+	"time"
 )
 
 func TestGetDayStartTime(t *testing.T) {
-	addr, err := net.ResolveTCPAddr("tcp", "192.168.1.1:80")
-	if err != nil {
-		t.Log("错误：", err)
-	} else {
-		t.Log(addr.Network(), addr.IP, addr.Port, "-----", addr.String())
+	d := time.Now()
+	s := GetDayTime(d, 0)
+	t.Logf("%v", s)
+
+}
+func TestGetTimeWeekStart(t *testing.T) {
+	d := time.Now()
+	for i := 0; i < 10; i++ {
+		d2 := d.AddDate(0, 0, -i)
+		s := GetWeekTime(d2, 0)
+		t.Logf("%v ==> %v", d2, s)
 	}
-	ip := addr.IP.To16()
-	t.Log(ip.String())
-	//addr, err := net.ResolveIPAddr("ip", "192.168.1.1")
-	//if err != nil {
-	//	t.Log("错误：", err)
-	//} else {
-	//	t.Log(addr.Network(), addr.Addr)
-	//}
-
-	//ip := net.ParseIP("192.168.0.1")
-	//ip = ip.To16()
-	//t.Log(ip.String())
-
 }
