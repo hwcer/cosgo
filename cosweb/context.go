@@ -23,37 +23,44 @@ const (
 type Context struct {
 	Path       string
 	Server     *Server
+	Session    *Session
 	Request    *http.Request
-	Response   *Response
+	Response   http.ResponseWriter
 	query      url.Values
 	params     map[string]string
 	aborted    bool
+	committed  bool
 	middleware []MiddlewareFunc
 }
 
 // NewContext returns a Context instance.
-func NewContext(e *Server, r *http.Request, w http.ResponseWriter) *Context {
-	return &Context{
-		Server:   e,
+func NewContext(s *Server, r *http.Request, w http.ResponseWriter) *Context {
+	c := &Context{
+		Server:   s,
 		Request:  r,
-		Response: NewResponse(w, e),
+		Response: w,
 	}
+	c.Session = NewSession(c)
+	return c
 }
 
 func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
+	c.Session.reset(c)
 	c.Request = r
-	c.Response.reset(w)
+	c.Response = w
 }
 
 //释放资源,准备进入缓存池
 func (c *Context) release() {
-	c.Path = ""
-	c.Request = nil
 	c.query = nil
 	c.params = nil
 	c.aborted = false
+	c.committed = false
 	c.middleware = nil
-	c.Response.release()
+	c.Path = ""
+	c.Session.release()
+	c.Request = nil
+	c.Response = nil
 }
 
 // next should be used only inside middleware.
@@ -85,12 +92,6 @@ func (c *Context) IsWebSocket() bool {
 //Aborted 是否已经被中断
 func (c *Context) Aborted() bool {
 	return c.aborted
-}
-
-//Status 设置状态码
-func (c *Context) Status(code int) *Context {
-	c.Response.Status(code)
-	return c
 }
 
 //Protocol 协议
@@ -130,21 +131,16 @@ func (c *Context) RemoteAddr() string {
 
 //Get 获取参数,优先路径中的params
 //其他方式直接使用c.Request...
-func (c *Context) Get(key string) string {
-	if v, ok := c.params[key]; ok {
-		return v
-	} else {
-		return c.Request.FormValue(key)
+func (c *Context) Get(key string, dts ...RequestDataType) string {
+	if len(dts) == 0 {
+		dts = defaultGetRequestDataType
 	}
-}
-
-//Param 获取路径中的参数
-func (c *Context) Param(key string) string {
-	return c.params[key]
-}
-
-func (c *Context) GetCookie(name string) (*http.Cookie, error) {
-	return c.Request.Cookie(name)
+	for _, t := range dts {
+		if v, ok := GetDataFromRequest(c, key, t); ok {
+			return v
+		}
+	}
+	return ""
 }
 
 func (c *Context) SetCookie(cookie *http.Cookie) {
@@ -169,7 +165,7 @@ func (c *Context) Render(name string, data interface{}) (err error) {
 
 //结束响应，返回空内容
 func (c *Context) End() error {
-	c.Response.WriteHeader(0)
+	c.WriteHeader(0)
 	return nil
 }
 
@@ -209,12 +205,13 @@ func (c *Context) JSONP(callback string, i interface{}) error {
 
 func (c *Context) Bytes(contentType string, b []byte) (err error) {
 	c.writeContentType(contentType)
-	_, err = c.Response.Write(b)
+	_, err = c.Write(b)
 	return
 }
 
 func (c *Context) Stream(contentType string, r io.Reader) (err error) {
 	c.writeContentType(contentType)
+	c.WriteHeader(0)
 	_, err = io.Copy(c.Response, r)
 	return
 }
@@ -238,7 +235,7 @@ func (c *Context) File(file string) (err error) {
 			return
 		}
 	}
-	http.ServeContent(c.Response, c.Request, fi.Name(), fi.ModTime(), f)
+	http.ServeContent(c, c.Request, fi.Name(), fi.ModTime(), f)
 	return
 }
 
@@ -252,14 +249,12 @@ func (c *Context) Attachment(file, name string) error {
 
 func (c *Context) Redirect(url string) error {
 	c.Response.Header().Set(HeaderLocation, url)
-	if c.Response.httpStatusCode == 0 {
-		c.Response.Status(http.StatusMultipleChoices)
-	}
+	c.WriteHeader(http.StatusMultipleChoices)
 	return nil
 }
 
 func (c *Context) writeContentType(value string) {
-	header := c.Response.Header()
+	header := c.Header()
 	header.Set(HeaderContentType, value)
 }
 

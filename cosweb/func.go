@@ -5,8 +5,6 @@ import (
 	"crypto/tls"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
-	"reflect"
-	"runtime"
 	"unicode"
 	"unicode/utf8"
 )
@@ -14,14 +12,6 @@ import (
 func isExported(name string) bool {
 	rune, _ := utf8.DecodeRuneInString(name)
 	return unicode.IsUpper(rune)
-}
-func strFirstToUpper(str string) string {
-	if len(str) < 1 {
-		return ""
-	}
-	strArray := []rune(str)
-	strArray[0] = unicode.ToUpper(strArray[0])
-	return string(strArray)
 }
 
 func strFirstToLower(str string) string {
@@ -31,14 +21,6 @@ func strFirstToLower(str string) string {
 	strArray := []rune(str)
 	strArray[0] = unicode.ToLower(strArray[0])
 	return string(strArray)
-}
-
-func handlerName(h HandlerFunc) string {
-	t := reflect.ValueOf(h).Type()
-	if t.Kind() == reflect.Func {
-		return runtime.FuncForPC(reflect.ValueOf(h).Pointer()).Name()
-	}
-	return t.String()
 }
 
 func TLSConfigTransform(key, pem string) (c *tls.Config, err error) {

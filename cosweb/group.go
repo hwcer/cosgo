@@ -122,8 +122,8 @@ func (g *Group) handle(c *Context) (err error) {
 	if c.Aborted() {
 		return nil
 	}
-	path := c.Param(iGroupRoutePath)
-	name := c.Param(iGroupRouteName)
+	path := c.Get(iGroupRoutePath, RequestDataTypePath)
+	name := c.Get(iGroupRouteName, RequestDataTypePath)
 	node := g.nodes[path]
 	if node == nil {
 		return nil

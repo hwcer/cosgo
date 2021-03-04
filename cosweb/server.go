@@ -79,22 +79,19 @@ func NewServer(address string, tlsConfig ...*tls.Config) (e *Server) {
 // DefaultHTTPErrorHandler is the default HTTP error Handler. It sends a JSON Response
 // with status code.
 func (s *Server) DefaultHTTPErrorHandler(c *Context, err error) {
-	if c.Response.committed {
+	if c.committed {
 		logger.Error(err)
 		return
 	}
 
 	he, ok := err.(*HTTPError)
 	if !ok {
-		he = NewHTTPError(http.StatusInternalServerError, err.Error())
+		he = NewHTTPError(http.StatusInternalServerError, err)
 	}
 
-	c.Response.Status(he.Code)
-
-	if c.Request.Method == http.MethodHead {
-		c.End()
-	} else {
-		c.String(err.Error())
+	c.WriteHeader(he.Code)
+	if c.Request.Method != http.MethodHead {
+		c.String(he.String(s.Debug))
 	}
 }
 
@@ -184,7 +181,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c := s.AcquireContext(w, r)
 	defer func() {
 		if err := recover(); err != nil {
-			s.HTTPErrorHandler(c, NewHTTPError500(err, s.Debug))
+			s.HTTPErrorHandler(c, NewHTTPError500(err))
 		}
 		// Release Context
 		s.ReleaseContext(c)
@@ -209,7 +206,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	//last return 404
-	if !c.Response.committed {
+	if !c.committed {
 		s.HTTPErrorHandler(c, ErrNotFound)
 	}
 }

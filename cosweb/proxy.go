@@ -39,7 +39,7 @@ func (this *Proxy) handle(c *Context) error {
 	if &target == nil {
 		return errors.New("Proxy AddTarget empty")
 	}
-	path := c.Param(iProxyRoutePath)
+	path := c.Get(iProxyRoutePath, RequestDataTypePath)
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
@@ -80,8 +80,8 @@ func (this *Proxy) handle(c *Context) error {
 	copyHeader(resp.Header, &header)
 	header.Add("Requested-Host", req.Host)
 
-	c.Response.WriteHeader(resp.StatusCode)
-	c.Response.Write(body)
+	c.WriteHeader(resp.StatusCode)
+	c.Write(body)
 
 	return nil
 }

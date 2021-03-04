@@ -58,7 +58,7 @@ func (this *RESTful) Register(handle iRESTful) {
 
 //Handle 路由入口
 func (this *RESTful) handle(c *Context) error {
-	name := c.Param(iRESTfulRoutePath)
+	name := c.Get(iRESTfulRoutePath, RequestDataTypePath)
 	if name == "" {
 		return nil
 	}
