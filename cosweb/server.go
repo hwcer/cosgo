@@ -20,6 +20,7 @@ type (
 		Debug            bool //DEBUG模式会打印所有路由匹配状态,向客户端输出详细错误信息
 		Binder           Binder
 		Server           *http.Server
+		Options          *Options
 		Renderer         Renderer
 		HTTPErrorHandler HTTPErrorHandler
 	}
@@ -60,7 +61,8 @@ var (
 // New creates an instance of Server.
 func NewServer(address string, tlsConfig ...*tls.Config) (e *Server) {
 	e = &Server{
-		Server: new(http.Server),
+		Server:  new(http.Server),
+		Options: NewOptions(),
 	}
 	if len(tlsConfig) > 0 {
 		e.Server.TLSConfig = tlsConfig[0]

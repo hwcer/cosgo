@@ -1,26 +1,29 @@
 package cosweb
 
 type storage interface {
-	Get(string) interface{}                //获取
-	Set(string, interface{})               //设置
-	Start() error                          //启动检查数据
+	Get(string) map[string]interface{}     //获取&加锁
+	Set(string, string, interface{})       //设置
+	Save(string)                           //保存&解锁
 	Create(string, map[string]interface{}) //创建以name为名的表
-	Lock() bool                            //乐观锁
-	UnLock()                               //解锁
+	Delete(string)                         //删除以name为名的表
 }
 
 type Session struct {
-	c       *Context
-	storage storage
+	s *Server
+	c *Context
 }
 
-func NewSession(c *Context) *Session {
-	return &Session{c: c}
+func NewSession(s *Server, c *Context) *Session {
+	return &Session{s: s, c: c}
 }
 
-func (this *Session) reset(c *Context) {
-	this.c = c
+func (this *Session) reset() {
+
 }
 func (this *Session) release() {
-	this.c = nil
+
+}
+
+func (this *Session) Start(level ...int8) {
+
 }

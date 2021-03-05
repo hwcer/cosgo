@@ -4,44 +4,14 @@ import (
 	"testing"
 )
 
-var a []int
-
-func init() {
-	for i := 0; i <= 10; i++ {
-		a = append(a, i)
-	}
-}
-
-func BenchmarkAppend(t *testing.B) {
-	var b []int
-	for i := 0; i <= 100000; i++ {
-		b = append([]int{}, a...)
-	}
-	b = b
-}
-
-func BenchmarkCopy(t *testing.B) {
-	b := make([]int, len(a))
-	for i := 0; i <= 100000; i++ {
-		copy(b, a)
-	}
-}
-
-func BenchmarkX(t *testing.B) {
-	var b []int
-	for i := 0; i <= 100000; i++ {
-		b = a[0:]
-	}
-	b = b
-}
+var a = [10]int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 func TestY(t *testing.T) {
-	b := a
-	b = b[1:]
-	b = b[1:]
-	b = b[1:]
-	b = b[1:]
-	b = b[1:]
-	t.Logf("a %v", a)
-	t.Logf("b %v", b)
+	x := a[2:5]
+	y := x[1:]
+
+	y[1] = 10
+	t.Log(a)
+	t.Log(x)
+	t.Log(y)
 }

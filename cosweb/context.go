@@ -40,12 +40,12 @@ func NewContext(s *Server, r *http.Request, w http.ResponseWriter) *Context {
 		Request:  r,
 		Response: w,
 	}
-	c.Session = NewSession(c)
+	c.Session = NewSession(s, c)
 	return c
 }
 
 func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
-	c.Session.reset(c)
+	c.Session.reset()
 	c.Request = r
 	c.Response = w
 }
