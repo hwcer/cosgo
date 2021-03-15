@@ -41,7 +41,7 @@ func BenchmarkRoute(b *testing.B) {
 func matchT(path string, t *testing.T) {
 	node := router.Match("post", path)
 	if node != nil {
-		t.Logf("匹配成功：%v --> %v , args:%+v", path, node.String(), node.Params(path))
+		t.Logf("匹配成功：%v --> %v , data:%+v", path, node.String(), node.Params(path))
 	} else {
 		t.Logf("匹配失败：%v ", path)
 	}
@@ -50,7 +50,7 @@ func matchT(path string, t *testing.T) {
 func matchB(path string, t *testing.B) {
 	node := router.Match("post", path)
 	if node != nil {
-		t.Logf("匹配成功：%v --> %v , args:%+v", path, node.String(), node.Params(path))
+		t.Logf("匹配成功：%v --> %v , data:%+v", path, node.String(), node.Params(path))
 	} else {
 		t.Logf("匹配失败：%v ", path)
 	}

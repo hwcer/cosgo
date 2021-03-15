@@ -1,24 +1,23 @@
 package cosweb
 
-type RequestDataType uint8
-
 const (
-	RequestDataTypePath   RequestDataType = iota //params
-	RequestDataTypeBody                          //POST，JSON,FORM
-	RequestDataTypeQuery                         //GET
-	RequestDataTypeCookie                        //COOKIES
+	RequestDataTypeParam  int = iota //params
+	RequestDataTypeBody              //POST FORM
+	RequestDataTypeQuery             //GET
+	RequestDataTypeCookie            //COOKIES
+	RequestDataTypeHeader            //HEADER
 )
 
 //默认获取数据的顺序
-var defaultGetRequestDataType []RequestDataType
+var defaultGetRequestDataType []int
 
 func init() {
-	defaultGetRequestDataType = append(defaultGetRequestDataType, RequestDataTypePath, RequestDataTypeQuery, RequestDataTypeBody, RequestDataTypeCookie)
+	defaultGetRequestDataType = append(defaultGetRequestDataType, RequestDataTypeParam, RequestDataTypeQuery, RequestDataTypeBody, RequestDataTypeCookie)
 }
 
-func GetDataFromRequest(c *Context, key string, dataType RequestDataType) (string, bool) {
+func GetDataFromRequest(c *Context, key string, dataType int) (string, bool) {
 	switch dataType {
-	case RequestDataTypePath:
+	case RequestDataTypeParam:
 		v, ok := c.params[key]
 		return v, ok
 	case RequestDataTypeBody, RequestDataTypeQuery:
@@ -29,9 +28,11 @@ func GetDataFromRequest(c *Context, key string, dataType RequestDataType) (strin
 		if err == nil {
 			return v.Value, true
 		} else {
-			//LOGGER
 			return "", false
 		}
+	case RequestDataTypeHeader:
+		v := c.Request.Header.Get(key)
+		return v, true
 	default:
 		return "", false
 	}

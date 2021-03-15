@@ -11,7 +11,7 @@ func (c *Context) Header() http.Header {
 	return c.Response.Header()
 }
 
-// Write writes the data to the connection as part of an HTTP reply.
+// Write writes the store to the connection as part of an HTTP reply.
 func (c *Context) Write(b []byte) (n int, err error) {
 	if !c.committed {
 		c.WriteHeader(0)
@@ -38,7 +38,7 @@ func (c *Context) WriteHeader(code int) {
 }
 
 // Flush implements the http.Flusher interface to allow an HTTP Handler to flush
-// buffered data to the client.
+// buffered store to the client.
 // See [http.Flusher](https://golang.org/pkg/net/http/#Flusher)
 func (c *Context) Flush() {
 	c.Response.(http.Flusher).Flush()

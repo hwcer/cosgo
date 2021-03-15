@@ -1,14 +1,15 @@
 package utils
 
 import (
-	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 )
 
 //Worker 工作进程管理器，并发安全
 type Worker struct {
-	name   string
+	swg    sync.WaitGroup
+	stop   chan struct{}
 	index  int32
 	cwrite chan interface{}
 	handle func(interface{})
@@ -17,53 +18,47 @@ type Worker struct {
 //工作进程，多任务分发
 type workerThread struct {
 	id     int32
-	stop   int32
-	name   string
 	cwrite chan interface{}
 	handle func(interface{})
 }
 
-func NewWorker(name string, num int32, handle func(interface{})) *Worker {
-	work := &Worker{
-		name:   name,
+func NewWorker(num int32, handle func(interface{})) *Worker {
+	worker := &Worker{
+		stop:   make(chan struct{}),
 		cwrite: make(chan interface{}, WorkerWriteChanSize),
 		handle: handle,
 	}
 
 	for i := int32(1); i <= num; i++ {
-		work.Fork()
+		worker.Fork()
 	}
-	return work
+	return worker
 }
 
-func (this *workerThread) start(ctx context.Context) {
-	fmt.Printf("CREATE WORKER %v[%v]\n", this.name, this.id)
-	for this.stop == 0 && !IsStop() {
+func (this *workerThread) start(stop chan struct{}) {
+	for {
 		select {
-		case <-ctx.Done():
-			this.close()
+		case <-stop:
+			fmt.Printf("WorkerThread Stop%v\n", this.id)
+			return
 		case msg := <-this.cwrite:
-			if msg == nil {
-				this.close()
-			} else {
-				this.handle(msg)
-			}
+			this.doHandle(msg)
 		}
 	}
-	fmt.Printf("CLOSE WORKER %v[%v]\n", this.name, this.id)
 }
 
-//关闭房间
-func (this *workerThread) close() {
-	if !atomic.CompareAndSwapInt32(&this.stop, 0, 1) {
-		fmt.Printf("workerThread Stop error\n")
-	}
+func (this *workerThread) doHandle(msg interface{}) {
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Printf("panic in Go: %v\n", err)
+		}
+	}()
+	this.handle(msg)
 }
 
 func (this *Worker) Emit(msg interface{}) (ret bool) {
 	defer func() {
 		if err := recover(); err != nil {
-			fmt.Printf("workerThread[%v].emit error:%v\n", this.name, err)
 			ret = false
 		}
 	}()
@@ -71,7 +66,7 @@ func (this *Worker) Emit(msg interface{}) (ret bool) {
 	select {
 	case this.cwrite <- msg:
 	default:
-		fmt.Printf("workerThread[%v] channel full and discard:%v\n", this.name, msg)
+		fmt.Printf("workerThread channel full and discard:%v\n", msg)
 	}
 	return true
 }
@@ -79,11 +74,20 @@ func (this *Worker) Emit(msg interface{}) (ret bool) {
 //创建WORKER协程
 func (this *Worker) Fork() {
 	id := atomic.AddInt32(&this.index, 1)
-	work := &workerThread{id: id, name: this.name, cwrite: this.cwrite, handle: this.handle}
-	Go(work.start)
+	work := &workerThread{id: id, cwrite: this.cwrite, handle: this.handle}
+	go func() {
+		this.swg.Add(1)
+		defer this.swg.Done()
+		work.start(this.stop)
+	}()
 }
 
 //关闭Worker
 func (this *Worker) Close() {
-	close(this.cwrite)
+	select {
+	case <-this.stop:
+	default:
+		close(this.stop)
+	}
+	this.swg.Wait()
 }

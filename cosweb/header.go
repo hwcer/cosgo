@@ -28,12 +28,12 @@ const (
 	HeaderXRequestID          = "X-Request-ID"
 	HeaderXRequestedWith      = "X-Requested-With"
 	HeaderServer              = "Server"
-	HeaderOrigin              = "Origin"
+	HeaderOrigin              = "origin"
 
 	// Access control
 	HeaderAccessControlRequestMethod    = "Access-Control-Request-value"
 	HeaderAccessControlRequestHeaders   = "Access-Control-Request-Headers"
-	HeaderAccessControlAllowOrigin      = "Access-Control-Allow-Origin"
+	HeaderAccessControlAllowOrigin      = "Access-Control-Allow-origin"
 	HeaderAccessControlAllowMethods     = "Access-Control-Allow-Methods"
 	HeaderAccessControlAllowHeaders     = "Access-Control-Allow-Headers"
 	HeaderAccessControlAllowCredentials = "Access-Control-Allow-Credentials"
@@ -42,9 +42,9 @@ const (
 
 	// Security
 	HeaderStrictTransportSecurity         = "Strict-Transport-Security"
-	HeaderXContentTypeOptions             = "X-Content-Type-Options"
+	HeaderXContentTypeOptions             = "X-Content-Type-options"
 	HeaderXXSSProtection                  = "X-XSS-Protection"
-	HeaderXFrameOptions                   = "X-Frame-Options"
+	HeaderXFrameOptions                   = "X-Frame-options"
 	HeaderContentSecurityPolicy           = "Content-Security-Policy"
 	HeaderContentSecurityPolicyReportOnly = "Content-Security-Policy-Report-Only"
 	HeaderXCSRFToken                      = "X-CSRF-Token"

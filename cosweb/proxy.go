@@ -39,7 +39,7 @@ func (this *Proxy) handle(c *Context) error {
 	if &target == nil {
 		return errors.New("Proxy AddTarget empty")
 	}
-	path := c.Get(iProxyRoutePath, RequestDataTypePath)
+	path := c.Get(iProxyRoutePath, RequestDataTypeParam)
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}

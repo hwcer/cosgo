@@ -67,11 +67,14 @@ func Start(mods ...Module) {
 		panic(err)
 	}
 	defer func() {
+		pprofClose()
 		deletePidFile()
 		fmt.Printf("Say byebye to the world")
 	}()
 	//=========================加载模块=============================
-	initProfile()
+	if err = pprofStart(); err != nil {
+		panic(err)
+	}
 
 	for _, v := range modules {
 		assert(v.Init(), fmt.Sprintf("mod [%v] init", v.ID()))

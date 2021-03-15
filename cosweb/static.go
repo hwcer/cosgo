@@ -28,7 +28,7 @@ func (this *Static) Route(s *Server, prefix string, method ...string) {
 }
 
 func (this *Static) handle(c *Context) error {
-	name := c.Get(iStaticRoutePath, RequestDataTypePath)
+	name := c.Get(iStaticRoutePath, RequestDataTypeParam)
 	if name == "" {
 		return nil
 	}

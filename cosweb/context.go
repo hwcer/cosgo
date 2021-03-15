@@ -131,7 +131,7 @@ func (c *Context) RemoteAddr() string {
 
 //Get 获取参数,优先路径中的params
 //其他方式直接使用c.Request...
-func (c *Context) Get(key string, dts ...RequestDataType) string {
+func (c *Context) Get(key string, dts ...int) string {
 	if len(dts) == 0 {
 		dts = defaultGetRequestDataType
 	}
@@ -208,6 +208,9 @@ func (c *Context) Bytes(contentType string, b []byte) (err error) {
 	_, err = c.Write(b)
 	return
 }
+func (c *Context) Error(err error) {
+	c.Server.HTTPErrorHandler(c, err)
+}
 
 func (c *Context) Stream(contentType string, r io.Reader) (err error) {
 	c.writeContentType(contentType)
@@ -261,8 +264,4 @@ func (c *Context) writeContentType(value string) {
 func (c *Context) contentDisposition(file, name, dispositionType string) error {
 	c.Response.Header().Set(HeaderContentDisposition, fmt.Sprintf("%s; filename=%q", dispositionType, name))
 	return c.File(file)
-}
-
-func (c *Context) Error(err error) {
-	c.Server.HTTPErrorHandler(c, err)
 }

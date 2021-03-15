@@ -1,14 +1,21 @@
 package cosweb
 
+import (
+	"cosgo/session"
+	"cosgo/utils"
+)
+
 type Options struct {
 	SessionKey     string
-	SessionType    []RequestDataType //存放SESSION KEY的方式
-	SessionStorage storage           //Session数据存储器
+	SessionType    []int //存放SESSION KEY的方式
+	SessionSecret  string
+	SessionStorage session.Storage //Session数据存储器
 }
 
 func NewOptions() *Options {
 	return &Options{
-		SessionKey:  "CosWebSessId",
-		SessionType: []RequestDataType{RequestDataTypeCookie, RequestDataTypeQuery},
+		SessionKey:    "CosWebSessId",
+		SessionType:   []int{RequestDataTypeCookie, RequestDataTypeQuery},
+		SessionSecret: utils.Random.String(16),
 	}
 }

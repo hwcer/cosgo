@@ -1,18 +1,21 @@
-// +build !go1.11
+package session
 
-package sessions
-
-// Options stores configuration for a session or session store.
-//
-// Fields are a subset of http.Cookie fields.
 type Options struct {
-	Path   string
-	Domain string
-	// MaxAge=0 means no Max-Age attribute specified and the cookie will be
-	// deleted after the browser session ends.
-	// MaxAge<0 means delete cookie immediately.
-	// MaxAge>0 means Max-Age attribute present and given in seconds.
-	MaxAge   int
-	Secure   bool
-	HttpOnly bool
+	MaxAge    int64 //有效期(S)
+	MapSize   int32
+	Heartbeat int32 //心跳(S)
+}
+
+type Dataset interface {
+	Set(map[string]interface{})
+	Get() map[string]interface{}
+	Lock() bool
+	UnLock()
+}
+
+type Storage interface {
+	Get(string) (Dataset, bool)
+	Set(key string, val map[string]interface{}) Dataset
+	Del(key string)
+	Close()
 }

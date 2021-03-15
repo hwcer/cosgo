@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	iGroupRoutePath = "_GroupRoutePath"
-	iGroupRouteName = "_GroupRouteName"
+	RouteGroupPath = "_RouteGroupPath"
+	RouteGroupName = "_RouteGroupName"
 )
 
 var typeOfContext = reflect.TypeOf(&Context{})
@@ -54,7 +54,7 @@ func (g *Group) Use(m ...MiddlewareFunc) {
 
 //Route 将Route添加到服务
 func (g *Group) Route(s *Server, prefix string, method ...string) {
-	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + iGroupRoutePath, ":" + iGroupRouteName}
+	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + RouteGroupPath, ":" + RouteGroupName}
 	r := strings.Join(arr, "/")
 	s.Register(r, g.handle, method...)
 }
@@ -91,15 +91,15 @@ func (g *Group) Register(handle interface{}) error {
 			logger.Debug("Register value Can't Exported,value:%v.%v()", name, methodName)
 			continue
 		}
-		// value needs four ins: receiver, context.Context, *args, *reply.
+		// value needs four ins: receiver, context.Context, *data, *reply.
 		if methodType.NumIn() != 2 || methodType.NumOut() != 1 {
-			logger.Debug("Register value args num or return num error,value:%v.%v()", name, methodName)
+			logger.Debug("Register value data num or return num error,value:%v.%v()", name, methodName)
 			continue
 		}
 		// First arg must be context.Context
 		ctxType := methodType.In(1)
 		if !ctxType.ConvertibleTo(typeOfContext) {
-			logger.Debug("Register value args error,value:%v.%v()", name, methodName)
+			logger.Debug("Register value data error,value:%v.%v()", name, methodName)
 			continue
 		}
 		////
@@ -122,8 +122,8 @@ func (g *Group) handle(c *Context) (err error) {
 	if c.Aborted() {
 		return nil
 	}
-	path := c.Get(iGroupRoutePath, RequestDataTypePath)
-	name := c.Get(iGroupRouteName, RequestDataTypePath)
+	path := c.Get(RouteGroupPath, RequestDataTypeParam)
+	name := c.Get(RouteGroupName, RequestDataTypeParam)
 	node := g.nodes[path]
 	if node == nil {
 		return nil

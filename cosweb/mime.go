@@ -17,7 +17,7 @@ const (
 
 	MIMEOctetStream = "application/octet-stream"
 
-	MIMEMultipartForm   = "multipart/form-data"
+	MIMEMultipartForm   = "multipart/form-store"
 	MIMEApplicationForm = "application/x-www-form-urlencoded"
 )
 

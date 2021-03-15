@@ -22,9 +22,9 @@ func init() {
 	Config = viper.New()
 	pflag.Bool("debug", false, "developer model")
 	pflag.String("logs", "", "app logs dir")
-	pflag.StringP("config", "c", "", "use config file")
+	pflag.String("pprof", "", "pprof server address")
 	pflag.String("pidfile", "", "app pid file")
-	pflag.String("profile", "", "profile address")
+	pflag.StringP("config", "c", "", "use config file")
 
 	var (
 		tmpDir     string

@@ -1,7 +1,6 @@
 package app
 
 import (
-	"cosgo/debug"
 	"cosgo/logger"
 	"os"
 	"os/signal"
@@ -37,6 +36,7 @@ func waitForSystemExit() {
 }
 
 func signalNotify(sig os.Signal) {
+	logger.Debug("OS SIGINT:%v", sig)
 	switch sig {
 	case syscall.SIGHUP: // reload Config  1
 		logger.Info("SIGHUP reload Config")
@@ -55,5 +55,5 @@ func signalNotify(sig os.Signal) {
 func gcSummaryLogger() {
 	runtime.GC()
 	logger.Info("GOROUTINE:%v", runtime.NumGoroutine())
-	logger.Info("GC Summory \n%v", debug.GCSummary())
+	//logger.Info("GC Summory \n%v", debug.GCSummary())
 }
