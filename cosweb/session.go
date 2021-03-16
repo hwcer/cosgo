@@ -4,9 +4,10 @@ import (
 	"cosgo/session"
 	"cosgo/utils"
 	"errors"
-	"fmt"
 	"net/http"
 )
+
+const sessionRandomStringLength = 4
 
 type Session struct {
 	s *Server
@@ -118,12 +119,12 @@ func (this *Session) decode() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	fmt.Printf("%v--%v\n", str, len(str))
-	b2 := str[4:len(str)]
-	return string(b2), nil
+	//fmt.Printf("%v--%v\n", str, len(str))
+	return str[sessionRandomStringLength:], nil
 }
 func (this *Session) encode(key string) (string, error) {
-	s := utils.Random.String(4)
-	fmt.Printf("%v--%v---%v\n", len(key), len(s), len(s+key))
+	s := utils.Random.String(sessionRandomStringLength)
+	//fmt.Printf("%v--%v---%v\n", key, s, s+key)
+	//fmt.Printf("%v--%v---%v\n", len(key), len(s), len(s+key))
 	return utils.Crypto.AESEncrypt(s+key, this.s.Options.SessionSecret)
 }

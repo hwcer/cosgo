@@ -6,7 +6,6 @@ import (
 	"cosgo/cosweb"
 	middleware "cosgo/cosweb/middleware"
 	"cosgo/demo/handle"
-	"cosgo/logger"
 	"cosgo/session"
 	"github.com/spf13/pflag"
 	"reflect"
@@ -61,7 +60,7 @@ func (m *module) Init() (err error) {
 }
 
 func allMiddleware(ctx *cosweb.Context, next func()) {
-	logger.Debug("do middleware")
+	//logger.Debug("do middleware")
 	header := ctx.Response.Header()
 	header.Set("X-TEST-HEADER", "TEST")
 	//ctx.String("STRING:middleware return\n")

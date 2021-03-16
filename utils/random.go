@@ -29,7 +29,7 @@ func (this *random) String(l int) string {
 	result := make([]byte, l)
 	m := len(this.bytes) - 1
 	for i := 0; i < l; i++ {
-		result = append(result, this.bytes[this.Roll(0, m)])
+		result[i] = this.bytes[this.Roll(0, m)]
 	}
 	return string(result)
 }
