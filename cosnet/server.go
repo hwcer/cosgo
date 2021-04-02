@@ -22,41 +22,12 @@ const (
 	NetTypeWs                 //websocket
 )
 
-type sockets struct {
-	mu        sync.Mutex
-	index     uint32
-	socketMap map[uint32]Socket
-}
-
-func (s *sockets) Id() uint32 {
-	return atomic.AddUint32(&s.index, 1)
-}
-
-func (s *sockets) Add(sock Socket) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.socketMap[sock.Id()] = sock
-}
-func (s *sockets) Get(id uint32) Socket {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.socketMap[id]
-}
-
-func (s *sockets) Del(id ...uint32) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, k := range id {
-		delete(s.socketMap, k)
-	}
-}
-
 type Server interface {
 	Start() error
 	Close() error
-	Stoped() bool
-	Sockets() *sockets
-	Timestamp() int64
+	Stopped() bool
+	Sockets() *Sockets
+	Runtime() int64
 	GetHandler() Handler
 	GetMsgType() MsgType
 	GetNetType() NetType
@@ -70,24 +41,22 @@ func NewNetServer(msgTyp MsgType, handler Handler, netType NetType) *NetServer {
 		msgTyp:  msgTyp,
 		netType: netType,
 		handler: handler,
-		sockets: new(sockets),
+		sockets: new(Sockets),
 	}
-	s.starTimestampTicker()
+	s.startServerTicker()
 	return s
 }
 
 type NetServer struct {
 	wgp       *sync.WaitGroup
 	stop      int32
-	ticker    *time.Ticker
-	timestamp int64 //时间
-
 	msgTyp    MsgType //消息类型
 	netType   NetType
 	address   string
-	sockets   *sockets //自增ID
+	sockets   *Sockets //自增ID
 	handler   Handler  //消息处理器
 	multiplex bool     //是否使用协程来处理MESSAGE
+	timestamp int64    //时间
 }
 
 func (s *NetServer) Close() error {
@@ -97,11 +66,11 @@ func (s *NetServer) Close() error {
 	return nil
 }
 
-func (s *NetServer) Stoped() bool {
+func (s *NetServer) Stopped() bool {
 	return s.stop == 1
 }
 
-func (s *NetServer) Sockets() *sockets {
+func (s *NetServer) Sockets() *Sockets {
 	return s.sockets
 }
 
@@ -123,18 +92,23 @@ func (s *NetServer) SetMultiplex(multiplex bool) {
 func (s *NetServer) GetMultiplex() bool {
 	return s.multiplex
 }
-func (s *NetServer) Timestamp() int64 {
+
+//服务器运行时长,非精确时长
+func (s *NetServer) Runtime() int64 {
 	return s.timestamp
 }
 
-func (s *NetServer) starTimestampTicker() {
+func (s *NetServer) startServerTicker() {
 	Go(s.wgp, func() {
-		s.ticker = time.NewTicker(time.Millisecond * time.Duration(Config.ServerInterval))
-		defer s.ticker.Stop()
-		for !s.Stoped() {
+		t := time.Millisecond * time.Duration(Config.ServerInterval)
+		ticker := time.NewTimer(t)
+		defer ticker.Stop()
+		for !s.Stopped() {
 			select {
-			case <-s.ticker.C:
+			case <-ticker.C:
 				s.timestamp += Config.ServerInterval
+				s.sockets.ticker()
+				ticker.Reset(t)
 			}
 		}
 	})

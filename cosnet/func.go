@@ -60,3 +60,12 @@ func BytesToInt(b []byte, n interface{}) {
 	bytesBuffer := bytes.NewBuffer(b)
 	binary.Read(bytesBuffer, binary.BigEndian, n)
 }
+
+func ObjectIDPack(index, seed uint32) uint64 {
+	return uint64(index)<<32 | uint64(seed)
+}
+
+//ObjectIDParse 返回ObjectIDPack中的index
+func ObjectIDParse(id uint64) uint32 {
+	return uint32(id >> 32)
+}

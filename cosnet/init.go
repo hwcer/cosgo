@@ -17,12 +17,11 @@ var Config = struct {
 	ReadDataBuffer int
 	StopTimeout    int
 
-	WriteChanSize    int32 //写通道缓存
-	ConnectMaxSize   int32 //连接人数
-	ConnectTimeout   int32 //连接超时(MS)，依赖于ConnectHeartbeat
-	ConnectHeartbeat int32 //心跳(MS)每隔多久检查一次客户端状态
+	WriteChanSize  int32 //写通道缓存
+	ConnectMaxSize int32 //连接人数
+	ConnectTimeout int32 //连接超时(MS),至少大于ServerInterval2倍以上
 
-	ServerInterval int64 //服务器时钟(MS)
+	ServerInterval int64 //(MS)服务器心跳,用来检测玩家僵尸连接
 
 	MsgDataType MsgDataType //默认包体编码方式
 }{
@@ -32,11 +31,8 @@ var Config = struct {
 
 	WriteChanSize:  500,
 	ConnectMaxSize: 50000,
-
-	ConnectTimeout:   6000,
-	ConnectHeartbeat: 1000,
-
-	ServerInterval: 100,
+	ConnectTimeout: 6000,
+	ServerInterval: 2000,
 
 	MsgDataType: MsgDataTypeProto,
 }

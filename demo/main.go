@@ -30,8 +30,9 @@ func (this *module) ID() string {
 }
 
 func (m *module) Init() (err error) {
-	//addr := apps.Config.GetString("tcp")
-	//m.srv, err = cosnet.NewServer(addr, nil)
+	addr := app.Config.GetString("tcp")
+	m.srv, err = cosnet.NewServer(addr, &cosnet.HandlerDefault{})
+
 	http := app.Config.GetString("http")
 
 	m.web = cosweb.NewServer(http)
@@ -109,6 +110,7 @@ func caller(proto, method reflect.Value, c *cosweb.Context) error {
 
 func (m *module) Start() error {
 	m.web.Start()
+	m.srv.Start()
 	return nil
 }
 

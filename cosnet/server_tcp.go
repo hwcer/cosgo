@@ -36,7 +36,7 @@ func (s *TcpServer) Start() (err error) {
 
 func (s *TcpServer) listen() {
 	defer s.listener.Close()
-	for !s.Stoped() {
+	for !s.Stopped() {
 		c, err := s.listener.Accept()
 		if err != nil {
 			logger.Error("tcp server accept failed:%v", err)
@@ -55,7 +55,7 @@ func (s *TcpServer) socket(conn net.Conn) {
 	if s.handler.OnConnect(sock) {
 		SafeGo(s.wgp, sock.readMsg)
 		SafeGo(s.wgp, sock.writeMsg)
-		s.sockets.Add(sock)
+		sock.id = s.sockets.Add(sock)
 		logger.Debug("new socket Id:%d from Addr:%s", sock.id, conn.RemoteAddr().String())
 	} else if sock.Close() {
 		sock.Conn.Close()
@@ -84,7 +84,7 @@ func (s *TcpSocket) RemoteAddr() string {
 func (s *TcpSocket) readMsg() {
 	defer s.Close()
 	head := make([]byte, MsgHeadSize)
-	for !s.Stoped() {
+	for !s.Stopped() {
 		_, err := io.ReadFull(s.Conn, head)
 		if err != nil {
 			if err != io.EOF {
@@ -120,14 +120,10 @@ func (s *TcpSocket) writeMsg() {
 		s.Close()
 	}()
 
-	for !s.Stoped() {
+	for !s.Stopped() {
 		select {
 		case m := <-s.cwrite:
 			if !s.writeMsgTrue(m) {
-				return
-			}
-		case <-s.ticker.C:
-			if s.timeout() {
 				return
 			}
 		}
@@ -140,7 +136,7 @@ func (s *TcpSocket) writeMsgTrue(m *Message) bool {
 	}
 	data := m.Bytes()
 	writeCount := 0
-	for !s.Stoped() && writeCount < len(data) {
+	for !s.Stopped() && writeCount < len(data) {
 		n, err := s.Conn.Write(data[writeCount:])
 		if err != nil {
 			logger.Error("socket write error,Id:%v err:%v", s.id, err)
@@ -148,6 +144,6 @@ func (s *TcpSocket) writeMsgTrue(m *Message) bool {
 		}
 		writeCount += n
 	}
-	s.heartbeat = s.server.Timestamp()
+	s.timestamp = s.server.Runtime()
 	return true
 }

@@ -2,53 +2,175 @@ package cosnet
 
 import (
 	"cosgo/logger"
+	"errors"
+	"sync"
 	"sync/atomic"
 	"time"
 )
 
+//NewSocketMgr cap初始容器大小
+func NewSockets(cap int) *Sockets {
+	sockets := &Sockets{
+		dirty:  make(dirty, cap),
+		slices: make([]Socket, 0, cap),
+	}
+	sockets.startSocketMgrTicker()
+	return sockets
+}
+
+type dirty map[int]bool
+
+func (d dirty) get() (id int) {
+	if len(d) == 0 {
+		return
+	}
+	for id, _ = range d {
+		break
+	}
+	delete(d, id)
+	return
+}
+
+func (d dirty) add(id int) {
+	d[id] = true
+}
+
+//socket 管理器
+type Sockets struct {
+	mu        sync.Mutex
+	seed      uint32 //ID 生成种子
+	stop      int32
+	dirty     dirty
+	slices    []Socket
+	handler   Handler //消息处理器
+	timestamp int64   //时间
+}
+
+func (s *Sockets) Add(sock Socket) uint64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var index int
+	if index = s.dirty.get(); index > 0 {
+		s.slices[index] = sock
+	} else {
+		index = len(s.slices)
+		s.slices = append(s.slices, sock)
+	}
+	s.seed++
+	return ObjectIDPack(uint32(index), s.seed)
+}
+
+func (s *Sockets) Del(id uint64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	index := int(ObjectIDParse(id))
+
+	if index >= len(s.slices) || s.slices[index] == nil || s.slices[index].Id() != id {
+		return
+	}
+	s.slices[index] = nil
+	s.dirty.add(index)
+}
+
+func (s *Sockets) Get(id uint64) Socket {
+	index := int(ObjectIDParse(id))
+
+	if index >= len(s.slices) {
+		return nil
+	} else {
+		return s.slices[index]
+	}
+}
+
+//遍历
+func (s *Sockets) Range(f func(Socket)) {
+	for _, sock := range s.slices {
+		if sock != nil {
+			f(sock)
+		}
+	}
+}
+
+func (s *Sockets) Close() error {
+	if !atomic.CompareAndSwapInt32(&s.stop, 0, 1) {
+		return errors.New("server stoping")
+	}
+	return nil
+}
+
+func (s *Sockets) Stopped() bool {
+	return s.stop == 1
+}
+
+//ticker 用来定时清理无效用户
+func (s *Sockets) ticker() {
+	for _, sock := range s.slices {
+		if sock != nil {
+			sock.timeout()
+		}
+	}
+}
+
+func (s *Sockets) startSocketMgrTicker() {
+	go func() {
+		t := time.Millisecond * time.Duration(Config.ServerInterval)
+		ticker := time.NewTimer(t)
+		defer ticker.Stop()
+		for !s.Stopped() {
+			select {
+			case <-ticker.C:
+				s.timestamp += Config.ServerInterval
+				s.ticker()
+				ticker.Reset(t)
+			}
+		}
+	}()
+}
+
 //各种服务器(TCP,UDP,WS)也使用该接口
 type Socket interface {
-	Id() uint32
-
+	Id() uint64
 	LocalAddr() string
 	RemoteAddr() string
 	SetRealRemoteAddr(addr string)
 
 	Close() bool
-	Stoped() bool
+	Stopped() bool
 	IsProxy() bool
 
 	Write(m *Message) bool
 
 	SetUser(interface{})
 	GetUser() interface{}
+	timeout()
 }
 
 func NewNetSocket(srv Server) *NetSocket {
-	sockets := srv.Sockets()
 	sock := &NetSocket{
-		id:        sockets.Id(),
-		cwrite:    make(chan *Message, Config.WriteChanSize),
-		server:    srv,
-		heartbeat: srv.Timestamp(),
+		cwrite: make(chan *Message, Config.WriteChanSize),
+		server: srv,
 	}
-	sock.ticker = time.NewTicker(time.Millisecond * time.Duration(Config.ConnectHeartbeat))
 	return sock
 }
 
 type NetSocket struct {
-	id             uint32 //唯一标示
-	stop           int32  //停止标记
-	ticker         *time.Ticker
+	id             uint64        //唯一标示
+	stop           int32         //停止标记
 	cwrite         chan *Message //写入通道
 	server         Server
 	handler        Handler
 	user           interface{} //玩家登陆后信息
-	heartbeat      int64       //最后有效行为时间戳
+	timestamp      int64       //最后有效行为时间戳
 	realRemoteAddr string      //当使用代理是，需要特殊设置客户端真实IP
 }
 
-func (s *NetSocket) Id() uint32 {
+func (s *NetSocket) timeout() {
+	if s.server.Runtime()-s.timestamp >= int64(Config.ConnectTimeout) {
+		s.Close()
+	}
+}
+
+func (s *NetSocket) Id() uint64 {
 	return s.id
 }
 
@@ -68,15 +190,14 @@ func (s *NetSocket) Close() bool {
 	if s.cwrite != nil {
 		close(s.cwrite)
 	}
-	s.ticker.Stop()
-	s.server.Sockets().Del(s.Id())
+	s.server.Sockets().Del(s.id)
 	logger.Debug("socket Close Id:%d", s.id)
 	return true
 }
 
 //判断连接是否关闭
-func (s *NetSocket) Stoped() bool {
-	if s.server.Stoped() {
+func (s *NetSocket) Stopped() bool {
+	if s.server.Stopped() {
 		s.Close()
 	}
 	return s.stop > 0
@@ -114,16 +235,8 @@ func (s *NetSocket) Write(m *Message) (re bool) {
 	return true
 }
 
-func (s *NetSocket) timeout() bool {
-	if int32(s.server.Timestamp()-s.heartbeat) > Config.ConnectTimeout {
-		return true
-	} else {
-		return false
-	}
-}
-
 func (s *NetSocket) processMsg(msgque Socket, msg *Message) bool {
-	s.heartbeat = s.server.Timestamp()
+	s.timestamp = s.server.Runtime()
 	if s.server.GetMultiplex() {
 		go s.processMsgTrue(msgque, msg)
 	} else {
