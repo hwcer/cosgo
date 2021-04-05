@@ -50,7 +50,7 @@ func (s *TcpServer) listen() {
 func (s *TcpServer) socket(conn net.Conn) {
 	sock := &TcpSocket{
 		Conn:      conn,
-		NetSocket: NewNetSocket(s),
+		NetSocket: s.sockets.New(),
 	}
 	if s.handler.OnConnect(sock) {
 		SafeGo(s.wgp, sock.readMsg)
@@ -144,6 +144,6 @@ func (s *TcpSocket) writeMsgTrue(m *Message) bool {
 		}
 		writeCount += n
 	}
-	s.timestamp = s.server.Runtime()
+	s.Activity()
 	return true
 }

@@ -14,7 +14,7 @@ func NewSockets(cap int) *Sockets {
 		dirty:  make(dirty, cap),
 		slices: make([]Socket, 0, cap),
 	}
-	sockets.startSocketMgrTicker()
+	sockets.startHeartbeat()
 	return sockets
 }
 
@@ -38,12 +38,29 @@ func (d dirty) add(id int) {
 //socket 管理器
 type Sockets struct {
 	mu        sync.Mutex
-	seed      uint32 //ID 生成种子
 	stop      int32
+	seed      uint32 //ID 生成种子
 	dirty     dirty
 	slices    []Socket
 	handler   Handler //消息处理器
 	timestamp int64   //时间
+	Multiplex bool    //是否使用协程来处理MESSAGE
+}
+
+//idPack 使用index生成ID
+func (s *Sockets) idPack(index int) uint64 {
+	s.seed++
+	return uint64(index)<<32 | uint64(s.seed)
+}
+
+//idParse 返回idPack中的index
+func (s *Sockets) idParse(id uint64) int {
+	return int(id >> 32)
+}
+
+//创建一个新Socket
+func (s *Sockets) New() *NetSocket {
+	return NewNetSocket(s)
 }
 
 func (s *Sockets) Add(sock Socket) uint64 {
@@ -56,30 +73,29 @@ func (s *Sockets) Add(sock Socket) uint64 {
 		index = len(s.slices)
 		s.slices = append(s.slices, sock)
 	}
-	s.seed++
-	return ObjectIDPack(uint32(index), s.seed)
+	return s.idPack(index)
 }
-
-func (s *Sockets) Del(id uint64) {
+func (s *Sockets) Get(id uint64) Socket {
+	index := s.idParse(id)
+	if index >= len(s.slices) {
+		return nil
+	}
+	if sock := s.slices[index]; sock.Id() == id {
+		return sock
+	} else {
+		return nil
+	}
+}
+func (s *Sockets) Delete(id uint64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	index := int(ObjectIDParse(id))
+	index := s.idParse(id)
 
 	if index >= len(s.slices) || s.slices[index] == nil || s.slices[index].Id() != id {
 		return
 	}
 	s.slices[index] = nil
 	s.dirty.add(index)
-}
-
-func (s *Sockets) Get(id uint64) Socket {
-	index := int(ObjectIDParse(id))
-
-	if index >= len(s.slices) {
-		return nil
-	} else {
-		return s.slices[index]
-	}
 }
 
 //遍历
@@ -102,8 +118,8 @@ func (s *Sockets) Stopped() bool {
 	return s.stop == 1
 }
 
-//ticker 用来定时清理无效用户
-func (s *Sockets) ticker() {
+//heartbeat 用来定时清理无效用户
+func (s *Sockets) heartbeat() {
 	for _, sock := range s.slices {
 		if sock != nil {
 			sock.timeout()
@@ -111,16 +127,16 @@ func (s *Sockets) ticker() {
 	}
 }
 
-func (s *Sockets) startSocketMgrTicker() {
+func (s *Sockets) startHeartbeat() {
 	go func() {
-		t := time.Millisecond * time.Duration(Config.ServerInterval)
+		t := time.Millisecond * time.Duration(Config.Heartbeat)
 		ticker := time.NewTimer(t)
 		defer ticker.Stop()
 		for !s.Stopped() {
 			select {
 			case <-ticker.C:
-				s.timestamp += Config.ServerInterval
-				s.ticker()
+				s.timestamp += Config.Heartbeat
+				s.heartbeat()
 				ticker.Reset(t)
 			}
 		}
@@ -142,30 +158,31 @@ type Socket interface {
 
 	SetUser(interface{})
 	GetUser() interface{}
+	Activity()
 	timeout()
 }
 
-func NewNetSocket(srv Server) *NetSocket {
+func NewNetSocket(sockets *Sockets) *NetSocket {
 	sock := &NetSocket{
-		cwrite: make(chan *Message, Config.WriteChanSize),
-		server: srv,
+		cwrite:  make(chan *Message, Config.WriteChanSize),
+		sockets: sockets,
 	}
 	return sock
 }
 
 type NetSocket struct {
 	id             uint64        //唯一标示
+	user           interface{}   //玩家登陆后信息
 	stop           int32         //停止标记
 	cwrite         chan *Message //写入通道
-	server         Server
 	handler        Handler
-	user           interface{} //玩家登陆后信息
-	timestamp      int64       //最后有效行为时间戳
-	realRemoteAddr string      //当使用代理是，需要特殊设置客户端真实IP
+	sockets        *Sockets
+	timestamp      int64  //最后有效行为时间戳
+	realRemoteAddr string //当使用代理是，需要特殊设置客户端真实IP
 }
 
 func (s *NetSocket) timeout() {
-	if s.server.Runtime()-s.timestamp >= int64(Config.ConnectTimeout) {
+	if s.sockets.timestamp-s.timestamp >= Config.ConnectTimeout {
 		s.Close()
 	}
 }
@@ -190,14 +207,14 @@ func (s *NetSocket) Close() bool {
 	if s.cwrite != nil {
 		close(s.cwrite)
 	}
-	s.server.Sockets().Del(s.id)
+	s.sockets.Delete(s.id)
 	logger.Debug("socket Close Id:%d", s.id)
 	return true
 }
 
 //判断连接是否关闭
 func (s *NetSocket) Stopped() bool {
-	if s.server.Stopped() {
+	if s.sockets.Stopped() {
 		s.Close()
 	}
 	return s.stop > 0
@@ -205,6 +222,10 @@ func (s *NetSocket) Stopped() bool {
 
 func (s *NetSocket) IsProxy() bool {
 	return s.realRemoteAddr != ""
+}
+
+func (s *NetSocket) Activity() {
+	s.timestamp = s.sockets.timestamp
 }
 
 func (s *NetSocket) SetRealRemoteAddr(addr string) {
@@ -236,8 +257,8 @@ func (s *NetSocket) Write(m *Message) (re bool) {
 }
 
 func (s *NetSocket) processMsg(msgque Socket, msg *Message) bool {
-	s.timestamp = s.server.Runtime()
-	if s.server.GetMultiplex() {
+	s.Activity()
+	if s.sockets.Multiplex {
 		go s.processMsgTrue(msgque, msg)
 	} else {
 		return s.processMsgTrue(msgque, msg)
