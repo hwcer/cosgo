@@ -1,66 +1,92 @@
 package utils
 
 import (
-	"context"
+	"errors"
 	"fmt"
-	"os"
-	"os/signal"
 	"runtime"
 	"sync"
 	"sync/atomic"
-	"syscall"
+	"time"
 )
-
-var stop int32 //停止标志
-
-var stopCancel context.CancelFunc
-var stopContext context.Context
-var stopWaitGroup sync.WaitGroup
 
 var EventWriteChanSize = 5000
 var WorkerWriteChanSize = 5000
 
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	stopWaitGroup.Add(1)
-	stopContext, stopCancel = context.WithCancel(context.Background())
 }
 
-func Stop(wait ...bool) {
-	if !atomic.CompareAndSwapInt32(&stop, 0, 1) {
-		fmt.Printf("Server Stop error\n")
-		return
-	}
-	stopCancel()
-	stopWaitGroup.Done()
-	if len(wait) > 0 && wait[0] {
-		stopWaitGroup.Wait()
-	}
-}
-
-func IsStop() bool {
-	return stop == 1
-}
-
-func WaitForSystemExit() {
-	var stopChanForSys = make(chan os.Signal, 1)
-	signal.Notify(stopChanForSys, os.Interrupt, os.Kill, syscall.SIGTERM)
-	select {
-	case <-stopChanForSys:
-		Stop()
-	}
-	close(stopChanForSys)
-}
-
-func Go(fn func(ctx context.Context)) {
-	go func() {
-		defer func() {
-			stopWaitGroup.Done()
-			if err := recover(); err != nil {
-				fmt.Printf("panic in Go: %v\n", err)
+func Try(f func(), handler ...func(interface{})) {
+	defer func() {
+		if err := recover(); err != nil {
+			if len(handler) == 0 {
+				fmt.Printf("%v", err)
+			} else {
+				handler[0](err)
 			}
-		}()
-		stopWaitGroup.Add(1)
-		fn(stopContext)
+		}
 	}()
+	f()
+}
+
+func NewSCC() *SCC {
+	s := &SCC{
+		stopCancel: make(chan struct{}),
+	}
+	s.wgp.Add(1)
+	return s
+}
+
+//协程控制器
+type SCC struct {
+	wgp        sync.WaitGroup
+	stopMutex  int32
+	stopCancel chan struct{}
+}
+
+//GO 普通的GO
+func (s *SCC) GO(f func()) {
+	go func() {
+		s.wgp.Add(1)
+		defer s.wgp.Done()
+		f()
+	}()
+}
+
+//CGO 带有取消通道的协程
+func (s *SCC) CGO(f func(chan struct{})) {
+	go func() {
+		s.wgp.Add(1)
+		defer s.wgp.Done()
+		f(s.stopCancel)
+	}()
+}
+
+func (s *SCC) Wait() {
+	s.wgp.Wait()
+}
+
+//Close
+func (s *SCC) Close() error {
+	if !atomic.CompareAndSwapInt32(&s.stopMutex, 0, 1) {
+		return errors.New("scc Close exist")
+	}
+	s.wgp.Done()
+	close(s.stopCancel)
+	stopTimeout := make(chan bool)
+	go func() {
+		s.wgp.Wait()
+		stopTimeout <- true
+	}()
+	select {
+	case <-stopTimeout:
+		return errors.New("scc Close success")
+	case <-time.After(time.Second * 10):
+		return errors.New("scc Close timeout")
+	}
+
+}
+
+func (s *SCC) Stopped() bool {
+	return s.stopMutex == 1
 }

@@ -1,21 +1,52 @@
 package cosnet
 
 import (
+	"cosgo/utils"
 	"fmt"
 	"testing"
+	"time"
 )
 
+var msg *Message
+var sockets = NewSockets(&HandlerDefault{}, 10)
+
+func init() {
+	msg = &Message{Head: &Header{Index: 1}}
+}
+
 func TestSocket(t *testing.T) {
-	var a ObjectID
-	x := uint32(1024)
-	y := uint32(88888)
-	a.Pack(x, y)
+	//address := "0.0.0.0:3100"
+	//for i := 1; i <= 1; i++ {
+	//	NewTcpClient(sockets, address)
+	//}
+	//sockets.scc.CGO(startSocketHeartbeat)
+	//sockets.Wait()
+	log(0)
+	for i := 1; i <= 22; i++ {
+		sockets.New()
+		log(i)
+	}
+}
 
-	fmt.Printf("a:%v\n", a)
-	b := a.Parse()
-	fmt.Printf("a:%v,b:%v\n", a, b)
+func log(i int) {
+	fmt.Printf("%v ,size:%v,index:%v,dirty:%v \n", i, sockets.Size(), sockets.dirty.index, sockets.dirty.list)
+}
 
-	fmt.Printf("x:%b\n", x)
-	fmt.Printf("y:%b\n", y)
-	fmt.Printf("a:%b\n", a)
+func startSocketHeartbeat(stop chan struct{}) {
+	t := time.Second * 10
+	ticker := time.NewTimer(t)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ticker.C:
+			utils.Try(heartbeat)
+			ticker.Reset(t)
+		}
+	}
+}
+
+func heartbeat() {
+	sockets.Broadcast(msg.NewMsg(123, []byte("321")), nil)
 }

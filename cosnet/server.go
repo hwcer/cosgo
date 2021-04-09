@@ -24,7 +24,6 @@ type Server interface {
 	Close() error
 	Stopped() bool
 	Sockets() *Sockets
-	GetHandler() Handler
 	GetMsgType() MsgType
 	GetNetType() NetType
 }
@@ -34,8 +33,7 @@ func NewNetServer(msgTyp MsgType, handler Handler, netType NetType) *NetServer {
 		wgp:     new(sync.WaitGroup),
 		msgTyp:  msgTyp,
 		netType: netType,
-		handler: handler,
-		sockets: NewSockets(1024),
+		sockets: NewSockets(handler, 1024),
 	}
 	return s
 }
@@ -45,7 +43,6 @@ type NetServer struct {
 	msgTyp  MsgType //消息类型
 	netType NetType
 	address string
-	handler Handler //消息处理器
 	sockets *Sockets
 }
 
@@ -67,8 +64,4 @@ func (s *NetServer) GetMsgType() MsgType {
 
 func (s *NetServer) GetNetType() NetType {
 	return s.netType
-}
-
-func (s *NetServer) GetHandler() Handler {
-	return s.handler
 }

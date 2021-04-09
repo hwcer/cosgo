@@ -1,6 +1,6 @@
 package utils
 
-type SliceMap struct {
+type ArrayMap struct {
 	cap        int32
 	rawCap     int32
 	genArray   []interface{}
@@ -10,8 +10,8 @@ type SliceMap struct {
 	delIndex   int32
 }
 
-func (r *SliceMap) Clone() *SliceMap {
-	return &SliceMap{
+func (r *ArrayMap) Clone() *ArrayMap {
+	return &ArrayMap{
 		cap:        r.cap,
 		rawCap:     r.rawCap,
 		genArray:   append([]interface{}{}, r.genArray...),
@@ -22,8 +22,8 @@ func (r *SliceMap) Clone() *SliceMap {
 	}
 }
 
-func NewArrayMap(cap int32, fixedArray bool) *SliceMap {
-	m := &SliceMap{
+func NewArrayMap(cap int32, fixedArray bool) *ArrayMap {
+	m := &ArrayMap{
 		cap:        cap,
 		rawCap:     cap,
 		genArray:   make([]interface{}, cap),
@@ -38,7 +38,7 @@ func NewArrayMap(cap int32, fixedArray bool) *SliceMap {
 	return m
 }
 
-func (r *SliceMap) Add(value interface{}) int32 {
+func (r *ArrayMap) Add(value interface{}) int32 {
 	var index int32 = -1
 	if r.delIndex >= 0 {
 		index = r.delArray[r.delIndex]
@@ -61,28 +61,28 @@ func (r *SliceMap) Add(value interface{}) int32 {
 	return index + (r.generArray[index] << 16)
 }
 
-func (r *SliceMap) Set(key int32, value interface{}) {
+func (r *ArrayMap) Set(key int32, value interface{}) {
 	index := key & 0x0000FFFF
 	r.genArray[index] = value
 }
 
-func (r *SliceMap) Del(key int32) {
+func (r *ArrayMap) Del(key int32) {
 	index := key & 0x0000FFFF
 	r.delArray[r.delIndex+1] = index
 	r.genArray[index] = nil
 	r.generArray[index]++
 	r.delIndex++
 }
-func (r *SliceMap) RawLen() int32 {
+func (r *ArrayMap) RawLen() int32 {
 	return r.genIndex + 1
 }
-func (r *SliceMap) RawGet(key int32) interface{} {
+func (r *ArrayMap) RawGet(key int32) interface{} {
 	if key >= r.cap {
 		return nil
 	}
 	return r.genArray[key]
 }
-func (r *SliceMap) Get(key int32) interface{} {
+func (r *ArrayMap) Get(key int32) interface{} {
 	index := key & 0x0000FFFF
 	gener := key >> 16
 	if index >= r.cap {

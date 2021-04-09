@@ -6,6 +6,7 @@ import (
 	"cosgo/cosweb"
 	middleware "cosgo/cosweb/middleware"
 	"cosgo/demo/handle"
+	"cosgo/logger"
 	"cosgo/session"
 	"github.com/spf13/pflag"
 	"reflect"
@@ -31,7 +32,7 @@ func (this *module) ID() string {
 
 func (m *module) Init() (err error) {
 	addr := app.Config.GetString("tcp")
-	m.srv, err = cosnet.NewServer(addr, &cosnet.HandlerDefault{})
+	m.srv, err = cosnet.NewServer(addr, &TcpHandler{})
 
 	http := app.Config.GetString("http")
 
@@ -116,6 +117,15 @@ func (m *module) Start() error {
 
 func (m *module) Close() error {
 	return m.web.Close()
+}
+
+type TcpHandler struct {
+	cosnet.HandlerDefault
+}
+
+func (this *TcpHandler) OnMessage(sock cosnet.Socket, msg *cosnet.Message) bool {
+	logger.Debug("OnMessage:%+v", msg)
+	return true
 }
 
 func main() {
