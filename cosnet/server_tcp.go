@@ -7,14 +7,9 @@ import (
 	"time"
 )
 
-func NewTcpServer(addr string, handler Handler) (*TcpServer, error) {
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		return nil, err
-	}
+func NewTcpServer(address string, handler Handler) (*TcpServer, error) {
 	srv := &TcpServer{
-		NetServer: NewNetServer(MsgTypeMsg, handler, NetTypeTcp),
-		listener:  listener,
+		NetServer: NewNetServer(address, handler, MsgTypeMsg, NetTypeTcp),
 	}
 	return srv, nil
 }
@@ -29,20 +24,25 @@ type TcpSocket struct {
 	listener net.Listener //监听
 }
 
-func (s *TcpServer) Start() (err error) {
-	s.sockets.scc.GO(s.listen)
-	return
+func (s *TcpServer) Start() error {
+	listener, err := net.Listen("tcp", s.address)
+	if err != nil {
+		return err
+	}
+	s.listener = listener
+	s.sockets.SCC.GO(s.listen)
+	return nil
 }
 
 func (s *TcpServer) listen() {
 	defer s.listener.Close()
-	for !s.sockets.scc.Stopped() {
+	for !s.sockets.SCC.Stopped() {
 		c, err := s.listener.Accept()
 		if err != nil {
 			logger.Error("tcp server accept failed:%v", err)
 			break
 		} else {
-			NewTcpSocket(s.sockets, c)
+			go NewTcpSocket(s.sockets, c)
 		}
 	}
 }
@@ -102,6 +102,7 @@ func (s *TcpSocket) writeMsg() {
 		if s.conn != nil {
 			s.conn.Close()
 		}
+
 		s.Close()
 	}()
 
@@ -144,12 +145,12 @@ func NewTcpClient(sockets *Sockets, address string) {
 func NewTcpSocket(sockets *Sockets, conn net.Conn) {
 	sock := &TcpSocket{
 		conn:      conn,
-		NetSocket: sockets.New(),
+		NetSocket: NewSocket(sockets),
 	}
 	sockets.Add(sock)
-	if sock.Id() > 0 && sockets.handler.OnConnect(sock) {
-		sockets.scc.GO(sock.readMsg)
-		sockets.scc.GO(sock.writeMsg)
+	if sockets.handler.OnConnect(sock) {
+		sockets.SCC.GO(sock.readMsg)
+		sockets.SCC.GO(sock.writeMsg)
 		logger.Debug("new socket Id:%d from Addr:%s", sock.id, sock.RemoteAddr())
 	} else if sock.Close() {
 		sock.conn.Close()

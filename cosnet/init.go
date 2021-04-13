@@ -6,7 +6,7 @@ import (
 )
 
 var Config = struct {
-	Heartbeat        int64 //(MS)服务器心跳,用来检测玩家僵尸连接
+	Heartbeat        int   //(MS)服务器心跳,用来检测玩家僵尸连接
 	AutoCompressSize int32 //自动压缩
 	UdpServerGoCnt   int
 
@@ -18,7 +18,7 @@ var Config = struct {
 
 	WriteChanSize  int32 //写通道缓存
 	ConnectMaxSize int32 //连接人数
-	ConnectTimeout int64 //连接超时(MS),至少大于ServerInterval2倍以上
+	ConnectTimeout int   //连接超时(MS),至少大于ServerInterval2倍以上
 
 	MsgDataType MsgDataType //默认包体编码方式
 }{

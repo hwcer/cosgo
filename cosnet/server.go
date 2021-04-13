@@ -1,9 +1,5 @@
 package cosnet
 
-import (
-	"sync"
-)
-
 type MsgType int
 
 const (
@@ -16,30 +12,28 @@ type NetType int
 const (
 	NetTypeTcp NetType = iota //TCP类型
 	NetTypeUdp                //UDP类型dw
-	NetTypeWs                 //websocket
+	NetTypeWss                //websocket
 )
 
 type Server interface {
 	Start() error
 	Close() error
-	Stopped() bool
 	Sockets() *Sockets
 	GetMsgType() MsgType
 	GetNetType() NetType
 }
 
-func NewNetServer(msgTyp MsgType, handler Handler, netType NetType) *NetServer {
+func NewNetServer(address string, handler Handler, msgTyp MsgType, netType NetType) *NetServer {
 	s := &NetServer{
-		wgp:     new(sync.WaitGroup),
 		msgTyp:  msgTyp,
 		netType: netType,
+		address: address,
 		sockets: NewSockets(handler, 1024),
 	}
 	return s
 }
 
 type NetServer struct {
-	wgp     *sync.WaitGroup
 	msgTyp  MsgType //消息类型
 	netType NetType
 	address string
@@ -47,11 +41,7 @@ type NetServer struct {
 }
 
 func (s *NetServer) Close() error {
-	return s.sockets.Close()
-}
-
-func (s *NetServer) Stopped() bool {
-	return s.sockets.Stopped()
+	return s.sockets.SCC.Close()
 }
 
 func (s *NetServer) Sockets() *Sockets {
