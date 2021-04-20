@@ -1,9 +1,15 @@
 package cosnet
 
 import (
+	"cosgo/utils"
 	"runtime"
 	"strings"
+	"time"
 )
+
+var SCC *utils.SCC
+var servers []Server
+var timestamp int
 
 var Config = struct {
 	Heartbeat        int   //(MS)服务器心跳,用来检测玩家僵尸连接
@@ -36,6 +42,23 @@ var Config = struct {
 
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
+	SCC = utils.NewSCC()
+}
+func startHeartbeat() {
+	SCC.CGO(func(stop chan struct{}) {
+		t := time.Millisecond * time.Duration(Config.Heartbeat)
+		ticker := time.NewTimer(t)
+		defer ticker.Stop()
+		for !SCC.Stopped() {
+			select {
+			case <-stop:
+				return
+			case <-ticker.C:
+				timestamp += Config.Heartbeat
+				ticker.Reset(t)
+			}
+		}
+	})
 }
 
 //启动服务器,根据
@@ -48,5 +71,26 @@ func NewServer(addr string, handler Handler) (srv Server, err error) {
 	} else if addrs[0] == "ws" || addrs[0] == "wss" {
 		//TODO wss
 	}
+	servers = append(servers, srv)
 	return
+}
+
+func Start() (err error) {
+	startHeartbeat()
+	for _, srv := range servers {
+		if err = srv.Start(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func Close() error {
+	for _, srv := range servers {
+		srv.Close()
+	}
+	return SCC.Close()
+}
+func Stopped() bool {
+	return SCC.Stopped()
 }

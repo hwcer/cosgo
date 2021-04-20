@@ -9,7 +9,6 @@ import (
 //NewSockets socket管理器 cap初始容器大小
 func NewSockets(handler Handler, cap int) *Sockets {
 	sockets := &Sockets{
-		SCC:     utils.NewSCC(),
 		seed:    1,
 		dirty:   newArrayMapDelIndex(cap),
 		slices:  make([]Socket, cap, cap),
@@ -60,13 +59,12 @@ func (this *arrayMapDelIndex) Size() int {
 
 //socket 管理器
 type Sockets struct {
-	SCC       *utils.SCC
 	seed      uint32 //ID 生成种子
 	mutex     sync.Mutex
 	dirty     *arrayMapDelIndex
 	slices    []Socket
 	handler   Handler //消息处理器
-	timestamp int
+	heartbeat int
 }
 
 //createSocketId 使用index生成ID
@@ -144,7 +142,7 @@ func (s *Sockets) Broadcast(msg *Message, filter func(Socket) bool) {
 }
 
 //heartbeat 用来定时清理无效用户
-func (s *Sockets) heartbeat() {
+func (s *Sockets) clearSocket() {
 	for _, sock := range s.slices {
 		if sock != nil {
 			sock.timeout()
@@ -154,17 +152,16 @@ func (s *Sockets) heartbeat() {
 
 //启动心跳服务,heartbeat 心跳间隔(ms)
 func (s *Sockets) startHeartbeat() {
-	s.SCC.CGO(func(stop chan struct{}) {
+	SCC.CGO(func(stop chan struct{}) {
 		t := time.Millisecond * time.Duration(Config.Heartbeat)
 		ticker := time.NewTimer(t)
 		defer ticker.Stop()
-		for !s.SCC.Stopped() {
+		for !SCC.Stopped() {
 			select {
 			case <-stop:
 				return
 			case <-ticker.C:
-				s.timestamp += Config.Heartbeat
-				utils.Try(s.heartbeat)
+				utils.Try(s.clearSocket)
 				ticker.Reset(t)
 			}
 		}

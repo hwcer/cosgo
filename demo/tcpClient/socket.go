@@ -18,7 +18,7 @@ func main() {
 	for i := 1; i <= 1000; i++ {
 		cosnet.NewTcpClient(sockets, address)
 	}
-	scc := sockets.SCC
+	scc := sockets.SCC()
 	scc.CGO(startSocketHeartbeat)
 	scc.Wait()
 }
@@ -40,7 +40,7 @@ func startSocketHeartbeat(stop chan struct{}) {
 
 func heartbeat() {
 	if sockets.Size() == 0 {
-		sockets.SCC.Close()
+		sockets.Close()
 		return
 	}
 	sockets.Broadcast(msg.NewMsg(123, []byte("321")), nil)

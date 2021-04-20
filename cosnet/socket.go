@@ -22,11 +22,11 @@ type Socket interface {
 	timeout()
 }
 
-func NewSocket(sockets *Sockets) (sock *NetSocket) {
+func NewSocket(handler Handler) (sock *NetSocket) {
 	sock = &NetSocket{
 		cwrite:    make(chan *Message, Config.WriteChanSize),
-		sockets:   sockets,
-		timestamp: sockets.timestamp,
+		handler:   handler,
+		timestamp: timestamp,
 	}
 	return
 }
@@ -36,9 +36,9 @@ type NetSocket struct {
 	user           interface{}   //玩家登陆后信息
 	stop           int32         //停止标记
 	cwrite         chan *Message //写入通道
-	sockets        *Sockets
-	timestamp      int    //最后有效行为时间戳
-	realRemoteAddr string //当使用代理是，需要特殊设置客户端真实IP
+	handler        Handler       //消息处理器
+	timestamp      int           //最后有效行为时间戳
+	realRemoteAddr string        //当使用代理是，需要特殊设置客户端真实IP
 }
 
 func (s *NetSocket) init(id uint64) {
@@ -46,7 +46,7 @@ func (s *NetSocket) init(id uint64) {
 }
 
 func (s *NetSocket) timeout() {
-	if s.sockets.timestamp-s.timestamp >= Config.ConnectTimeout {
+	if timestamp-s.timestamp >= Config.ConnectTimeout {
 		s.Close()
 	}
 }
@@ -68,19 +68,17 @@ func (s *NetSocket) Close() bool {
 	if !atomic.CompareAndSwapInt32(&s.stop, 0, 1) {
 		return false
 	}
-	if s.id > 0 {
-		s.sockets.Del(s.id)
-	}
 	if s.cwrite != nil {
 		close(s.cwrite) //关闭cwrite强制write协程取消堵塞快速响应关闭操作
 	}
+	s.handler.OnDisconnect(s)
 	logger.Debug("Socket Close Id:%d", s.id)
 	return true
 }
 
 //判断连接是否关闭
 func (s *NetSocket) Stopped() bool {
-	if s.stop == 0 && s.sockets.SCC.Stopped() {
+	if s.stop == 0 && SCC.Stopped() {
 		s.Close()
 	}
 	return s.stop > 0
@@ -91,7 +89,7 @@ func (s *NetSocket) IsProxy() bool {
 }
 
 func (s *NetSocket) KeepAlive() {
-	s.timestamp = s.sockets.timestamp
+	s.timestamp = timestamp
 }
 
 func (s *NetSocket) LocalAddr() string {
@@ -141,5 +139,5 @@ func (s *NetSocket) processMsg(sock Socket, msg *Message) bool {
 		msg.Head.Flags.Del(MsgFlagCompress)
 		msg.Head.Size = int32(len(msg.Data))
 	}
-	return s.sockets.handler.OnMessage(sock, msg)
+	return s.handler.OnMessage(sock, msg)
 }

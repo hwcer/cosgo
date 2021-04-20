@@ -13,11 +13,19 @@ const (
 	RouteGroupName = "_RouteGroupName"
 )
 
+type GroupMode int
+
+const (
+	GroupModeEasy   GroupMode = 0 //不区分大小写
+	GroupModeStrict GroupMode = 1 //区分大小写
+)
+
 var typeOfContext = reflect.TypeOf(&Context{})
 
 //Group 使用反射集中注册方法
 //可以使用 /prefix/$Group/$value 的格式访问
 type Group struct {
+	mode       GroupMode
 	nodes      map[string]*GroupNode
 	caller     GroupCaller
 	middleware []MiddlewareFunc
@@ -33,8 +41,9 @@ type GroupNode struct {
 type GroupCaller func(reflect.Value, reflect.Value, *Context) error
 
 //NewGroup 创建新的路由组
-func NewGroup() *Group {
+func NewGroup(mode GroupMode) *Group {
 	return &Group{
+		mode:  mode,
 		nodes: make(map[string]*GroupNode),
 	}
 }
@@ -52,7 +61,7 @@ func (g *Group) Use(m ...MiddlewareFunc) {
 	g.middleware = append(g.middleware, m...)
 }
 
-//Route 将Route添加到服务
+//Route 将Group添加到服务器Route
 func (g *Group) Route(s *Server, prefix string, method ...string) {
 	arr := []string{strings.TrimSuffix(prefix, "/"), ":" + RouteGroupPath, ":" + RouteGroupName}
 	r := strings.Join(arr, "/")
@@ -70,7 +79,10 @@ func (g *Group) Register(handle interface{}) error {
 	if handleType.Kind() != reflect.Ptr {
 		return errors.New("Group Register error:handle not pointer")
 	}
-	name := strFirstToLower(handleType.Elem().Name())
+	name := handleType.Elem().Name()
+	if g.mode == GroupModeEasy {
+		name = strings.ToLower(name)
+	}
 	if _, ok := g.nodes[name]; ok {
 		return errors.New(fmt.Sprintf("Group Register error:%v exist", name))
 	}
@@ -108,7 +120,9 @@ func (g *Group) Register(handle interface{}) error {
 		//	logger.Debug("Register value return error,value:%v.%v()\n", name, methodName)
 		//	continue
 		//}
-
+		if g.mode == GroupModeEasy {
+			methodName = strings.ToLower(methodName)
+		}
 		node.value[strFirstToLower(methodName)] = method.Func
 
 	}
@@ -124,6 +138,10 @@ func (g *Group) handle(c *Context) (err error) {
 	}
 	path := c.Get(RouteGroupPath, RequestDataTypeParam)
 	name := c.Get(RouteGroupName, RequestDataTypeParam)
+	if g.mode == GroupModeEasy {
+		path = strings.ToLower(path)
+		name = strings.ToLower(name)
+	}
 	node := g.nodes[path]
 	if node == nil {
 		return nil

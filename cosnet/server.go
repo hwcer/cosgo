@@ -40,8 +40,11 @@ type NetServer struct {
 	sockets *Sockets
 }
 
+func (s *NetServer) Start() error {
+	return nil
+}
 func (s *NetServer) Close() error {
-	return s.sockets.SCC.Close()
+	return nil
 }
 
 func (s *NetServer) Sockets() *Sockets {

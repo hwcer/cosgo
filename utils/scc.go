@@ -58,9 +58,9 @@ func (s *SCC) Close() error {
 	}()
 	select {
 	case <-stopTimeout:
-		return errors.New("SCC Close success")
+		return errors.New("scc Close success")
 	case <-time.After(time.Second * 10):
-		return errors.New("SCC Close timeout")
+		return errors.New("scc Close timeout")
 	}
 
 }

@@ -131,7 +131,7 @@ func (s *Server) Register(path string, handler HandlerFunc, method ...string) {
 
 //Group 注册路由组
 func (s *Server) Group(prefix string, i interface{}, method ...string) *Group {
-	group := NewGroup()
+	group := NewGroup(GroupModeEasy)
 	group.Register(i)
 	group.Route(s, prefix, method...)
 	return group

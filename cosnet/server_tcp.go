@@ -30,13 +30,13 @@ func (s *TcpServer) Start() error {
 		return err
 	}
 	s.listener = listener
-	s.sockets.SCC.GO(s.listen)
+	SCC.GO(s.listen)
 	return nil
 }
 
 func (s *TcpServer) listen() {
 	defer s.listener.Close()
-	for !s.sockets.SCC.Stopped() {
+	for !SCC.Stopped() {
 		c, err := s.listener.Accept()
 		if err != nil {
 			logger.Error("tcp server accept failed:%v", err)
@@ -132,27 +132,29 @@ func (s *TcpSocket) writeMsgTrue(m *Message) bool {
 }
 
 //客户端
-func NewTcpClient(sockets *Sockets, address string) {
+func NewTcpClient(handler Handler, address string) (sock Socket) {
 	c, err := net.DialTimeout("tcp", address, time.Second)
 	if err != nil {
 		logger.Debug("connect to addr:%s failed err:%v", address, err)
 		c.Close()
 	} else {
-		NewTcpSocket(sockets, c)
+		sock = NewTcpSocket(handler, c)
 	}
+	return
 }
 
-func NewTcpSocket(sockets *Sockets, conn net.Conn) {
+func NewTcpSocket(handler Handler, conn net.Conn) Socket {
 	sock := &TcpSocket{
 		conn:      conn,
-		NetSocket: NewSocket(sockets),
+		NetSocket: NewSocket(handler),
 	}
-	sockets.Add(sock)
-	if sockets.handler.OnConnect(sock) {
-		sockets.SCC.GO(sock.readMsg)
-		sockets.SCC.GO(sock.writeMsg)
+	if handler.OnConnect(sock) {
+		SCC.GO(sock.readMsg)
+		SCC.GO(sock.writeMsg)
 		logger.Debug("new socket Id:%d from Addr:%s", sock.id, sock.RemoteAddr())
 	} else if sock.Close() {
 		sock.conn.Close()
+		sock = nil
 	}
+	return sock
 }

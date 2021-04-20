@@ -19,7 +19,7 @@ func TestSocket(t *testing.T) {
 	//for i := 1; i <= 1; i++ {
 	//	NewTcpClient(sockets, address)
 	//}
-	//sockets.scc.CGO(startSocketHeartbeat)
+	//sockets.SCC.CGO(startSocketHeartbeat)
 	//sockets.Wait()
 	log(0)
 	for i := 1; i <= 22; i++ {
