@@ -78,7 +78,7 @@ func (s *Sockets) parseSocketId(id uint64) int {
 	return int(id >> 32)
 }
 
-func (s *Sockets) Add(sock Socket) error {
+func (s *Sockets) Add(sock Socket) bool {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	var index = -1
@@ -89,19 +89,24 @@ func (s *Sockets) Add(sock Socket) error {
 		s.slices = append(s.slices, sock)
 	}
 	sock.init(s.createSocketId(index))
-	return nil
+	return true
 }
 
 //Del 删除
-func (s *Sockets) Del(id uint64) {
+func (s *Sockets) Del(sock Socket) bool {
+	id := sock.Id()
+	if id == 0 {
+		return true
+	}
 	index := s.parseSocketId(id)
 	if index >= len(s.slices) || s.slices[index] == nil || s.slices[index].Id() != id {
-		return
+		return true
 	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.slices[index] = nil
 	s.dirty.Add(index)
+	return true
 }
 
 //Get 获取
@@ -152,11 +157,11 @@ func (s *Sockets) clearSocket() {
 
 //启动心跳服务,heartbeat 心跳间隔(ms)
 func (s *Sockets) startHeartbeat() {
-	SCC.CGO(func(stop chan struct{}) {
+	scc.CGO(func(stop chan struct{}) {
 		t := time.Millisecond * time.Duration(Config.Heartbeat)
 		ticker := time.NewTimer(t)
 		defer ticker.Stop()
-		for !SCC.Stopped() {
+		for !scc.Stopped() {
 			select {
 			case <-stop:
 				return

@@ -7,11 +7,10 @@ import (
 	"time"
 )
 
-func NewTcpServer(address string, handler Handler) (*TcpServer, error) {
-	srv := &TcpServer{
+func NewTcpServer(address string, handler Handler) *TcpServer {
+	return &TcpServer{
 		NetServer: NewNetServer(address, handler, MsgTypeMsg, NetTypeTcp),
 	}
-	return srv, nil
 }
 
 type TcpServer struct {
@@ -24,25 +23,30 @@ type TcpSocket struct {
 	listener net.Listener //监听
 }
 
-func (s *TcpServer) Start() error {
+func (s *TcpServer) start() error {
+	//if err := s.NetServer.start(); err != nil {
+	//	return err
+	//}
 	listener, err := net.Listen("tcp", s.address)
 	if err != nil {
 		return err
 	}
+	s.handler.On(HandlerEventTypeConnect, s.sockets.Add)
+	s.handler.On(HandlerEventTypeDisconnect, s.sockets.Del)
 	s.listener = listener
-	SCC.GO(s.listen)
+	scc.GO(s.listen)
 	return nil
 }
 
 func (s *TcpServer) listen() {
 	defer s.listener.Close()
-	for !SCC.Stopped() {
+	for !scc.Stopped() {
 		c, err := s.listener.Accept()
 		if err != nil {
 			logger.Error("tcp server accept failed:%v", err)
 			break
 		} else {
-			go NewTcpSocket(s.sockets, c)
+			go NewTcpSocket(s.handler, c)
 		}
 	}
 }
@@ -102,8 +106,8 @@ func (s *TcpSocket) writeMsg() {
 		if s.conn != nil {
 			s.conn.Close()
 		}
-
 		s.Close()
+		s.handler.Emit(HandlerEventTypeDisconnect, s)
 	}()
 
 	for !s.Stopped() {
@@ -136,7 +140,6 @@ func NewTcpClient(handler Handler, address string) (sock Socket) {
 	c, err := net.DialTimeout("tcp", address, time.Second)
 	if err != nil {
 		logger.Debug("connect to addr:%s failed err:%v", address, err)
-		c.Close()
 	} else {
 		sock = NewTcpSocket(handler, c)
 	}
@@ -148,9 +151,9 @@ func NewTcpSocket(handler Handler, conn net.Conn) Socket {
 		conn:      conn,
 		NetSocket: NewSocket(handler),
 	}
-	if handler.OnConnect(sock) {
-		SCC.GO(sock.readMsg)
-		SCC.GO(sock.writeMsg)
+	if handler.Emit(HandlerEventTypeConnect, sock) {
+		scc.GO(sock.readMsg)
+		scc.GO(sock.writeMsg)
 		logger.Debug("new socket Id:%d from Addr:%s", sock.id, sock.RemoteAddr())
 	} else if sock.Close() {
 		sock.conn.Close()

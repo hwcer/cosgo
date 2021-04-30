@@ -62,7 +62,6 @@ func (s *SCC) Close() error {
 	case <-time.After(time.Second * 10):
 		return errors.New("scc Close timeout")
 	}
-
 }
 
 func (s *SCC) Stopped() bool {

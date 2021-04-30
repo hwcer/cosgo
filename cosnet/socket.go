@@ -71,14 +71,13 @@ func (s *NetSocket) Close() bool {
 	if s.cwrite != nil {
 		close(s.cwrite) //关闭cwrite强制write协程取消堵塞快速响应关闭操作
 	}
-	s.handler.OnDisconnect(s)
 	logger.Debug("Socket Close Id:%d", s.id)
 	return true
 }
 
 //判断连接是否关闭
 func (s *NetSocket) Stopped() bool {
-	if s.stop == 0 && SCC.Stopped() {
+	if s.stop == 0 && scc.Stopped() {
 		s.Close()
 	}
 	return s.stop > 0
@@ -139,5 +138,5 @@ func (s *NetSocket) processMsg(sock Socket, msg *Message) bool {
 		msg.Head.Flags.Del(MsgFlagCompress)
 		msg.Head.Size = int32(len(msg.Data))
 	}
-	return s.handler.OnMessage(sock, msg)
+	return s.handler.Message(sock, msg)
 }

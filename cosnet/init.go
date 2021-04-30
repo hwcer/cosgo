@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-var SCC *utils.SCC
+var scc *utils.SCC
 var servers []Server
 var timestamp int
 
@@ -42,14 +42,14 @@ var Config = struct {
 
 func init() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	SCC = utils.NewSCC()
+	scc = utils.NewSCC()
 }
 func startHeartbeat() {
-	SCC.CGO(func(stop chan struct{}) {
+	scc.CGO(func(stop chan struct{}) {
 		t := time.Millisecond * time.Duration(Config.Heartbeat)
 		ticker := time.NewTimer(t)
 		defer ticker.Stop()
-		for !SCC.Stopped() {
+		for !scc.Stopped() {
 			select {
 			case <-stop:
 				return
@@ -62,10 +62,10 @@ func startHeartbeat() {
 }
 
 //启动服务器,根据
-func NewServer(addr string, handler Handler) (srv Server, err error) {
+func NewServer(addr string, handler Handler) (srv Server) {
 	addrs := strings.Split(addr, "://")
 	if addrs[0] == "tcp" {
-		srv, err = NewTcpServer(addrs[1], handler)
+		srv = NewTcpServer(addrs[1], handler)
 	} else if addrs[0] == "udp" {
 		//TODO UDP
 	} else if addrs[0] == "ws" || addrs[0] == "wss" {
@@ -75,22 +75,26 @@ func NewServer(addr string, handler Handler) (srv Server, err error) {
 	return
 }
 
+func SCC() *utils.SCC {
+	return scc
+}
+
 func Start() (err error) {
 	startHeartbeat()
 	for _, srv := range servers {
-		if err = srv.Start(); err != nil {
+		if err = srv.start(); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func Close() error {
-	for _, srv := range servers {
-		srv.Close()
-	}
-	return SCC.Close()
+func Close() (err error) {
+	//for _, srv := range servers {
+	//	srv.start()
+	//}
+	return scc.Close()
 }
 func Stopped() bool {
-	return SCC.Stopped()
+	return scc.Stopped()
 }

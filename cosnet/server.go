@@ -16,8 +16,7 @@ const (
 )
 
 type Server interface {
-	Start() error
-	Close() error
+	start() error
 	Sockets() *Sockets
 	GetMsgType() MsgType
 	GetNetType() NetType
@@ -28,6 +27,7 @@ func NewNetServer(address string, handler Handler, msgTyp MsgType, netType NetTy
 		msgTyp:  msgTyp,
 		netType: netType,
 		address: address,
+		handler: handler,
 		sockets: NewSockets(handler, 1024),
 	}
 	return s
@@ -37,14 +37,8 @@ type NetServer struct {
 	msgTyp  MsgType //消息类型
 	netType NetType
 	address string
+	handler Handler
 	sockets *Sockets
-}
-
-func (s *NetServer) Start() error {
-	return nil
-}
-func (s *NetServer) Close() error {
-	return nil
 }
 
 func (s *NetServer) Sockets() *Sockets {

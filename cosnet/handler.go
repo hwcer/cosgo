@@ -1,39 +1,60 @@
 package cosnet
 
+import (
+	"sync"
+)
+
+type HandlerEventType int32
+type HandlerEventFunc func(Socket) bool
+type HandlerMessageFunc func(Socket, *Message) bool
+
+const (
+	HandlerEventTypeConnect HandlerEventType = iota
+	HandlerEventTypeDisconnect
+)
+
 type Handler interface {
-	OnMessage(Socket, *Message) bool //消息处理函数
-	OnConnect(Socket) bool           //新的消息队列
-	OnDisconnect(Socket)             //消息队列关闭
+	On(HandlerEventType, HandlerEventFunc)
+	Emit(HandlerEventType, Socket) bool
+	Message(Socket, *Message) bool //消息处理函数
 }
 
-type HandlerFunc func(Socket, *Message) bool
+type HandlerEvents struct {
+	mutex    sync.Mutex
+	event    []HandlerEventType
+	callback []HandlerEventFunc
+}
+
+func (this *HandlerEvents) On(e HandlerEventType, f HandlerEventFunc) {
+	this.mutex.Lock()
+	defer this.mutex.Unlock()
+	this.event = append(this.event, e)
+	this.callback = append(this.callback, f)
+}
+func (this *HandlerEvents) Emit(e HandlerEventType, s Socket) bool {
+	for i, k := range this.event {
+		if k == e && !this.callback[i](s) {
+			return false
+		}
+	}
+	return true
+}
 
 type HandlerDefault struct {
-	handle map[int]HandlerFunc
+	HandlerEvents
+	Handle map[int]HandlerMessageFunc
 }
 
-func (r *HandlerDefault) OnMessage(socket Socket, msg *Message) bool {
-
+func (r *HandlerDefault) Message(sock Socket, msg *Message) bool {
+	if f, ok := r.Handle[int(msg.Head.Proto)]; ok {
+		return f(sock, msg)
+	}
 	return true
 }
-func (r *HandlerDefault) OnConnect(socket Socket) bool {
-	return true
-}
 
-func (r *HandlerDefault) OnDisconnect(socket Socket) {
-
-}
-
-func (r *HandlerDefault) GetHandlerFunc(socket Socket, msg *Message) HandlerFunc {
-	if f, ok := r.handle[int(msg.Head.Proto)]; ok {
-		return f
+func (r *HandlerDefault) Register(act int, fun HandlerMessageFunc) {
+	if r.Handle == nil {
+		r.Handle = map[int]HandlerMessageFunc{}
 	}
-	return nil
-}
-
-func (r *HandlerDefault) Register(act int, fun HandlerFunc) {
-	if r.handle == nil {
-		r.handle = map[int]HandlerFunc{}
-	}
-	r.handle[act] = fun
+	r.Handle[act] = fun
 }

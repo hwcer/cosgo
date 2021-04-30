@@ -23,23 +23,23 @@ type tcpModule struct {
 
 func (m *tcpModule) Init() (err error) {
 	addr := app.Config.GetString("tcp")
-	m.srv, err = cosnet.NewServer(addr, &TcpHandler{})
+	m.srv = cosnet.NewServer(addr, &TcpHandler{})
 	return
 }
 
 func (m *tcpModule) Start() error {
-	m.srv.Start()
+	cosnet.Start()
 	return nil
 }
 func (m *tcpModule) Close() error {
-	return m.srv.Close()
+	return cosnet.Close()
 }
 
 type TcpHandler struct {
 	cosnet.HandlerDefault
 }
 
-func (this *TcpHandler) OnMessage(sock cosnet.Socket, msg *cosnet.Message) bool {
+func (this *TcpHandler) Message(sock cosnet.Socket, msg *cosnet.Message) bool {
 	logger.Debug("OnMessage:%+v", msg)
 	return true
 }

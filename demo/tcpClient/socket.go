@@ -2,23 +2,27 @@ package main
 
 import (
 	"cosgo/cosnet"
+	"cosgo/logger"
 	"cosgo/utils"
 	"time"
 )
 
 var msg *cosnet.Message
 var sockets = cosnet.NewSockets(&cosnet.HandlerDefault{}, 1024)
+var handler *TcpHandler
 
 func init() {
 	msg = &cosnet.Message{Head: &cosnet.Header{Index: 1}}
+	handler = &TcpHandler{}
+
 }
 
 func main() {
 	address := "0.0.0.0:3100"
 	for i := 1; i <= 1000; i++ {
-		cosnet.NewTcpClient(sockets, address)
+		cosnet.NewTcpClient(handler, address)
 	}
-	scc := sockets.SCC()
+	scc := cosnet.SCC()
 	scc.CGO(startSocketHeartbeat)
 	scc.Wait()
 }
@@ -40,8 +44,16 @@ func startSocketHeartbeat(stop chan struct{}) {
 
 func heartbeat() {
 	if sockets.Size() == 0 {
-		sockets.Close()
 		return
 	}
 	sockets.Broadcast(msg.NewMsg(123, []byte("321")), nil)
+}
+
+type TcpHandler struct {
+	cosnet.HandlerDefault
+}
+
+func (this *TcpHandler) Message(sock cosnet.Socket, msg *cosnet.Message) bool {
+	logger.Debug("OnMessage:%+v", msg)
+	return true
 }
