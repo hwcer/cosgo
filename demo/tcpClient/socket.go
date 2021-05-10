@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"cosgo/cosnet"
 	"cosgo/logger"
 	"cosgo/utils"
@@ -8,32 +9,29 @@ import (
 )
 
 var msg *cosnet.Message
-var sockets = cosnet.NewSockets(&cosnet.HandlerDefault{}, 1024)
-var handler *TcpHandler
+var client *cosnet.TcpClient
 
 func init() {
 	msg = &cosnet.Message{Head: &cosnet.Header{Index: 1}}
-	handler = &TcpHandler{}
-
+	client = cosnet.NewTcpClient(&TcpHandler{})
 }
 
 func main() {
 	address := "0.0.0.0:3100"
 	for i := 1; i <= 1000; i++ {
-		cosnet.NewTcpClient(handler, address)
+		client.Dial(address)
 	}
-	scc := cosnet.SCC()
-	scc.CGO(startSocketHeartbeat)
-	scc.Wait()
+	client.CGO(startSocketHeartbeat)
+	client.Wait()
 }
 
-func startSocketHeartbeat(stop chan struct{}) {
+func startSocketHeartbeat(ctx context.Context) {
 	t := time.Second * 5
 	ticker := time.NewTimer(t)
 	defer ticker.Stop()
 	for {
 		select {
-		case <-stop:
+		case <-ctx.Done():
 			return
 		case <-ticker.C:
 			utils.Try(heartbeat)
@@ -43,6 +41,7 @@ func startSocketHeartbeat(stop chan struct{}) {
 }
 
 func heartbeat() {
+	sockets := client.Sockets()
 	if sockets.Size() == 0 {
 		return
 	}
@@ -53,7 +52,7 @@ type TcpHandler struct {
 	cosnet.HandlerDefault
 }
 
-func (this *TcpHandler) Message(sock cosnet.Socket, msg *cosnet.Message) bool {
+func (this *TcpHandler) Message(ctx context.Context, sock cosnet.Socket, msg *cosnet.Message) bool {
 	logger.Debug("OnMessage:%+v", msg)
 	return true
 }

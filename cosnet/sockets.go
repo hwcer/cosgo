@@ -1,6 +1,7 @@
 package cosnet
 
 import (
+	"context"
 	"cosgo/utils"
 	"sync"
 	"time"
@@ -17,7 +18,6 @@ func NewSockets(handler Handler, cap int) *Sockets {
 	for i := 0; i < cap; i++ {
 		sockets.dirty.Add(i)
 	}
-	sockets.startHeartbeat()
 	return sockets
 }
 
@@ -78,7 +78,7 @@ func (s *Sockets) parseSocketId(id uint64) int {
 	return int(id >> 32)
 }
 
-func (s *Sockets) Add(sock Socket) bool {
+func (s *Sockets) Add(sock Socket) uint64 {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	var index = -1
@@ -88,16 +88,11 @@ func (s *Sockets) Add(sock Socket) bool {
 		index = len(s.slices)
 		s.slices = append(s.slices, sock)
 	}
-	sock.init(s.createSocketId(index))
-	return true
+	return s.createSocketId(index)
 }
 
 //Del 删除
-func (s *Sockets) Del(sock Socket) bool {
-	id := sock.Id()
-	if id == 0 {
-		return true
-	}
+func (s *Sockets) Del(id uint64) bool {
 	index := s.parseSocketId(id)
 	if index >= len(s.slices) || s.slices[index] == nil || s.slices[index].Id() != id {
 		return true
@@ -136,6 +131,21 @@ func (s *Sockets) Range(f func(Socket)) {
 	}
 }
 
+func (s *Sockets) Start(ctx context.Context) {
+	t := time.Millisecond * time.Duration(Config.SocketHeartbeat)
+	ticker := time.NewTimer(t)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			utils.Try(s.clearSocket)
+			ticker.Reset(t)
+		}
+	}
+}
+
 //Broadcast 广播,filter 过滤函数，如果不为nil且返回false则不对当期socket进行发送消息
 func (s *Sockets) Broadcast(msg *Message, filter func(Socket) bool) {
 	for _, sock := range s.slices {
@@ -150,25 +160,7 @@ func (s *Sockets) Broadcast(msg *Message, filter func(Socket) bool) {
 func (s *Sockets) clearSocket() {
 	for _, sock := range s.slices {
 		if sock != nil {
-			sock.timeout()
+			sock.Heartbeat()
 		}
 	}
-}
-
-//启动心跳服务,heartbeat 心跳间隔(ms)
-func (s *Sockets) startHeartbeat() {
-	scc.CGO(func(stop chan struct{}) {
-		t := time.Millisecond * time.Duration(Config.Heartbeat)
-		ticker := time.NewTimer(t)
-		defer ticker.Stop()
-		for !scc.Stopped() {
-			select {
-			case <-stop:
-				return
-			case <-ticker.C:
-				utils.Try(s.clearSocket)
-				ticker.Reset(t)
-			}
-		}
-	})
 }

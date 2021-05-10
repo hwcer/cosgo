@@ -1,8 +1,9 @@
 package cosnet
 
 import (
+	"context"
 	"cosgo/logger"
-	"sync/atomic"
+	"cosgo/utils"
 )
 
 //各种服务器(TCP,UDP,WS)也使用该接口
@@ -12,47 +13,46 @@ type Socket interface {
 	RemoteAddr() string
 	SetRealRemoteAddr(addr string)
 	Close() bool
-	Stopped() bool
 	IsProxy() bool
 	Write(m *Message) bool
 	SetUser(interface{})
 	GetUser() interface{}
+
+	Heartbeat()
 	KeepAlive()
-	init(uint64)
-	timeout()
 }
 
-func NewSocket(handler Handler) (sock *NetSocket) {
+func NewSocket(ctx context.Context, handler Handler) (sock *NetSocket) {
 	sock = &NetSocket{
-		cwrite:    make(chan *Message, Config.WriteChanSize),
-		handler:   handler,
-		timestamp: timestamp,
+		cwrite:  make(chan *Message, Config.WriteChanSize),
+		handler: handler,
+		timeout: Config.SocketTimeout,
 	}
+	sock.ctx, sock.cancel = context.WithCancel(ctx)
 	return
 }
 
 type NetSocket struct {
-	id             uint64        //唯一标示
-	user           interface{}   //玩家登陆后信息
-	stop           int32         //停止标记
-	cwrite         chan *Message //写入通道
-	handler        Handler       //消息处理器
-	timestamp      int           //最后有效行为时间戳
-	realRemoteAddr string        //当使用代理是，需要特殊设置客户端真实IP
-}
+	id     uint64 //唯一标示
+	ctx    context.Context
+	cancel context.CancelFunc
 
-func (s *NetSocket) init(id uint64) {
-	s.id = id
-}
+	user interface{} //玩家登陆后信息
+	//stop    int32         //停止标记,0:正常,1-掉线（等待短线重连）,2-销毁 无法再短线重连
+	cwrite  chan *Message //写入通道
+	handler Handler       //消息处理器
 
-func (s *NetSocket) timeout() {
-	if timestamp-s.timestamp >= Config.ConnectTimeout {
-		s.Close()
-	}
+	timeout        int    //超时
+	heartbeat      int    //  heartbeat >=timeout 时被标记为超时
+	realRemoteAddr string //当使用代理是，需要特殊设置客户端真实IP
 }
 
 func (s *NetSocket) Id() uint64 {
 	return s.id
+}
+
+func (s *NetSocket) Done() bool {
+	return utils.Done(s.ctx)
 }
 
 func (s *NetSocket) SetUser(user interface{}) {
@@ -63,32 +63,39 @@ func (s *NetSocket) GetUser() interface{} {
 	return s.user
 }
 
-//
+//关闭
 func (s *NetSocket) Close() bool {
-	if !atomic.CompareAndSwapInt32(&s.stop, 0, 1) {
-		return false
-	}
-	if s.cwrite != nil {
-		close(s.cwrite) //关闭cwrite强制write协程取消堵塞快速响应关闭操作
-	}
+	s.cancel()
+	//if s.cwrite != nil {
+	//	close(s.cwrite) //关闭cwrite强制write协程取消堵塞快速响应关闭操作
+	//}
 	logger.Debug("Socket Close Id:%d", s.id)
 	return true
 }
 
-//判断连接是否关闭
-func (s *NetSocket) Stopped() bool {
-	if s.stop == 0 && scc.Stopped() {
-		s.Close()
-	}
-	return s.stop > 0
-}
+//销毁
+//func (s *NetSocket) Destroy() bool {
+//	if !atomic.CompareAndSwapInt32(&s.stop, 1, 2) {
+//		return false
+//	}
+//	return true
+//}
 
 func (s *NetSocket) IsProxy() bool {
 	return s.realRemoteAddr != ""
 }
 
+//每一次Heartbeat() heartbeat计数加1
+func (s *NetSocket) Heartbeat() {
+	s.heartbeat += 1
+	if s.heartbeat >= s.timeout {
+		s.Close()
+	}
+}
+
+//任何行为都清空heartbeat
 func (s *NetSocket) KeepAlive() {
-	s.timestamp = timestamp
+	s.heartbeat = 0
 }
 
 func (s *NetSocket) LocalAddr() string {
@@ -138,5 +145,5 @@ func (s *NetSocket) processMsg(sock Socket, msg *Message) bool {
 		msg.Head.Flags.Del(MsgFlagCompress)
 		msg.Head.Size = int32(len(msg.Data))
 	}
-	return s.handler.Message(sock, msg)
+	return s.handler.Message(s.ctx, sock, msg)
 }

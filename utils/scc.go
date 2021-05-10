@@ -1,25 +1,29 @@
 package utils
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
-func NewSCC() *SCC {
-	s := &SCC{
-		stopCancel: make(chan struct{}),
+func NewSCC(ctx context.Context) *SCC {
+	if ctx == nil {
+		ctx = context.Background()
 	}
+	s := &SCC{}
+	s.ctx, s.cancel = context.WithCancel(ctx)
 	s.wgp.Add(1)
 	return s
 }
 
 //协程控制器
 type SCC struct {
-	wgp        sync.WaitGroup
-	stopMutex  int32
-	stopCancel chan struct{}
+	wgp    sync.WaitGroup
+	ctx    context.Context
+	stop   int32
+	cancel context.CancelFunc
 }
 
 //GO 普通的GO
@@ -32,12 +36,16 @@ func (s *SCC) GO(f func()) {
 }
 
 //CGO 带有取消通道的协程
-func (s *SCC) CGO(f func(chan struct{})) {
+func (s *SCC) CGO(f func(ctx context.Context)) {
 	go func() {
 		s.wgp.Add(1)
 		defer s.wgp.Done()
-		f(s.stopCancel)
+		f(s.ctx)
 	}()
+}
+
+func (s *SCC) Ctx() context.Context {
+	return s.ctx
 }
 
 func (s *SCC) Wait() {
@@ -46,24 +54,34 @@ func (s *SCC) Wait() {
 
 //Close
 func (s *SCC) Close() error {
-	if !atomic.CompareAndSwapInt32(&s.stopMutex, 0, 1) {
-		return errors.New("scc Close exist")
+	if !atomic.CompareAndSwapInt32(&s.stop, 0, 1) {
+		return errors.New("SCC Close Exist")
 	}
 	s.wgp.Done()
-	close(s.stopCancel)
-	stopTimeout := make(chan bool)
+	s.cancel()
+	stopChan := make(chan bool)
 	go func() {
 		s.wgp.Wait()
-		stopTimeout <- true
+		stopChan <- true
 	}()
 	select {
-	case <-stopTimeout:
-		return errors.New("scc Close success")
+	case <-stopChan:
+		return nil
 	case <-time.After(time.Second * 10):
-		return errors.New("scc Close timeout")
+		return errors.New("SCC Close Timeout")
 	}
 }
 
-func (s *SCC) Stopped() bool {
-	return s.stopMutex == 1
+//判断是否已经关闭
+func (s *SCC) Done() bool {
+	return Done(s.ctx)
+}
+
+func Done(ctx context.Context) bool {
+	select {
+	case <-ctx.Done():
+		return true
+	default:
+		return false
+	}
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"cosgo/app"
 	"cosgo/cosnet"
 	"cosgo/logger"
@@ -23,23 +24,28 @@ type tcpModule struct {
 
 func (m *tcpModule) Init() (err error) {
 	addr := app.Config.GetString("tcp")
-	m.srv = cosnet.NewServer(addr, &TcpHandler{})
+	m.srv = cosnet.NewServer(addr, NewTcpHandler())
 	return
 }
 
 func (m *tcpModule) Start() error {
-	cosnet.Start()
-	return nil
+	return m.srv.Start()
 }
 func (m *tcpModule) Close() error {
-	return cosnet.Close()
+	return m.srv.Close()
+}
+
+func NewTcpHandler() *TcpHandler {
+	return &TcpHandler{
+		HandlerDefault: cosnet.NewHandlerDefault(),
+	}
 }
 
 type TcpHandler struct {
-	cosnet.HandlerDefault
+	*cosnet.HandlerDefault
 }
 
-func (this *TcpHandler) Message(sock cosnet.Socket, msg *cosnet.Message) bool {
+func (this *TcpHandler) Message(ctx context.Context, sock cosnet.Socket, msg *cosnet.Message) bool {
 	logger.Debug("OnMessage:%+v", msg)
 	return true
 }

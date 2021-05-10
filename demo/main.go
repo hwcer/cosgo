@@ -9,7 +9,7 @@ func init() {
 }
 
 func main() {
-	app.Use(NewWebModule("TCP"))
+	app.Use(NewTcpModule("TCP"))
 	app.Use(NewWebModule("HTTP"))
 	app.Start()
 }

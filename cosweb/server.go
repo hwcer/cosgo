@@ -160,7 +160,7 @@ func (s *Server) Static(prefix, root string, method ...string) *Static {
 	return static
 }
 
-// AcquireContext returns an empty `Context` instance from the pool.
+// AcquireContext returns an empty `Ctx` instance from the pool.
 // You must return the Context by calling `ReleaseContext()`.
 func (s *Server) AcquireContext(w http.ResponseWriter, r *http.Request) *Context {
 	c := s.pool.Get().(*Context)
@@ -170,7 +170,7 @@ func (s *Server) AcquireContext(w http.ResponseWriter, r *http.Request) *Context
 	return c
 }
 
-// ReleaseContext returns the `Context` instance back to the pool.
+// ReleaseContext returns the `Ctx` instance back to the pool.
 // You must call it after `AcquireContext()`.
 func (s *Server) ReleaseContext(c *Context) {
 	c.release()
@@ -179,13 +179,13 @@ func (s *Server) ReleaseContext(c *Context) {
 
 // ServeHTTP implements `http.Handler` interface, which serves HTTP requests.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Acquire Context
+	// Acquire Ctx
 	c := s.AcquireContext(w, r)
 	defer func() {
 		if err := recover(); err != nil {
 			s.HTTPErrorHandler(c, NewHTTPError500(err))
 		}
-		// Release Context
+		// Release Ctx
 		s.ReleaseContext(c)
 	}()
 

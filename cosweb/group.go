@@ -103,12 +103,12 @@ func (g *Group) Register(handle interface{}) error {
 			logger.Debug("Register value Can't Exported,value:%v.%v()", name, methodName)
 			continue
 		}
-		// value needs four ins: receiver, context.Context, *data, *reply.
+		// value needs four ins: receiver, context.Ctx, *data, *reply.
 		if methodType.NumIn() != 2 || methodType.NumOut() != 1 {
 			logger.Debug("Register value data num or return num error,value:%v.%v()", name, methodName)
 			continue
 		}
-		// First arg must be context.Context
+		// First arg must be context.Ctx
 		ctxType := methodType.In(1)
 		if !ctxType.ConvertibleTo(typeOfContext) {
 			logger.Debug("Register value data error,value:%v.%v()", name, methodName)
