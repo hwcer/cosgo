@@ -1,6 +1,7 @@
 package cosnet
 
 import (
+	"context"
 	"cosgo/logger"
 	"io"
 	"net"
@@ -12,6 +13,14 @@ type TcpSocket struct {
 	listener net.Listener //监听
 }
 
+func (s *TcpSocket) Close() bool {
+	if !s.NetSocket.Close() {
+		return false
+	}
+	s.conn.Close()
+	s.handler.Emit(HandlerEventTypeDisconnect, s)
+	return true
+}
 func (s *TcpSocket) LocalAddr() string {
 	if s.conn != nil {
 		return s.conn.LocalAddr().String()
@@ -31,10 +40,10 @@ func (s *TcpSocket) RemoteAddr() string {
 	return ""
 }
 
-func (s *TcpSocket) readMsg() {
+func (s *TcpSocket) readMsg(ctx context.Context) {
 	defer s.Close()
 	head := make([]byte, MsgHeadSize)
-	for !s.Done() {
+	for !s.Stopped() {
 		_, err := io.ReadFull(s.conn, head)
 		if err != nil {
 			if _, ok := err.(*net.OpError); !ok && err != io.EOF {
@@ -62,15 +71,11 @@ func (s *TcpSocket) readMsg() {
 	}
 }
 
-func (s *TcpSocket) writeMsg() {
-	defer func() {
-		s.Close()
-		s.conn.Close()
-		s.handler.Emit(HandlerEventTypeDisconnect, s)
-	}()
-	for !s.Done() {
+func (s *TcpSocket) writeMsg(ctx context.Context) {
+	defer s.Close()
+	for !s.Stopped() {
 		select {
-		case <-s.ctx.Done():
+		case <-ctx.Done():
 			return
 		case m := <-s.cwrite:
 			if !s.writeMsgTrue(m) {
@@ -86,7 +91,7 @@ func (s *TcpSocket) writeMsgTrue(m *Message) bool {
 	}
 	data := m.Bytes()
 	writeCount := 0
-	for !s.Done() && writeCount < len(data) {
+	for !s.Stopped() && writeCount < len(data) {
 		n, err := s.conn.Write(data[writeCount:])
 		if err != nil {
 			logger.Error("socket write error,Id:%v err:%v", s.id, err)

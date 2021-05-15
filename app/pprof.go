@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cosgo/utils"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
@@ -17,7 +18,7 @@ func pprofStart() error {
 	pprofServer = new(http.Server)
 	pprofServer.Addr = pprof
 	pprofServer.Handler = http.DefaultServeMux
-	Timeout(time.Second, func() error {
+	utils.Timeout(time.Second, func() error {
 		return pprofServer.ListenAndServe()
 	})
 	fmt.Printf("pprof server start:%v\n", pprof)

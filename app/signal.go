@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"cosgo/logger"
 	"os"
 	"os/signal"
@@ -14,22 +15,23 @@ import (
 //报告性能摘要时间间隔
 var gcSummaryTime time.Duration = time.Second * 300
 
-func SetGCSummaryTime(ms int) {
-	gcSummaryTime = time.Second * time.Duration(ms)
+func SetGCSummaryTime(second int) {
+	gcSummaryTime = time.Second * time.Duration(second)
 }
 
-func waitForSystemExit() {
+func WaitForSystemExit(ctx context.Context) {
 	ch := make(chan os.Signal, 1)
-	tick := time.NewTicker(gcSummaryTime)
-	defer tick.Stop()
+	timer := time.NewTimer(gcSummaryTime)
+	defer timer.Stop()
 	signal.Notify(ch, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
 	for {
 		select {
 		case sig := <-ch:
 			signalNotify(sig)
-		case <-tick.C:
+		case <-timer.C:
+			timer.Reset(gcSummaryTime)
 			gcSummaryLogger()
-		case <-cancel:
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -40,13 +42,9 @@ func signalNotify(sig os.Signal) {
 	switch sig {
 	case syscall.SIGHUP: // reload Config  1
 		logger.Info("SIGHUP reload Config")
-		//TODO
-	case syscall.SIGINT: // app close   2
+	case syscall.SIGINT, syscall.SIGTERM: // app close   2
 		logger.Info("SIGINT stop app")
-		Close()
-	case syscall.SIGTERM: // app close   15
-		logger.Info("SIGTERM stop app")
-		Close()
+		go Close()
 	default:
 		logger.Info("SIG inv signal:%v", sig)
 	}

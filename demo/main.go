@@ -9,7 +9,8 @@ func init() {
 }
 
 func main() {
+	app.SetGCSummaryTime(10)
 	app.Use(NewTcpModule("TCP"))
-	app.Use(NewWebModule("HTTP"))
+	//app.Use(NewWebModule("HTTP"))
 	app.Start()
 }

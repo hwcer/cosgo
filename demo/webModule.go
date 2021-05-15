@@ -38,7 +38,7 @@ func (m *webModule) Init() (err error) {
 	//g.SetCaller(caller)
 	//g.Register(&handle.Remote{})
 	//g.Route(m.web, "/")
-	g2 := m.web.Group("/", &handle.Remote{})
+	g2 := m.web.Group("/s", &handle.Remote{})
 	g2.Register(&handle.Admin{})
 	g2.Use(groupMiddleware, adminMiddleware)
 	g2.SetCaller(caller)
@@ -49,7 +49,7 @@ func (m *webModule) Init() (err error) {
 	g2.Use(access.Handle)
 
 	//m.web.Proxy("/", "https://www.jd.com")
-	m.web.Static("/static", "wwwroot")
+	m.web.Static("/", app.GetDir()+"/wwwroot")
 	return
 }
 

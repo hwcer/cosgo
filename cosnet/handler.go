@@ -1,13 +1,12 @@
 package cosnet
 
 import (
-	"context"
 	"sync"
 )
 
 type HandlerEventType int32
 type HandlerEventFunc func(Socket) bool
-type HandlerMessageFunc func(context.Context, Socket, *Message) bool
+type HandlerMessageFunc func(Socket, *Message) bool
 
 const (
 	HandlerEventTypeConnect HandlerEventType = iota
@@ -17,7 +16,7 @@ const (
 type Handler interface {
 	On(HandlerEventType, HandlerEventFunc)
 	Emit(HandlerEventType, Socket) bool
-	Message(context.Context, Socket, *Message) bool //消息处理函数
+	Message(Socket, *Message) bool //消息处理函数
 }
 
 type HandlerEvents struct {
@@ -53,9 +52,9 @@ type HandlerDefault struct {
 	Handle map[int]HandlerMessageFunc
 }
 
-func (r *HandlerDefault) Message(ctx context.Context, sock Socket, msg *Message) bool {
+func (r *HandlerDefault) Message(sock Socket, msg *Message) bool {
 	if f, ok := r.Handle[int(msg.Head.Proto)]; ok {
-		return f(ctx, sock, msg)
+		return f(sock, msg)
 	}
 	return true
 }

@@ -15,7 +15,7 @@ func NewSockets(handler Handler, cap int) *Sockets {
 		slices:  make([]Socket, cap, cap),
 		handler: handler,
 	}
-	for i := 0; i < cap; i++ {
+	for i := cap - 1; i >= 0; i-- {
 		sockets.dirty.Add(i)
 	}
 	return sockets

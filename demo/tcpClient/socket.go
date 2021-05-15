@@ -13,13 +13,13 @@ var client *cosnet.TcpClient
 
 func init() {
 	msg = &cosnet.Message{Head: &cosnet.Header{Index: 1}}
-	client = cosnet.NewTcpClient(&TcpHandler{})
+	client = cosnet.NewTcpClient("", &TcpHandler{})
 }
 
 func main() {
 	address := "0.0.0.0:3100"
-	for i := 1; i <= 1000; i++ {
-		client.Dial(address)
+	for i := 1; i <= 10; i++ {
+		client.Connect(address)
 	}
 	client.CGO(startSocketHeartbeat)
 	client.Wait()
@@ -52,7 +52,7 @@ type TcpHandler struct {
 	cosnet.HandlerDefault
 }
 
-func (this *TcpHandler) Message(ctx context.Context, sock cosnet.Socket, msg *cosnet.Message) bool {
+func (this *TcpHandler) Message(sock cosnet.Socket, msg *cosnet.Message) bool {
 	logger.Debug("OnMessage:%+v", msg)
 	return true
 }

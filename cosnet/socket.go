@@ -1,9 +1,9 @@
 package cosnet
 
 import (
-	"context"
 	"cosgo/logger"
-	"cosgo/utils"
+	"fmt"
+	"sync/atomic"
 )
 
 //各种服务器(TCP,UDP,WS)也使用该接口
@@ -22,23 +22,23 @@ type Socket interface {
 	KeepAlive()
 }
 
-func NewSocket(ctx context.Context, handler Handler) (sock *NetSocket) {
+func NewSocket(handler Handler) (sock *NetSocket) {
 	sock = &NetSocket{
 		cwrite:  make(chan *Message, Config.WriteChanSize),
 		handler: handler,
 		timeout: Config.SocketTimeout,
 	}
-	sock.ctx, sock.cancel = context.WithCancel(ctx)
+	//sock.ctx, sock.Shutdown = context.WithCancel(ctx)
 	return
 }
 
 type NetSocket struct {
-	id     uint64 //唯一标示
-	ctx    context.Context
-	cancel context.CancelFunc
+	id uint64 //唯一标示
+	//ctx    context.Context
+	//Shutdown context.CancelFunc
 
-	user interface{} //玩家登陆后信息
-	//stop    int32         //停止标记,0:正常,1-掉线（等待短线重连）,2-销毁 无法再短线重连
+	user    interface{}   //玩家登陆后信息
+	stop    int32         //停止标记,0:正常,1-掉线（等待短线重连）,2-销毁 无法再短线重连
 	cwrite  chan *Message //写入通道
 	handler Handler       //消息处理器
 
@@ -51,10 +51,6 @@ func (s *NetSocket) Id() uint64 {
 	return s.id
 }
 
-func (s *NetSocket) Done() bool {
-	return utils.Done(s.ctx)
-}
-
 func (s *NetSocket) SetUser(user interface{}) {
 	s.user = user
 }
@@ -65,12 +61,18 @@ func (s *NetSocket) GetUser() interface{} {
 
 //关闭
 func (s *NetSocket) Close() bool {
-	s.cancel()
+	if !atomic.CompareAndSwapInt32(&s.stop, 0, 1) {
+		return false
+	}
 	//if s.cwrite != nil {
 	//	close(s.cwrite) //关闭cwrite强制write协程取消堵塞快速响应关闭操作
 	//}
 	logger.Debug("Socket Close Id:%d", s.id)
 	return true
+}
+
+func (s *NetSocket) Stopped() bool {
+	return s.stop > 0
 }
 
 //销毁
@@ -88,6 +90,7 @@ func (s *NetSocket) IsProxy() bool {
 //每一次Heartbeat() heartbeat计数加1
 func (s *NetSocket) Heartbeat() {
 	s.heartbeat += 1
+	fmt.Printf("Heartbeat,id:%v,v:%v\n", s.id, s.heartbeat)
 	if s.heartbeat >= s.timeout {
 		s.Close()
 	}
@@ -145,5 +148,5 @@ func (s *NetSocket) processMsg(sock Socket, msg *Message) bool {
 		msg.Head.Flags.Del(MsgFlagCompress)
 		msg.Head.Size = int32(len(msg.Data))
 	}
-	return s.handler.Message(s.ctx, sock, msg)
+	return s.handler.Message(sock, msg)
 }

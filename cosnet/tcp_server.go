@@ -3,7 +3,6 @@ package cosnet
 import (
 	"cosgo/logger"
 	"net"
-	"time"
 )
 
 type TcpServer struct {
@@ -11,25 +10,23 @@ type TcpServer struct {
 	listener net.Listener //监听
 }
 
-type TcpClient struct {
-	TcpServer
+func (s *TcpServer) Close() error {
+	return s.SCC.Close(func() {
+		if s.listener != nil {
+			s.listener.Close()
+		}
+	})
 }
 
-func (s *TcpClient) Start() error {
-	return nil
+//Shutdown
+func (s *TcpServer) Shutdown() {
+	go s.Close()
 }
 
 func NewTcpServer(address string, handler Handler) *TcpServer {
 	return &TcpServer{
 		NetServer: NewNetServer(address, handler, MsgTypeMsg, NetTypeTcp),
 	}
-}
-
-func NewTcpClient(handler Handler) *TcpClient {
-	s := &TcpClient{
-		TcpServer: *NewTcpServer("", handler),
-	}
-	return s
 }
 
 func (s *TcpServer) Start() error {
@@ -42,27 +39,15 @@ func (s *TcpServer) Start() error {
 	return nil
 }
 
-func (s *TcpServer) Dial(address string) (sock Socket) {
-	c, err := net.DialTimeout("tcp", address, time.Second)
-	if err != nil {
-		logger.Debug("connect to addr:%s failed err:%v", address, err)
-	} else {
-		sock = s.socket(c)
-	}
-	return
-}
-
 func (s *TcpServer) listen() {
-	defer s.listener.Close()
-	for !s.Done() {
+	defer s.Shutdown()
+	for !s.Stopped() {
 		c, err := s.listener.Accept()
 		if err != nil {
-			logger.Error("tcp server accept failed:%v", err)
+			//logger.Error("tcp server accept failed:%v", err)
 			break
 		} else {
-			s.GO(func() {
-				s.socket(c)
-			})
+			go s.socket(c)
 		}
 	}
 }
@@ -70,11 +55,11 @@ func (s *TcpServer) listen() {
 func (s *TcpServer) socket(conn net.Conn) Socket {
 	sock := &TcpSocket{
 		conn:      conn,
-		NetSocket: NewSocket(s.Ctx(), s.handler),
+		NetSocket: NewSocket(s.handler),
 	}
 	if s.handler.Emit(HandlerEventTypeConnect, sock) {
-		s.GO(sock.readMsg)
-		s.GO(sock.writeMsg)
+		s.CGO(sock.readMsg)
+		s.CGO(sock.writeMsg)
 		logger.Debug("new socket Id:%d from Addr:%s", sock.id, sock.RemoteAddr())
 	} else if sock.Close() {
 		sock.conn.Close()

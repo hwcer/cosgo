@@ -7,7 +7,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"sync/atomic"
 	"time"
 )
 
@@ -82,6 +81,7 @@ func Start(mods ...Module) {
 	//=========================启动信息=============================
 	showConfig()
 	//=========================启动模块=============================
+	wgp := scc.WaitGroup()
 	for _, v := range modules {
 		wgp.Add(1)
 		assert(v.Start(), fmt.Sprintf("mod [%v] start", v.ID()))
@@ -93,34 +93,33 @@ func Start(mods ...Module) {
 		defBanner()
 	}
 
-	wgp.Add(1)
-	Go(waitForSystemExit)
-	wgp.Wait()
+	WaitForSystemExit(scc.Context())
+	//fmt.Printf("App Wait Done\n")
 }
 
 func Close() {
-	logger.Info("App will stop")
-	if !atomic.CompareAndSwapInt32(&stop, 0, 1) {
-		logger.Error("Server Close error")
-		return
+	//fmt.Printf("App will stop\n")
+	defer fmt.Printf("App stop Done\n")
+	err := scc.Close(func() {
+		for _, m := range modules {
+			closeModule(m)
+		}
+		//fmt.Printf("Mod Close Done\n")
+	})
+	if err != nil {
+		fmt.Printf("App Close Err:%v\n", err)
 	}
-	defer wgp.Done()
+}
 
-	for _, v := range modules {
-		func(m Module) {
-			defer func() {
-				wgp.Done()
-				if err := recover(); err != nil {
-					logger.Error("%v", err)
-				}
-			}()
-			assert(v.Close(), fmt.Sprintf("mod [%v] stop", m.ID()))
-		}(v)
-	}
-	if cancel != nil {
-		close(cancel)
-	}
-	logger.Info("App stop done")
+func closeModule(m Module) {
+	wgp := scc.WaitGroup()
+	defer func() {
+		wgp.Done()
+		if err := recover(); err != nil {
+			logger.Error("%v", err)
+		}
+	}()
+	assert(m.Close(), fmt.Sprintf("mod [%v] stop", m.ID()))
 }
 
 func showConfig() {

@@ -2,6 +2,7 @@ package cosweb
 
 import (
 	"cosgo/app"
+	"fmt"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -36,6 +37,7 @@ func (this *Static) handle(c *Context) error {
 	if !strings.HasPrefix(file, this.root) {
 		return nil
 	}
+	fmt.Printf("static file:%v\n", file)
 	http.ServeFile(c.Response, c.Request, file)
 	return nil
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"cosgo/app"
 	"cosgo/cosnet"
 	"cosgo/logger"
@@ -45,7 +44,7 @@ type TcpHandler struct {
 	*cosnet.HandlerDefault
 }
 
-func (this *TcpHandler) Message(ctx context.Context, sock cosnet.Socket, msg *cosnet.Message) bool {
+func (this *TcpHandler) Message(sock cosnet.Socket, msg *cosnet.Message) bool {
 	logger.Debug("OnMessage:%+v", msg)
 	return true
 }
