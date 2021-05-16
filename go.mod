@@ -1,4 +1,4 @@
-module github.com/hwclegend/cosgo
+module github.com/hwcer/cosgo
 
 go 1.14
 
