@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"github.com/hwclegend/cosgo/cosweb"
+	"github.com/hwcer/cosgo/cosweb"
 	"net/http"
 	"strconv"
 	"strings"

@@ -2,6 +2,7 @@ module github.com/hwcer/cosgo
 
 go 1.14
 
+replace github.com/hwcer/cosgo v0.0.0 => ./
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect

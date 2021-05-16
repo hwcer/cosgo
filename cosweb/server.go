@@ -3,8 +3,8 @@ package cosweb
 import (
 	ctx "context"
 	"crypto/tls"
-	"github.com/hwclegend/cosgo/logger"
-	"github.com/hwclegend/cosgo/utils"
+	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/cosgo/utils"
 	"io"
 	"net/http"
 	"sync"

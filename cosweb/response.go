@@ -2,7 +2,7 @@ package cosweb
 
 import (
 	"bufio"
-	"github.com/hwclegend/cosgo/logger"
+	"github.com/hwcer/cosgo/logger"
 	"net"
 	"net/http"
 )

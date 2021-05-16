@@ -2,7 +2,7 @@ package app
 
 import (
 	"fmt"
-	"github.com/hwclegend/cosgo/logger"
+	"github.com/hwcer/cosgo/logger"
 	"math/rand"
 	"os"
 	"runtime"

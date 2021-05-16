@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
-	"github.com/hwclegend/cosgo/ioutil"
+	"github.com/hwcer/cosgo/ioutil"
 	"encoding/binary"
 )
 

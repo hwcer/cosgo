@@ -1,7 +1,7 @@
 package cosnet
 
 import (
-	"github.com/hwclegend/cosgo/utils"
+	"github.com/hwcer/cosgo/utils"
 )
 
 type MsgType int

@@ -6,7 +6,7 @@ import (
 )
 
 func TestCrypto(t *testing.T) {
-	str := "hwclegend"
+	str := "hwcer"
 	secret := "gogogogo"
 	encode, err := Crypto.DESEncrypt(str, secret)
 	if err != nil {

@@ -3,7 +3,7 @@ package logger
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/hwclegend/cosgo/ioutil"
+	"github.com/hwcer/cosgo/ioutil"
 	"os"
 	"runtime"
 	"strings"

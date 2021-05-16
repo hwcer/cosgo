@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/hwclegend/cosgo/utils"
+	"github.com/hwcer/cosgo/utils"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
