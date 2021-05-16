@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"cosgo/logger"
+	"github.com/hwclegend/cosgo/logger"
 	"os"
 	"os/signal"
 	"runtime"

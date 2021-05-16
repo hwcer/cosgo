@@ -1,8 +1,8 @@
 package cosweb
 
 import (
-	"cosgo/session"
-	"cosgo/utils"
+	"github.com/hwclegend/cosgo/session"
+	"github.com/hwclegend/cosgo/utils"
 )
 
 type Options struct {

@@ -1,8 +1,8 @@
 package cosweb
 
 import (
-	"cosgo/app"
 	"fmt"
+	"github.com/hwclegend/cosgo/app"
 	"net/http"
 	"path"
 	"path/filepath"

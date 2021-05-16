@@ -1,7 +1,7 @@
 package cosnet
 
 import (
-	"cosgo/logger"
+	"github.com/hwclegend/cosgo/logger"
 	"net"
 	"time"
 )

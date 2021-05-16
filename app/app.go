@@ -1,8 +1,8 @@
 package app
 
 import (
-	"cosgo/logger"
 	"fmt"
+	"github.com/hwclegend/cosgo/logger"
 	"math/rand"
 	"os"
 	"runtime"

@@ -1,7 +1,7 @@
 package cosweb
 
 import (
-	"cosgo/ioutil"
+	"github.com/hwclegend/cosgo/ioutil"
 	"crypto/tls"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"

@@ -1,9 +1,9 @@
 package logger
 
 import (
-	"cosgo/ioutil"
 	"encoding/json"
 	"fmt"
+	"github.com/hwclegend/cosgo/ioutil"
 	"os"
 	"runtime"
 	"strings"

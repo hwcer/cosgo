@@ -1,7 +1,7 @@
 package cosweb
 
 import (
-	"cosgo/logger"
+	"github.com/hwclegend/cosgo/logger"
 	"errors"
 	"fmt"
 	"reflect"

@@ -2,7 +2,7 @@ package cosnet
 
 import (
 	"context"
-	"cosgo/utils"
+	"github.com/hwclegend/cosgo/utils"
 	"sync"
 	"time"
 )

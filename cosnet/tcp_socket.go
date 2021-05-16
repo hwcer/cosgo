@@ -2,7 +2,7 @@ package cosnet
 
 import (
 	"context"
-	"cosgo/logger"
+	"github.com/hwclegend/cosgo/logger"
 	"io"
 	"net"
 )

@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"cosgo/utils"
+	"github.com/hwclegend/cosgo/utils"
 )
 
 var (

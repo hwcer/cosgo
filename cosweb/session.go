@@ -1,9 +1,9 @@
 package cosweb
 
 import (
-	"cosgo/session"
-	"cosgo/utils"
 	"errors"
+	"github.com/hwclegend/cosgo/session"
+	"github.com/hwclegend/cosgo/utils"
 	"net/http"
 )
 

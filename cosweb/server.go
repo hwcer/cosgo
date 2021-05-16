@@ -2,9 +2,9 @@ package cosweb
 
 import (
 	ctx "context"
-	"cosgo/logger"
-	"cosgo/utils"
 	"crypto/tls"
+	"github.com/hwclegend/cosgo/logger"
+	"github.com/hwclegend/cosgo/utils"
 	"io"
 	"net/http"
 	"sync"
