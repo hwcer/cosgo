@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"github.com/hwcer/cosgo/logger"
 	"os"
 	"os/signal"
@@ -19,7 +18,7 @@ func SetGCSummaryTime(second int) {
 	gcSummaryTime = time.Second * time.Duration(second)
 }
 
-func WaitForSystemExit(ctx context.Context) {
+func WaitForSystemExit() {
 	ch := make(chan os.Signal, 1)
 	timer := time.NewTimer(gcSummaryTime)
 	defer timer.Stop()
@@ -31,7 +30,7 @@ func WaitForSystemExit(ctx context.Context) {
 		case <-timer.C:
 			timer.Reset(gcSummaryTime)
 			gcSummaryLogger()
-		case <-ctx.Done():
+		case <-scc.Context().Done():
 			return
 		}
 	}
@@ -44,7 +43,7 @@ func signalNotify(sig os.Signal) {
 		logger.Info("SIGHUP reload Config")
 	case syscall.SIGINT, syscall.SIGTERM: // app close   2
 		logger.Info("SIGINT stop app")
-		go Close()
+		Close()
 	default:
 		logger.Info("SIG inv signal:%v", sig)
 	}

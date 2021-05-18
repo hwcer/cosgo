@@ -17,9 +17,9 @@ var (
 
 func assert(err interface{}, s string) {
 	if err != nil {
-		logger.Fatal("app failed, %v: %v", s, err)
+		fmt.Printf("app failed, %v: %v\n", s, err)
 	} else {
-		logger.Info("app %v done", s)
+		fmt.Printf("app %v done\n", s)
 	}
 }
 
@@ -32,7 +32,7 @@ func defBanner() {
 ____________________________________O/_______
                                     O\
 `
-	logger.Info(str)
+	fmt.Printf(str)
 }
 
 //设置默认启动界面，启动完所有MOD后执行
@@ -51,6 +51,7 @@ func Use(mods ...Module) {
  * @param m 需注册的模块
  */
 func Start(mods ...Module) {
+	fmt.Printf("App Starting:%v\n", time.Now().String())
 	for _, mod := range mods {
 		modules = append(modules, mod)
 	}
@@ -68,7 +69,7 @@ func Start(mods ...Module) {
 	defer func() {
 		pprofClose()
 		deletePidFile()
-		fmt.Printf("Say byebye to the world")
+		fmt.Printf("App Closed:%v\n", time.Now().String())
 	}()
 	//=========================加载模块=============================
 	if err = pprofStart(); err != nil {
@@ -81,9 +82,8 @@ func Start(mods ...Module) {
 	//=========================启动信息=============================
 	showConfig()
 	//=========================启动模块=============================
-	wgp := scc.WaitGroup()
 	for _, v := range modules {
-		wgp.Add(1)
+		scc.Add(1)
 		assert(v.Start(), fmt.Sprintf("mod [%v] start", v.ID()))
 	}
 
@@ -93,28 +93,26 @@ func Start(mods ...Module) {
 		defBanner()
 	}
 
-	WaitForSystemExit(scc.Context())
+	WaitForSystemExit()
 	//fmt.Printf("App Wait Done\n")
 }
 
 func Close() {
-	//fmt.Printf("App will stop\n")
-	defer fmt.Printf("App stop Done\n")
-	err := scc.Close(func() {
-		for _, m := range modules {
-			closeModule(m)
-		}
-		//fmt.Printf("Mod Close Done\n")
-	})
-	if err != nil {
-		fmt.Printf("App Close Err:%v\n", err)
+	if !scc.Close() {
+		return
+	}
+	fmt.Printf("App will stop\n")
+	for _, m := range modules {
+		closeModule(m)
+	}
+	if err := scc.Wait(time.Second * 30); err != nil {
+		fmt.Printf("App Stop Err:%v\n", err)
 	}
 }
 
 func closeModule(m Module) {
-	wgp := scc.WaitGroup()
 	defer func() {
-		wgp.Done()
+		scc.Done()
 		if err := recover(); err != nil {
 			logger.Error("%v", err)
 		}
@@ -125,14 +123,14 @@ func closeModule(m Module) {
 func showConfig() {
 	var log []string
 	log = append(log, "")
-	log = append(log, "====================== Show App Config ======================")
+	log = append(log, "============================Show App Config============================")
 	log = append(log, fmt.Sprintf(">> AppName:%v", GetName()))
 	log = append(log, fmt.Sprintf(">> AppRoot:%v", GetDir()))
 	log = append(log, fmt.Sprintf(">> AppLogs:%v", Config.GetString("logs")))
 	log = append(log, fmt.Sprintf(">> PidFile:%v", Config.GetString("pidfile")))
 	log = append(log, fmt.Sprintf(">> BUIND GO:%v VER:%v  TIME:%v", BUIND_GO, BUIND_VER, BUIND_TIME))
 	log = append(log, fmt.Sprintf(">> RUNTIME GO:%v  CPU:%v  Pid:%v", runtime.Version(), runtime.NumCPU(), os.Getpid()))
-	log = append(log, "=============================================================")
+	log = append(log, "========================================================")
 	log = append(log, "")
-	logger.Info(strings.Join(log, "\n"))
+	fmt.Printf(strings.Join(log, "\n"))
 }

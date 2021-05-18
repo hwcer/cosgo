@@ -1,7 +1,6 @@
 package cosnet
 
 import (
-	"context"
 	"github.com/hwcer/cosgo/logger"
 	"io"
 	"net"
@@ -18,7 +17,7 @@ func (s *TcpSocket) Close() bool {
 		return false
 	}
 	s.conn.Close()
-	s.handler.Emit(HandlerEventTypeDisconnect, s)
+	s.server.Emit(EventsTypeDisconnect, s)
 	return true
 }
 func (s *TcpSocket) LocalAddr() string {
@@ -40,7 +39,7 @@ func (s *TcpSocket) RemoteAddr() string {
 	return ""
 }
 
-func (s *TcpSocket) readMsg(ctx context.Context) {
+func (s *TcpSocket) readMsg() {
 	defer s.Close()
 	head := make([]byte, MsgHeadSize)
 	for !s.Stopped() {
@@ -64,41 +63,36 @@ func (s *TcpSocket) readMsg(ctx context.Context) {
 				break
 			}
 		}
-		if !s.processMsg(s, msg) {
-			logger.Debug("socket:%v process msg act:%v ", s.id, msg.Head.Proto)
-			break
-		}
+		s.processMsg(s, msg)
 	}
 }
 
-func (s *TcpSocket) writeMsg(ctx context.Context) {
+func (s *TcpSocket) writeMsg() {
 	defer s.Close()
 	for !s.Stopped() {
 		select {
-		case <-ctx.Done():
+		case <-s.ctx.Done():
 			return
 		case m := <-s.cwrite:
-			if !s.writeMsgTrue(m) {
-				return
-			}
+			s.writeMsgTrue(m)
 		}
 	}
 }
 
-func (s *TcpSocket) writeMsgTrue(m *Message) bool {
+func (s *TcpSocket) writeMsgTrue(m *Message) {
 	if m == nil {
-		return true
+		return
 	}
 	data := m.Bytes()
 	writeCount := 0
 	for !s.Stopped() && writeCount < len(data) {
 		n, err := s.conn.Write(data[writeCount:])
 		if err != nil {
+			s.Close()
 			logger.Error("socket write error,Id:%v err:%v", s.id, err)
-			return false
+			return
 		}
 		writeCount += n
 	}
 	s.KeepAlive()
-	return true
 }

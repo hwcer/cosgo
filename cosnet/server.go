@@ -1,7 +1,9 @@
 package cosnet
 
 import (
+	"context"
 	"github.com/hwcer/cosgo/utils"
+	"time"
 )
 
 type MsgType int
@@ -20,8 +22,12 @@ const (
 )
 
 type Server interface {
+	On(EventsType, EventsFunc)
+	Emit(EventsType, Socket)
 	Start() error
 	Close() error
+	Handler() Handler
+	Context() context.Context
 	Sockets() *Sockets
 	GetMsgType() MsgType
 	GetNetType() NetType
@@ -30,18 +36,18 @@ type Server interface {
 func NewNetServer(address string, handler Handler, msgTyp MsgType, netType NetType) *NetServer {
 	s := &NetServer{
 		SCC:     utils.NewSCC(nil),
+		Events:  NewEvents(),
 		msgTyp:  msgTyp,
 		netType: netType,
 		address: address,
 		handler: handler,
 		sockets: NewSockets(handler, 1024),
 	}
-	s.handler.On(HandlerEventTypeConnect, func(sock Socket) bool {
+	s.On(EventsTypeConnect, func(sock Socket) {
 		sock.(*TcpSocket).id = s.sockets.Add(sock)
-		return true
 	})
-	s.handler.On(HandlerEventTypeDisconnect, func(sock Socket) bool {
-		return s.sockets.Del(sock.Id())
+	s.On(EventsTypeDisconnect, func(sock Socket) {
+		s.sockets.Del(sock.Id())
 	})
 	s.CGO(s.sockets.Start)
 	return s
@@ -49,11 +55,23 @@ func NewNetServer(address string, handler Handler, msgTyp MsgType, netType NetTy
 
 type NetServer struct {
 	*utils.SCC
+	*Events
 	msgTyp  MsgType //消息类型
 	netType NetType
 	address string
 	handler Handler
 	sockets *Sockets
+}
+
+func (s *NetServer) Close() error {
+	if !s.SCC.Close() {
+		return nil
+	}
+	return s.SCC.Wait(time.Second * 10)
+}
+
+func (s *NetServer) Handler() Handler {
+	return s.handler
 }
 
 func (s *NetServer) Sockets() *Sockets {

@@ -2,7 +2,6 @@ package utils
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -12,16 +11,15 @@ func NewSCC(ctx context.Context) *SCC {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	s := &SCC{}
-	s.wgp = new(sync.WaitGroup)
+	s := &SCC{WaitGroup: sync.WaitGroup{}}
 	s.ctx, s.cancel = context.WithCancel(ctx)
-	s.wgp.Add(1)
+	s.Add(1)
 	return s
 }
 
 //协程控制器
 type SCC struct {
-	wgp    *sync.WaitGroup
+	sync.WaitGroup
 	ctx    context.Context
 	stop   int32
 	cancel context.CancelFunc
@@ -30,8 +28,8 @@ type SCC struct {
 //GO 普通的GO
 func (s *SCC) GO(f func()) {
 	go func() {
-		s.wgp.Add(1)
-		defer s.wgp.Done()
+		s.Add(1)
+		defer s.Done()
 		f()
 	}()
 }
@@ -39,40 +37,31 @@ func (s *SCC) GO(f func()) {
 //CGO 带有取消通道的协程
 func (s *SCC) CGO(f func(ctx context.Context)) {
 	go func() {
-		s.wgp.Add(1)
-		defer s.wgp.Done()
+		s.Add(1)
+		defer s.Done()
 		f(s.ctx)
 	}()
 }
 
-func (s *SCC) Wait() {
-	s.wgp.Wait()
-}
-
-func (s *SCC) Context() context.Context {
-	return s.ctx
-}
-
-func (s *SCC) WaitGroup() *sync.WaitGroup {
-	return s.wgp
+func (s *SCC) Wait(timeout time.Duration) (err error) {
+	if timeout == 0 {
+		s.WaitGroup.Wait()
+		return
+	}
+	return Timeout(timeout, func() error {
+		s.WaitGroup.Wait()
+		return nil
+	})
 }
 
 //Close ,callback:成功调用Close后 cancel之前调用
-func (s *SCC) Close(cb ...func()) error {
+func (s *SCC) Close() bool {
 	if !atomic.CompareAndSwapInt32(&s.stop, 0, 1) {
-		return errors.New("SCC Close Exist")
-	}
-	if len(cb) > 0 {
-		cb[0]()
+		return false
 	}
 	s.cancel()
-	s.wgp.Done()
-	//fmt.Printf("SCC CLOSE\n")
-	return Timeout(time.Second*10, func() error {
-		s.wgp.Wait()
-		//fmt.Printf("SCC wgp.Wait Done\n")
-		return nil
-	})
+	s.Done()
+	return true
 }
 
 //判断是否已经关闭
@@ -83,6 +72,13 @@ func (s *SCC) Stopped() bool {
 	default:
 		return false
 	}
+}
+func (s *SCC) Cancel() {
+	s.cancel()
+}
+
+func (s *SCC) Context() context.Context {
+	return s.ctx
 }
 
 func Timeout(d time.Duration, fn func() error) error {

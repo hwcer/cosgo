@@ -3,6 +3,7 @@ package cosnet
 import (
 	"github.com/hwcer/cosgo/logger"
 	"net"
+	"time"
 )
 
 type TcpServer struct {
@@ -10,23 +11,18 @@ type TcpServer struct {
 	listener net.Listener //监听
 }
 
-func (s *TcpServer) Close() error {
-	return s.SCC.Close(func() {
-		if s.listener != nil {
-			s.listener.Close()
-		}
-	})
-}
-
-//Shutdown
-func (s *TcpServer) Shutdown() {
-	go s.Close()
-}
-
 func NewTcpServer(address string, handler Handler) *TcpServer {
 	return &TcpServer{
 		NetServer: NewNetServer(address, handler, MsgTypeMsg, NetTypeTcp),
 	}
+}
+
+func (s *TcpServer) Close() error {
+	if !s.SCC.Close() {
+		return nil
+	}
+	s.listener.Close()
+	return s.SCC.Wait(time.Second * 10)
 }
 
 func (s *TcpServer) Start() error {
@@ -40,11 +36,11 @@ func (s *TcpServer) Start() error {
 }
 
 func (s *TcpServer) listen() {
-	defer s.Shutdown()
+	//defer s.SCC.Cancel()
 	for !s.Stopped() {
 		c, err := s.listener.Accept()
 		if err != nil {
-			//logger.Error("tcp server accept failed:%v", err)
+			logger.Error("tcp server accept failed:%v", err)
 			break
 		} else {
 			go s.socket(c)
@@ -55,15 +51,11 @@ func (s *TcpServer) listen() {
 func (s *TcpServer) socket(conn net.Conn) Socket {
 	sock := &TcpSocket{
 		conn:      conn,
-		NetSocket: NewSocket(s.handler),
+		NetSocket: NewSocket(s),
 	}
-	if s.handler.Emit(HandlerEventTypeConnect, sock) {
-		s.CGO(sock.readMsg)
-		s.CGO(sock.writeMsg)
-		logger.Debug("new socket Id:%d from Addr:%s", sock.id, sock.RemoteAddr())
-	} else if sock.Close() {
-		sock.conn.Close()
-		sock = nil
-	}
+	s.Emit(EventsTypeConnect, sock)
+	s.GO(sock.readMsg)
+	s.GO(sock.writeMsg)
+	logger.Debug("new socket Id:%d from Addr:%s", sock.id, sock.RemoteAddr())
 	return sock
 }
