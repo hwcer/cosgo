@@ -1,11 +1,11 @@
-package cosnet
+package utils
 
 import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
-	"github.com/hwcer/cosgo/ioutil"
 	"encoding/binary"
+	"github.com/hwcer/cosgo/ioutil"
 )
 
 func ZlibCompress(data []byte) []byte {
@@ -49,7 +49,14 @@ func GZipUnCompress(data []byte) ([]byte, error) {
 //整形转换成字节
 func IntToBytes(n interface{}) []byte {
 	bytesBuffer := bytes.NewBuffer([]byte{})
-	binary.Write(bytesBuffer, binary.BigEndian, n)
+	if v, ok := n.(int); ok {
+		binary.Write(bytesBuffer, binary.BigEndian, v)
+	} else if v, ok := n.(float64); ok {
+		binary.Write(bytesBuffer, binary.BigEndian, v)
+	} else {
+		binary.Write(bytesBuffer, binary.BigEndian, n)
+	}
+
 	return bytesBuffer.Bytes()
 }
 

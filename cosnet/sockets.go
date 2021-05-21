@@ -2,6 +2,7 @@ package cosnet
 
 import (
 	"context"
+	"github.com/hwcer/cosgo/cosnet/message"
 	"github.com/hwcer/cosgo/utils"
 	"sync"
 	"time"
@@ -147,7 +148,7 @@ func (s *Sockets) Start(ctx context.Context) {
 }
 
 //Broadcast 广播,filter 过滤函数，如果不为nil且返回false则不对当期socket进行发送消息
-func (s *Sockets) Broadcast(msg *Message, filter func(Socket) bool) {
+func (s *Sockets) Broadcast(msg *message.Message, filter func(Socket) bool) {
 	for _, sock := range s.slices {
 		if sock == nil || (filter != nil && !filter(sock)) {
 			continue

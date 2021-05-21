@@ -1,19 +1,20 @@
-package cosnet
+package message
 
 import (
 	"testing"
 )
 
-func TestMessage(t *testing.T) {
-	head := &Header{
-		Size:     10,
-		Index:    254,
-		Proto:    2,
-		DataType: 3,
-		Flags:    MsgFlagType(100),
-	}
+func init() {
+	SetAttachField(1, "b", 4)
+}
 
-	b := head.Bytes()
+func TestMessage(t *testing.T) {
+	m := New(2, 1, ContentTypeNumber)
+	m.Attach.Set("a", 1)
+	m.Attach.Set("c", 3)
+	t.Logf("Message:%+v,%v\n", m.Head, m.Attach)
+
+	b := m.Head.Bytes()
 	t.Logf("head len:%v, byte:%v", len(b), b)
 
 	msg, err := NewMsg(b)

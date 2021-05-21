@@ -49,7 +49,6 @@ func NewNetServer(address string, handler Handler, msgTyp MsgType, netType NetTy
 	s.On(EventsTypeDisconnect, func(sock Socket) {
 		s.sockets.Del(sock.Id())
 	})
-	s.CGO(s.sockets.Start)
 	return s
 }
 
@@ -61,6 +60,11 @@ type NetServer struct {
 	address string
 	handler Handler
 	sockets *Sockets
+}
+
+func (s *NetServer) Start() error {
+	s.CGO(s.sockets.Start)
+	return nil
 }
 
 func (s *NetServer) Close() error {

@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/hwcer/cosgo/logger"
+	"fmt"
 	"os"
 	"os/signal"
 	"runtime"
@@ -37,20 +37,19 @@ func WaitForSystemExit() {
 }
 
 func signalNotify(sig os.Signal) {
-	logger.Debug("OS SIGINT:%v", sig)
 	switch sig {
 	case syscall.SIGHUP: // reload Config  1
-		logger.Info("SIGHUP reload Config")
+		fmt.Printf("SIGHUP reload Config\n")
 	case syscall.SIGINT, syscall.SIGTERM: // app close   2
-		logger.Info("SIGINT stop app")
+		fmt.Printf("SIGINT Stop App:%v\n", sig)
 		Close()
 	default:
-		logger.Info("SIG inv signal:%v", sig)
+		fmt.Printf("SIG inv signal:%v\n", sig)
 	}
 }
 
 func gcSummaryLogger() {
 	runtime.GC()
-	logger.Info("GOROUTINE:%v", runtime.NumGoroutine())
+	fmt.Printf("GOROUTINE:%v\n", runtime.NumGoroutine())
 	//logger.Info("GC Summory \n%v", debug.GCSummary())
 }

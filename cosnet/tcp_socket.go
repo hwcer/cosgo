@@ -1,6 +1,7 @@
 package cosnet
 
 import (
+	"github.com/hwcer/cosgo/cosnet/message"
 	"github.com/hwcer/cosgo/logger"
 	"io"
 	"net"
@@ -41,7 +42,7 @@ func (s *TcpSocket) RemoteAddr() string {
 
 func (s *TcpSocket) readMsg() {
 	defer s.Close()
-	head := make([]byte, MsgHeadSize)
+	head := make([]byte, message.MsgHeadSize)
 	for !s.Stopped() {
 		_, err := io.ReadFull(s.conn, head)
 		if err != nil {
@@ -50,7 +51,7 @@ func (s *TcpSocket) readMsg() {
 			}
 			break
 		}
-		msg, err := NewMsg(head)
+		msg, err := message.NewMsgHead(head)
 		if err != nil {
 			logger.Debug("socket:%v read msg msg failed:%v", err)
 			break
@@ -79,7 +80,7 @@ func (s *TcpSocket) writeMsg() {
 	}
 }
 
-func (s *TcpSocket) writeMsgTrue(m *Message) {
+func (s *TcpSocket) writeMsgTrue(m *message.Message) {
 	if m == nil {
 		return
 	}
@@ -94,5 +95,6 @@ func (s *TcpSocket) writeMsgTrue(m *Message) {
 		}
 		writeCount += n
 	}
+
 	s.KeepAlive()
 }

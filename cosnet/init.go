@@ -1,6 +1,7 @@
 package cosnet
 
 import (
+	"github.com/hwcer/cosgo/cosnet/message"
 	"runtime"
 	"strings"
 )
@@ -18,10 +19,11 @@ var Config = struct {
 	WriteChanSize  int32 //写通道缓存
 	ConnectMaxSize int32 //连接人数
 
+	ReconnectTime   int //断线重连等待心跳次数，0-不会断线重连
 	SocketTimeout   int //连接超时几次心跳没有动作被判断掉线
 	SocketHeartbeat int //(MS)服务器心跳,用来检测玩家僵尸连接
 
-	MsgDataType MsgDataType //默认包体编码方式
+	MsgDataType message.ContentType //默认包体编码方式
 }{
 
 	UdpServerGoCnt: 64,
@@ -31,10 +33,11 @@ var Config = struct {
 	WriteChanSize:  500,
 	ConnectMaxSize: 50000,
 
+	ReconnectTime:   15,
 	SocketTimeout:   5,
 	SocketHeartbeat: 2000,
 
-	MsgDataType: MsgDataTypeProto,
+	MsgDataType: message.ContentTypeProto,
 }
 
 func init() {

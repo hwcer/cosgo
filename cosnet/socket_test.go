@@ -3,15 +3,16 @@ package cosnet
 import (
 	"cosgo/utils"
 	"fmt"
+	"github.com/hwcer/cosgo/cosnet/message"
 	"testing"
 	"time"
 )
 
-var msg *Message
+var msg *message.Message
 var sockets = NewSockets(&HandlerDefault{}, 10)
 
 func init() {
-	msg = &Message{Head: &Header{Index: 1}}
+	msg = &message.Message{Head: &message.Head{Index: 1}}
 }
 
 func TestSocket(t *testing.T) {

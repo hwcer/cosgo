@@ -26,6 +26,9 @@ func (s *TcpServer) Close() error {
 }
 
 func (s *TcpServer) Start() error {
+	if err := s.NetServer.Start(); err != nil {
+		return err
+	}
 	listener, err := net.Listen("tcp", s.address)
 	if err != nil {
 		return err
@@ -40,7 +43,7 @@ func (s *TcpServer) listen() {
 	for !s.Stopped() {
 		c, err := s.listener.Accept()
 		if err != nil {
-			logger.Error("tcp server accept failed:%v", err)
+			//logger.Error("tcp server accept failed:%v", err)
 			break
 		} else {
 			go s.socket(c)

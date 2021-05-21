@@ -1,9 +1,11 @@
 package cosnet
 
-type HandlerMessageFunc func(Socket, *Message) bool
+import "github.com/hwcer/cosgo/cosnet/message"
+
+type HandlerMessageFunc func(Socket, *message.Message)
 
 type Handler interface {
-	Message(Socket, *Message) bool //消息处理函数
+	Message(Socket, *message.Message) //消息处理函数
 }
 
 func NewHandlerDefault() *HandlerDefault {
@@ -16,11 +18,10 @@ type HandlerDefault struct {
 	Handle map[int]HandlerMessageFunc
 }
 
-func (r *HandlerDefault) Message(sock Socket, msg *Message) bool {
-	if f, ok := r.Handle[int(msg.Head.Proto)]; ok {
-		return f(sock, msg)
+func (r *HandlerDefault) Message(sock Socket, msg *message.Message) {
+	if f, ok := r.Handle[int(msg.Head.Code)]; ok {
+		f(sock, msg)
 	}
-	return true
 }
 
 func (r *HandlerDefault) Register(act int, fun HandlerMessageFunc) {
