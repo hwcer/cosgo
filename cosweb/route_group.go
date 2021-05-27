@@ -1,9 +1,9 @@
 package cosweb
 
 import (
-	"github.com/hwcer/cosgo/logger"
 	"errors"
 	"fmt"
+	"github.com/hwcer/cosgo/logger"
 	"reflect"
 	"strings"
 )
@@ -132,9 +132,9 @@ func (g *Group) Register(handle interface{}) error {
 //handle 路由入口
 func (g *Group) handle(c *Context) (err error) {
 	//group middleware
-	c.doMiddleware(g.middleware)
-	if c.Aborted() {
-		return nil
+	err = c.doMiddleware(g.middleware)
+	if err != nil {
+		return err
 	}
 	path := c.Get(RouteGroupPath, RequestDataTypeParam)
 	name := c.Get(RouteGroupName, RequestDataTypeParam)
@@ -144,14 +144,14 @@ func (g *Group) handle(c *Context) (err error) {
 	}
 	node := g.nodes[path]
 	if node == nil {
-		return nil
+		return ErrNotFound
 	}
 
 	//反射方法
 	var ok bool
 	var method reflect.Value
 	if method, ok = node.value[name]; !ok {
-		return nil
+		return ErrNotFound
 	}
 	if g.caller != nil {
 		return g.caller(node.proto, method, c)

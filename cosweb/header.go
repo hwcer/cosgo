@@ -1,5 +1,9 @@
 package cosweb
 
+var Charset = "UTF-8"
+
+type ContentType string
+
 // Headers
 const (
 	HeaderAccept              = "Accept"
@@ -50,3 +54,23 @@ const (
 	HeaderXCSRFToken                      = "X-CSRF-Token"
 	HeaderReferrerPolicy                  = "Referrer-Policy"
 )
+
+// MIME types
+const (
+	ContentTypeTextHTML            ContentType = "text/html"
+	ContentTypeTextPlain                       = "text/plain"
+	ContentTypeTextXML                         = "text/xml"
+	ContentTypeApplicationJS                   = "application/javascript"
+	ContentTypeApplicationXML                  = "application/xml"
+	ContentTypeApplicationJSON                 = "application/json"
+	ContentTypeApplicationProtobuf             = "application/protobuf"
+	ContentTypeApplicationMsgpack              = "application/msgpack"
+	ContentTypeOctetStream                     = "application/octet-stream"
+	ContentTypeMultipartForm                   = "multipart/form-store"
+	ContentTypeApplicationForm                 = "application/x-www-form-urlencoded"
+)
+
+//GetContentTypeCharset
+func GetContentTypeCharset(contentType ContentType) string {
+	return string(contentType) + "; charset=" + Charset
+}

@@ -15,7 +15,7 @@ type HTTPError struct {
 // Errors
 var (
 	ErrUnsupportedMediaType        = NewHTTPError(http.StatusUnsupportedMediaType)
-	ErrNotFound                    = NewHTTPError(http.StatusNotFound)
+	ErrNotFound                    = NewHTTPError(http.StatusNotFound, "404 page not found")
 	ErrUnauthorized                = NewHTTPError(http.StatusUnauthorized)
 	ErrForbidden                   = NewHTTPError(http.StatusForbidden)
 	ErrMethodNotAllowed            = NewHTTPError(http.StatusMethodNotAllowed)
@@ -47,8 +47,8 @@ func (he *HTTPError) Error() string {
 }
 
 func (he *HTTPError) String(debug bool) string {
-	if err, ok := he.Message.(error); ok && debug {
-		return err.Error()
+	if he.Message != nil {
+		return fmt.Sprintf("%v", he.Message)
 	} else {
 		code := he.Code
 		if code == 0 {

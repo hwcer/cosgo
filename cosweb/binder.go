@@ -23,9 +23,9 @@ func (b *DefaultBinder) Bind(c *Context, i interface{}) (err error) {
 	}
 	ctype := req.Header.Get(HeaderContentType)
 	switch {
-	case strings.HasPrefix(ctype, MIMEApplicationJSON):
+	case strings.HasPrefix(ctype, ContentTypeApplicationJSON):
 		return json.NewDecoder(req.Body).Decode(i)
-	case strings.HasPrefix(ctype, MIMEApplicationXML), strings.HasPrefix(ctype, MIMETextXML):
+	case strings.HasPrefix(ctype, ContentTypeApplicationXML), strings.HasPrefix(ctype, ContentTypeTextXML):
 		return xml.NewDecoder(req.Body).Decode(i)
 	//case strings.HasPrefix(ctype, MIMEApplicationProtobuf):
 	//	return proto.NewDecoder(req.Body).Decode(i)

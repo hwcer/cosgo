@@ -46,17 +46,16 @@ func GZipUnCompress(data []byte) ([]byte, error) {
 	return undatas, nil
 }
 
-//整形转换成字节
+//IntToBytes 整形转换成字节
 func IntToBytes(n interface{}) []byte {
 	bytesBuffer := bytes.NewBuffer([]byte{})
 	if v, ok := n.(int); ok {
-		binary.Write(bytesBuffer, binary.BigEndian, v)
+		binary.Write(bytesBuffer, binary.BigEndian, int32(v))
 	} else if v, ok := n.(float64); ok {
 		binary.Write(bytesBuffer, binary.BigEndian, v)
 	} else {
 		binary.Write(bytesBuffer, binary.BigEndian, n)
 	}
-
 	return bytesBuffer.Bytes()
 }
 

@@ -44,7 +44,7 @@ func NewRouter() *Router {
   /s/:id/update
 	/s/123
 */
-func (r *Router) Match(method, path string) *Node {
+func (r *Router) Match(method, path string) []*Node {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
@@ -52,40 +52,49 @@ func (r *Router) Match(method, path string) *Node {
 	arr := strings.Split(method+path, "/")
 	lastPathIndex := len(arr) - 1
 
-	nextNode := r.root[method]
 	var spareNode []*Node
+	selectNode := r.root[method]
 
-	for nextNode != nil || len(spareNode) > 0 {
-		if nextNode == nil {
+	for selectNode != nil || len(spareNode) > 0 {
+		if selectNode == nil {
 			ni := len(spareNode) - 1
-			nextNode = spareNode[ni]
+			selectNode = spareNode[ni]
 			spareNode = spareNode[0:ni]
 		} else {
-			i := nextNode.step + 1
+			i := selectNode.step + 1
 			k := arr[i]
-			if node := nextNode.child[RoutePathName_Vague]; node != nil {
+			if node := selectNode.child[RoutePathName_Vague]; node != nil {
 				spareNode = append(spareNode, node)
 			}
-			if node := nextNode.child[RoutePathName_Param]; node != nil {
+			if node := selectNode.child[RoutePathName_Param]; node != nil {
 				spareNode = append(spareNode, node)
 			}
-			if node := nextNode.child[k]; node != nil {
-				nextNode = node
+			if node := selectNode.child[k]; node != nil {
+				selectNode = node
 			} else {
-				nextNode = nil
+				selectNode = nil
 			}
 		}
-		if nextNode != nil {
-			if nextNode.name == RoutePathName_Vague {
+		if selectNode != nil {
+			if selectNode.name == RoutePathName_Vague {
 				break //模糊匹配
-			} else if nextNode.step == lastPathIndex && len(nextNode.Route) > 0 {
+			} else if selectNode.step == lastPathIndex && selectNode.Handler != nil {
 				break //精确匹配
-			} else if nextNode.step >= lastPathIndex {
-				nextNode = nil
+			} else if selectNode.step >= lastPathIndex {
+				selectNode = nil
 			}
 		}
 	}
-	return nextNode
+	allSpareNodes := make([]*Node, 0, len(spareNode)+1)
+	for _, node := range spareNode {
+		if node.Handler != nil && (node.name == RoutePathName_Vague || node.step == lastPathIndex) {
+			allSpareNodes = append(allSpareNodes, node)
+		}
+	}
+	if selectNode != nil {
+		allSpareNodes = append(allSpareNodes, selectNode)
+	}
+	return allSpareNodes
 }
 
 func (r *Router) Register(route string, handler HandlerFunc, method ...string) {

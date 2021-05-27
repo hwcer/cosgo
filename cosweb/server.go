@@ -3,9 +3,8 @@ package cosweb
 import (
 	ctx "context"
 	"crypto/tls"
-	"github.com/hwcer/cosgo/logger"
+	"fmt"
 	"github.com/hwcer/cosgo/utils"
-	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -22,22 +21,15 @@ type (
 		Server           *http.Server
 		Options          *Options
 		Renderer         Renderer
+		ContentType      ContentType
 		HTTPErrorHandler HTTPErrorHandler
 	}
-
-	// MiddlewareFunc defines a function to process middleware.
-	MiddlewareFunc func(*Context, func())
-
 	// HandlerFunc defines a function to serve HTTP requests.
 	HandlerFunc func(*Context) error
-
+	// MiddlewareFunc defines a function to process middleware.
+	MiddlewareFunc func(*Context) error
 	// HTTPErrorHandler is a centralized HTTP error Handler.
 	HTTPErrorHandler func(*Context, error)
-
-	// Renderer is the interface that wraps the Render function.
-	Renderer interface {
-		Render(io.Writer, string, interface{}, *Context) error
-	}
 )
 
 var (
@@ -61,8 +53,9 @@ var (
 // New creates an instance of Server.
 func NewServer(address string, tlsConfig ...*tls.Config) (e *Server) {
 	e = &Server{
-		Server:  new(http.Server),
-		Options: NewOptions(),
+		Server:      new(http.Server),
+		Options:     NewOptions(),
+		ContentType: ContentTypeTextHTML,
 	}
 	if len(tlsConfig) > 0 {
 		e.Server.TLSConfig = tlsConfig[0]
@@ -81,11 +74,6 @@ func NewServer(address string, tlsConfig ...*tls.Config) (e *Server) {
 // DefaultHTTPErrorHandler is the default HTTP error Handler. It sends a JSON Response
 // with status code.
 func (s *Server) DefaultHTTPErrorHandler(c *Context, err error) {
-	if c.committed {
-		logger.Error(err)
-		return
-	}
-
 	he, ok := err.(*HTTPError)
 	if !ok {
 		he = NewHTTPError(http.StatusInternalServerError, err)
@@ -188,29 +176,35 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Release Ctx
 		s.ReleaseContext(c)
 	}()
-
-	c.Path = r.URL.Path
-	c.doMiddleware(s.middleware)
 	var err error
-	if !c.Aborted() {
-		node := s.Router.Match(c.Request.Method, c.Path)
-		if node != nil {
-			c.params = node.Params(c.Path)
-			if c.Server.Debug {
-				logger.Debug("Router match success:%v ==> %v", c.Path, node.String())
-			}
-			if node.Handler != nil {
-				err = node.Handler(c)
-			}
-			if err != nil {
-				c.Server.HTTPErrorHandler(c, err)
-			}
+	err = c.doMiddleware(s.middleware)
+	if err == nil {
+		err = s.doHandle(c)
+	}
+	if err != nil {
+		c.Server.HTTPErrorHandler(c, err)
+	}
+}
+
+func (s *Server) doHandle(c *Context) (err error) {
+	path := c.Request.URL.Path
+	nodes := s.Router.Match(c.Request.Method, path)
+	if len(nodes) == 0 {
+		return ErrNotFound //404
+	}
+
+	for i := len(nodes) - 1; i >= 0; i -= 1 {
+		node := nodes[i]
+		c.params = node.Params(path)
+		err = node.Handler(c)
+		if c.Server.Debug {
+			fmt.Printf("Router Match,Path:%v, Node:%v, Err:%v\n", path, node.String(), err)
+		}
+		if err != ErrNotFound {
+			break
 		}
 	}
-	//last return 404
-	if !c.committed {
-		s.HTTPErrorHandler(c, ErrNotFound)
-	}
+	return err
 }
 
 // Start starts an HTTP server.

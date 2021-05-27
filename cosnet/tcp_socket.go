@@ -42,29 +42,47 @@ func (s *TcpSocket) RemoteAddr() string {
 
 func (s *TcpSocket) readMsg() {
 	defer s.Close()
-	head := make([]byte, message.MsgHeadSize)
+	var (
+		err error
+		msg *message.Message
+	)
+	head := make([]byte, message.HeadSize)
 	for !s.Stopped() {
-		_, err := io.ReadFull(s.conn, head)
+		_, err = io.ReadFull(s.conn, head)
 		if err != nil {
 			if _, ok := err.(*net.OpError); !ok && err != io.EOF {
-				logger.Debug("socket:%v recv data err:%v", s.id, err)
+				logger.Debug("socket recv head err:%v", err)
 			}
 			break
 		}
-		msg, err := message.NewMsgHead(head)
+		msg, err = message.NewMsg(head)
 		if err != nil {
-			logger.Debug("socket:%v read msg msg failed:%v", err)
+			logger.Debug("socket parse head err:%v", err)
 			break
+		}
+		if attachSize := msg.Attach.Size(); attachSize > 0 {
+			attachByte := make([]byte, attachSize)
+			_, err = io.ReadFull(s.conn, attachByte)
+			if err != nil {
+				logger.Debug("socket recv attach err:%v", err)
+				break
+			}
+			err = msg.Attach.Parse(attachByte)
+			if err != nil {
+				logger.Debug("socket parse attach err:%v", err)
+				break
+			}
 		}
 		if msg.Head.Size > 0 {
 			msg.Data = make([]byte, msg.Head.Size)
-			_, err := io.ReadFull(s.conn, msg.Data)
+			_, err = io.ReadFull(s.conn, msg.Data)
 			if err != nil {
-				logger.Debug("socket:%v recv data err:%v", s.id, err)
+				logger.Debug("socket recv data err:%v", err)
 				break
 			}
 		}
 		s.processMsg(s, msg)
+		msg = nil
 	}
 }
 

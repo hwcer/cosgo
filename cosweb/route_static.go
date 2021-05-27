@@ -1,7 +1,6 @@
 package cosweb
 
 import (
-	"fmt"
 	"github.com/hwcer/cosgo/app"
 	"net/http"
 	"path"
@@ -30,14 +29,8 @@ func (this *Static) Route(s *Server, prefix string, method ...string) {
 
 func (this *Static) handle(c *Context) error {
 	name := c.Get(iStaticRoutePath, RequestDataTypeParam)
-	if name == "" {
-		return nil
-	}
 	file := filepath.Join(this.root, name)
-	if !strings.HasPrefix(file, this.root) {
-		return nil
-	}
-	fmt.Printf("static file:%v\n", file)
+	//fmt.Printf("static file:%v\n", file)
 	http.ServeFile(c.Response, c.Request, file)
 	return nil
 }

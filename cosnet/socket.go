@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/hwcer/cosgo/cosnet/message"
 	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/cosgo/utils"
 	"sync/atomic"
 )
 
@@ -76,7 +77,7 @@ func (s *NetSocket) IsProxy() bool {
 	return s.realRemoteAddr != ""
 }
 
-//每一次Heartbeat() heartbeat计数加1
+//Heartbeat 每一次Heartbeat() heartbeat计数加1
 func (s *NetSocket) Heartbeat() {
 	s.heartbeat += 1
 	if s.heartbeat >= Config.SocketTimeout {
@@ -84,7 +85,7 @@ func (s *NetSocket) Heartbeat() {
 	}
 }
 
-//任何行为都清空heartbeat
+//KeepAlive 任何行为都清空heartbeat
 func (s *NetSocket) KeepAlive() {
 	s.heartbeat = 0
 }
@@ -116,9 +117,9 @@ func (s *NetSocket) Write(m *message.Message) (re bool) {
 			re = false
 		}
 	}()
-	if Config.AutoCompressSize > 0 && m.Head != nil && m.Head.Size >= Config.AutoCompressSize && !m.Head.Flags.Has(message.MsgFlagCompress) {
-		m.Head.Flags.Add(message.MsgFlagCompress)
-		m.Data = GZipCompress(m.Data)
+	if Config.AutoCompressSize > 0 && m.Head != nil && m.Head.Size >= Config.AutoCompressSize && !m.Head.Flags.Has(message.FlagCompress) {
+		m.Head.Flags.Set(message.FlagCompress)
+		m.Data = utils.GZipCompress(m.Data)
 		m.Head.Size = int32(len(m.Data))
 	}
 	select {
@@ -132,15 +133,15 @@ func (s *NetSocket) Write(m *message.Message) (re bool) {
 
 func (s *NetSocket) processMsg(sock Socket, msg *message.Message) {
 	s.KeepAlive()
-	if msg.Head != nil && msg.Head.Flags.Has(message.MsgFlagCompress) && msg.Data != nil {
-		data, err := GZipUnCompress(msg.Data)
+	if msg.Head != nil && msg.Head.Flags.Has(message.FlagCompress) && msg.Data != nil {
+		data, err := utils.GZipUnCompress(msg.Data)
 		if err != nil {
 			s.cancel()
 			logger.Error("uncompress failed socket:%v err:%v", sock.Id(), err)
 			return
 		}
 		msg.Data = data
-		msg.Head.Flags.Del(message.MsgFlagCompress)
+		msg.Head.Flags.Remove(message.FlagCompress)
 		msg.Head.Size = int32(len(msg.Data))
 	}
 	handler := s.server.Handler()

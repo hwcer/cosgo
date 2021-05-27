@@ -8,7 +8,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,16 +20,12 @@ const (
 
 //Context API上下文.
 type Context struct {
-	Path       string
-	Server     *Server
-	Session    *Session
-	Request    *http.Request
-	Response   http.ResponseWriter
-	query      url.Values
-	params     map[string]string
-	aborted    bool
-	committed  bool
-	middleware []MiddlewareFunc
+	Server   *Server
+	Session  *Session
+	Request  *http.Request
+	Response http.ResponseWriter
+
+	params map[string]string
 }
 
 // NewContext returns a Context instance.
@@ -52,46 +47,26 @@ func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
 
 //释放资源,准备进入缓存池
 func (c *Context) release() {
-	c.query = nil
 	c.params = nil
-	c.aborted = false
-	c.committed = false
-	c.middleware = nil
-	c.Path = ""
-	c.Session.release()
 	c.Request = nil
 	c.Response = nil
-}
-
-// next should be used only inside middleware.
-func (c *Context) next() {
-	if len(c.middleware) == 0 {
-		c.aborted = false
-	} else {
-		handle := c.middleware[0]
-		c.middleware = c.middleware[1:]
-		handle(c, c.next)
-	}
+	c.Session.release()
 }
 
 //doMiddleware 执行中间件
-func (c *Context) doMiddleware(m []MiddlewareFunc) {
-	if len(m) > 0 {
-		c.aborted = true
-		c.middleware = m
-		c.next()
+func (c *Context) doMiddleware(middleware []MiddlewareFunc) error {
+	for _, m := range middleware {
+		if err := m(c); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 //IsWebSocket 判断是否WebSocket
 func (c *Context) IsWebSocket() bool {
 	upgrade := c.Request.Header.Get(HeaderUpgrade)
 	return strings.ToLower(upgrade) == "websocket"
-}
-
-//Aborted 是否已经被中断
-func (c *Context) Aborted() bool {
-	return c.aborted
 }
 
 //Protocol 协议
@@ -144,7 +119,7 @@ func (c *Context) Get(key string, dts ...int) string {
 }
 
 func (c *Context) SetCookie(cookie *http.Cookie) {
-	http.SetCookie(c.Response, cookie)
+	http.SetCookie(c, cookie)
 }
 
 //Bind 绑定JSON XML
@@ -157,10 +132,10 @@ func (c *Context) Render(name string, data interface{}) (err error) {
 		return ErrRendererNotRegistered
 	}
 	buf := new(bytes.Buffer)
-	if err = c.Server.Renderer.Render(buf, name, data, c); err != nil {
+	if err = c.Server.Renderer.Render(buf, name, data); err != nil {
 		return
 	}
-	return c.Bytes(MIMETextHTMLCharsetUTF8, buf.Bytes())
+	return c.Bytes(ContentTypeTextHTML, buf.Bytes())
 }
 
 //结束响应，返回空内容
@@ -174,16 +149,16 @@ func (c *Context) XML(i interface{}, indent string) (err error) {
 	if err != nil {
 		return err
 	}
-	c.Bytes(MIMEApplicationXMLCharsetUTF8, data)
+	c.Bytes(ContentTypeApplicationXML, data)
 	return
 }
 
 func (c *Context) HTML(html string) (err error) {
-	return c.Bytes(MIMETextHTMLCharsetUTF8, []byte(html))
+	return c.Bytes(ContentTypeTextHTML, []byte(html))
 }
 
 func (c *Context) String(s string) (err error) {
-	return c.Bytes(MIMETextPlainCharsetUTF8, []byte(s))
+	return c.Bytes(ContentTypeTextPlain, []byte(s))
 }
 
 func (c *Context) JSON(i interface{}) error {
@@ -191,7 +166,7 @@ func (c *Context) JSON(i interface{}) error {
 	if err != nil {
 		return err
 	}
-	return c.Bytes(MIMEApplicationJSONCharsetUTF8, data)
+	return c.Bytes(ContentTypeApplicationJSON, data)
 }
 
 func (c *Context) JSONP(callback string, i interface{}) error {
@@ -200,10 +175,10 @@ func (c *Context) JSONP(callback string, i interface{}) error {
 		return err
 	}
 	data = bytes.Join([][]byte{[]byte(callback), []byte("("), data, []byte(")")}, []byte{})
-	return c.Bytes(MIMEApplicationJSCharsetUTF8, data)
+	return c.Bytes(ContentTypeApplicationJS, data)
 }
 
-func (c *Context) Bytes(contentType string, b []byte) (err error) {
+func (c *Context) Bytes(contentType ContentType, b []byte) (err error) {
 	c.writeContentType(contentType)
 	_, err = c.Write(b)
 	return
@@ -212,7 +187,7 @@ func (c *Context) Error(err error) {
 	c.Server.HTTPErrorHandler(c, err)
 }
 
-func (c *Context) Stream(contentType string, r io.Reader) (err error) {
+func (c *Context) Stream(contentType ContentType, r io.Reader) (err error) {
 	c.writeContentType(contentType)
 	c.WriteHeader(0)
 	_, err = io.Copy(c.Response, r)
@@ -256,9 +231,9 @@ func (c *Context) Redirect(url string) error {
 	return nil
 }
 
-func (c *Context) writeContentType(value string) {
+func (c *Context) writeContentType(contentType ContentType) {
 	header := c.Header()
-	header.Set(HeaderContentType, value)
+	header.Set(HeaderContentType, GetContentTypeCharset(contentType))
 }
 
 func (c *Context) contentDisposition(file, name, dispositionType string) error {

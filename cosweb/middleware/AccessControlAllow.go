@@ -31,7 +31,7 @@ func NewAccessControlAllowHandle(origin ...string) cosweb.MiddlewareFunc {
 	return aca.Handle
 }
 
-func (this *AccessControlAllow) Handle(c *cosweb.Context, next func()) {
+func (this *AccessControlAllow) Handle(c *cosweb.Context) error {
 	header := c.Header()
 
 	if len(this.Origin) > 0 {
@@ -51,7 +51,6 @@ func (this *AccessControlAllow) Handle(c *cosweb.Context, next func()) {
 	}
 	if c.Request.Method == http.MethodOptions {
 		c.HTML("options OK")
-	} else {
-		next()
 	}
+	return nil
 }
