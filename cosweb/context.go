@@ -128,11 +128,11 @@ func (c *Context) Bind(i interface{}) error {
 }
 
 func (c *Context) Render(name string, data interface{}) (err error) {
-	if c.Server.Renderer == nil {
+	if c.Server.Render == nil {
 		return ErrRendererNotRegistered
 	}
 	buf := new(bytes.Buffer)
-	if err = c.Server.Renderer.Render(buf, name, data); err != nil {
+	if err = c.Server.Render.Render(buf, name, data); err != nil {
 		return
 	}
 	return c.Bytes(ContentTypeTextHTML, buf.Bytes())

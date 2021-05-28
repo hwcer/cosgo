@@ -15,13 +15,12 @@ type (
 	Server struct {
 		pool             sync.Pool
 		Router           *Router
-		middleware       []MiddlewareFunc
 		Debug            bool //DEBUG模式会打印所有路由匹配状态,向客户端输出详细错误信息
 		Binder           Binder
+		Render           Render
 		Server           *http.Server
 		Options          *Options
-		Renderer         Renderer
-		ContentType      ContentType
+		middleware       []MiddlewareFunc
 		HTTPErrorHandler HTTPErrorHandler
 	}
 	// HandlerFunc defines a function to serve HTTP requests.
@@ -53,9 +52,8 @@ var (
 // New creates an instance of Server.
 func NewServer(address string, tlsConfig ...*tls.Config) (e *Server) {
 	e = &Server{
-		Server:      new(http.Server),
-		Options:     NewOptions(),
-		ContentType: ContentTypeTextHTML,
+		Server:  new(http.Server),
+		Options: NewOptions(),
 	}
 	if len(tlsConfig) > 0 {
 		e.Server.TLSConfig = tlsConfig[0]
