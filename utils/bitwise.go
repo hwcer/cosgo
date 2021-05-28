@@ -1,19 +1,19 @@
 package utils
 
-type Bitwise uint
+type Bitwise uint64
 
-var bitwiseSitu uint = 1
+var bitwiseSitu uint64 = 1
 
 //位运算
-func (m *Bitwise) Has(f int32) bool {
-	return (*m & Bitwise(bitwiseSitu<<uint(f))) > 0
+func (m *Bitwise) Has(f int) bool {
+	return (*m & Bitwise(bitwiseSitu<<uint64(f))) > 0
 }
 
-func (m *Bitwise) Add(f int32) {
-	*m |= Bitwise(bitwiseSitu << uint(f))
+func (m *Bitwise) Add(f int) {
+	*m |= Bitwise(bitwiseSitu << uint64(f))
 }
-func (m *Bitwise) Del(f int32) {
+func (m *Bitwise) Del(f int) {
 	if m.Has(f) {
-		*m -= Bitwise(bitwiseSitu << uint(f))
+		*m -= Bitwise(bitwiseSitu << uint64(f))
 	}
 }

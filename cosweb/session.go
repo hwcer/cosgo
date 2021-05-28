@@ -2,7 +2,7 @@ package cosweb
 
 import (
 	"errors"
-	"github.com/hwcer/cosgo/session"
+	session2 "github.com/hwcer/cosgo/cosweb/session"
 	"github.com/hwcer/cosgo/utils"
 	"net/http"
 )
@@ -14,7 +14,7 @@ type Session struct {
 	c *Context
 
 	data   map[string]interface{}
-	store  session.Dataset
+	store  session2.Dataset
 	update []string
 	locked bool
 }
