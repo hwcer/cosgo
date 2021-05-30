@@ -2,42 +2,55 @@ package cosweb
 
 import (
 	"errors"
-	session2 "github.com/hwcer/cosgo/cosweb/session"
+	"github.com/hwcer/cosgo/cosweb/session"
 	"github.com/hwcer/cosgo/utils"
 	"net/http"
 )
 
+type Session struct {
+	Key     string
+	Method  []int //存放SESSION KEY的方式
+	Secret  string
+	Storage session.Session //Session数据存储器
+}
+
+func NewSession() *Session {
+	return &Session{
+		Key:    "CosWebSessId",
+		Method: []int{RequestDataTypeCookie, RequestDataTypeQuery},
+		Secret: utils.Random.String(16),
+	}
+}
+
 const sessionRandomStringLength = 4
 
-type Session struct {
-	s *Server
-	c *Context
-
+type SessionContext struct {
+	c      *Context
 	data   map[string]interface{}
-	store  session2.Dataset
+	store  *session.Storage
 	update []string
 	locked bool
 }
 
-func NewSession(s *Server, c *Context) *Session {
-	return &Session{s: s, c: c}
+func NewSessionContext() *SessionContext {
+	return &SessionContext{}
 }
 
-func (this *Session) reset() {
+func (this *SessionContext) reset() {
 
 }
-func (this *Session) release() {
+func (this *SessionContext) release() {
 	this.finish()
 	this.data = nil
-	this.store = nil
 	this.update = nil
 	this.locked = false
 }
 
-func (this *Session) Start(level int) error {
-	if this.s.Options.SessionStorage == nil {
-		return errors.New("Server SessionStorage is nil")
+func (this *SessionContext) Start(c *Context, level int) error {
+	if this.c.Server.Options.Session.Storage == nil {
+		return errors.New("Server Session Storage is nil")
 	}
+	this.c = c
 	if level <= 0 {
 		return nil
 	}
@@ -45,13 +58,13 @@ func (this *Session) Start(level int) error {
 	if err != nil {
 		return err
 	}
-	data, ok := this.s.Options.SessionStorage.Get(key)
+	store, ok := this.c.Server.Options.Session.Storage.Get(key)
 	if !ok {
 		return errors.New("session not exist")
-	} else if data == nil {
+	} else if store == nil {
 		return errors.New("session expired")
 	}
-	this.store = data
+	this.store = store
 	if level == 1 {
 		return nil
 	}
@@ -62,7 +75,7 @@ func (this *Session) Start(level int) error {
 	return nil
 }
 
-func (this *Session) Get(key string) (interface{}, bool) {
+func (this *SessionContext) Get(key string) (interface{}, bool) {
 	if this.store == nil {
 		return nil, false
 	}
@@ -72,7 +85,7 @@ func (this *Session) Get(key string) (interface{}, bool) {
 	v, ok := this.data[key]
 	return v, ok
 }
-func (this *Session) Set(key string, val interface{}) bool {
+func (this *SessionContext) Set(key string, val interface{}) bool {
 	if this.store == nil {
 		return false
 	}
@@ -81,23 +94,27 @@ func (this *Session) Set(key string, val interface{}) bool {
 	return true
 }
 
-func (this *Session) New(key string, val map[string]interface{}) (string, error) {
-	if this.s.Options.SessionStorage == nil {
-		return "", errors.New("Server SessionStorage is nil")
+func (this *SessionContext) Create(key string, val map[string]interface{}) (string, error) {
+	if this.c.Server.Options.Session.Storage == nil {
+		return "", errors.New("Server Session Storage is nil")
 	}
-	sid, err := this.encode(key)
+
+	this.data = val
+	this.store = this.c.Server.Options.Session.Storage.Ceate(val)
+	this.locked = true
+
+	sid, err := this.encode(this.store.GetStorageKey())
 	if err != nil {
 		return "", err
 	}
-	this.store = this.s.Options.SessionStorage.Set(key, val)
-	this.locked = true
-	if utils.IndexOf(this.s.Options.SessionType, RequestDataTypeCookie) >= 0 {
-		this.c.SetCookie(&http.Cookie{Name: this.s.Options.SessionKey, Value: sid})
+
+	if utils.IndexOf(this.c.Server.Options.Session.Method, RequestDataTypeCookie) >= 0 {
+		this.c.SetCookie(&http.Cookie{Name: this.c.Server.Options.Session.Key, Value: sid})
 	}
 	return sid, nil
 }
 
-func (this *Session) finish() {
+func (this *SessionContext) finish() {
 	if len(this.update) > 0 {
 		d := make(map[string]interface{}, len(this.update))
 		for k, v := range this.data {
@@ -110,21 +127,27 @@ func (this *Session) finish() {
 	}
 }
 
-func (this *Session) decode() (string, error) {
-	sid := this.c.Get(this.s.Options.SessionKey, this.s.Options.SessionType...)
+func (this *SessionContext) decode() (string, error) {
+	sid := this.c.Get(this.c.Server.Options.Session.Key, this.c.Server.Options.Session.Method...)
 	if sid == "" {
 		return "", errors.New("sid empty")
 	}
-	str, err := utils.Crypto.AESDecrypt(sid, this.s.Options.SessionSecret)
+	if this.c.Server.Options.Session.Secret == "" {
+		return sid, nil
+	}
+	str, err := utils.Crypto.AESDecrypt(sid, this.c.Server.Options.Session.Secret)
 	if err != nil {
 		return "", err
 	}
 	//fmt.Printf("%v--%v\n", str, len(str))
 	return str[sessionRandomStringLength:], nil
 }
-func (this *Session) encode(key string) (string, error) {
+func (this *SessionContext) encode(key string) (string, error) {
+	if this.c.Server.Options.Session.Secret == "" {
+		return key, nil
+	}
 	s := utils.Random.String(sessionRandomStringLength)
 	//fmt.Printf("%v--%v---%v\n", key, s, s+key)
 	//fmt.Printf("%v--%v---%v\n", len(key), len(s), len(s+key))
-	return utils.Crypto.AESEncrypt(s+key, this.s.Options.SessionSecret)
+	return utils.Crypto.AESEncrypt(s+key, this.c.Server.Options.Session.Secret)
 }

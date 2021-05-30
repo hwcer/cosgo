@@ -21,7 +21,7 @@ const (
 //Context API上下文.
 type Context struct {
 	Server   *Server
-	Session  *Session
+	Session  *SessionContext
 	Request  *http.Request
 	Response http.ResponseWriter
 

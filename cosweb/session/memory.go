@@ -62,11 +62,14 @@ func (this *Memory) Set(key string, data map[string]interface{}) bool {
 }
 
 //New 创建新SESSION,返回SESSION ID
-func (this *Memory) New(data map[string]interface{}) string {
+func (this *Memory) Ceate(data map[string]interface{}) *Storage {
 	storage := NewStorage(data)
+	if this.options.MaxAge > 0 {
+		data[StorageExpireKey] = time.Now().Unix() + this.options.MaxAge
+	}
 	arrayMapKey := this.ArrayMap.Add(storage)
 	storage.SetArrayMapKey(arrayMapKey)
-	return storage.GetStorageKey()
+	return storage
 }
 
 func (this *Memory) Remove(key string) bool {
