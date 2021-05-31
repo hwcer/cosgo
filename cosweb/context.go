@@ -24,8 +24,7 @@ type Context struct {
 	Session  *SessionContext
 	Request  *http.Request
 	Response http.ResponseWriter
-
-	params map[string]string
+	params   map[string]string
 }
 
 // NewContext returns a Context instance.
@@ -35,12 +34,11 @@ func NewContext(s *Server, r *http.Request, w http.ResponseWriter) *Context {
 		Request:  r,
 		Response: w,
 	}
-	c.Session = NewSession(s, c)
+	c.Session = NewSessionContext(c)
 	return c
 }
 
 func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
-	c.Session.reset()
 	c.Request = r
 	c.Response = w
 }
@@ -50,7 +48,7 @@ func (c *Context) release() {
 	c.params = nil
 	c.Request = nil
 	c.Response = nil
-	c.Session.release()
+	c.Session.Close()
 }
 
 //doMiddleware 执行中间件
@@ -106,7 +104,7 @@ func (c *Context) RemoteAddr() string {
 
 //Get 获取参数,优先路径中的params
 //其他方式直接使用c.Request...
-func (c *Context) Get(key string, dts ...int) string {
+func (c *Context) Get(key string, dts ...RequestDataType) string {
 	if len(dts) == 0 {
 		dts = defaultGetRequestDataType
 	}

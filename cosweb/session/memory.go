@@ -6,34 +6,25 @@ import (
 )
 
 type Memory struct {
-	stop    chan struct{}
-	options *Options
+	stop chan struct{}
 	*utils.ArrayMap
 }
 
-func NewMemory(opt *Options) *Memory {
-	if opt == nil {
-		opt = &Options{}
+func NewMemory() *Memory {
+	return &Memory{
+		ArrayMap: utils.NewArrayMap(int(Options.MapSize)),
 	}
-	if opt.MapSize == 0 {
-		opt.MapSize = 1024
-	}
-	if opt.Heartbeat == 0 {
-		opt.Heartbeat = 10
-	}
-	m := &Memory{
-		options:  opt,
-		ArrayMap: utils.NewArrayMap(int(opt.MapSize)),
-	}
-	if opt.MaxAge > 0 {
-		m.stop = make(chan struct{})
-		go m.worker()
-	}
-	return m
 }
 
-func (this *Memory) Get(key string) (*Storage, bool) {
-	arrayMapKey, err := ArrayMapKeyDecode(key)
+func (this *Memory) Start() {
+	if Options.MaxAge > 0 {
+		this.stop = make(chan struct{})
+		go this.worker()
+	}
+}
+
+func (this *Memory) Get(key string) (Dataset, bool) {
+	arrayMapKey, err := arrayMapKeyDecode(key)
 	if err != nil {
 		return nil, false
 	}
@@ -41,46 +32,30 @@ func (this *Memory) Get(key string) (*Storage, bool) {
 	if val == nil {
 		return nil, false
 	}
-	if s, ok := val.(*Storage); ok {
+	if s, ok := val.(*MemoryDataset); ok {
 		return s, true
 	} else {
 		return nil, false
 	}
 }
 
-//Set 设置修改SESSION的内容
-func (this *Memory) Set(key string, data map[string]interface{}) bool {
-	storage, ok := this.Get(key)
-	if !ok {
-		return false
-	}
-	if this.options.MaxAge > 0 {
-		data[StorageExpireKey] = time.Now().Unix() + this.options.MaxAge
-	}
-	storage.Set(data)
-	return true
-}
-
-//New 创建新SESSION,返回SESSION ID
-func (this *Memory) Ceate(data map[string]interface{}) *Storage {
-	storage := NewStorage(data)
-	if this.options.MaxAge > 0 {
-		data[StorageExpireKey] = time.Now().Unix() + this.options.MaxAge
-	}
+//Create 创建新SESSION,返回SESSION ID
+func (this *Memory) Create(data map[string]interface{}) Dataset {
+	storage := NewMemoryDataset(data)
 	arrayMapKey := this.ArrayMap.Add(storage)
 	storage.SetArrayMapKey(arrayMapKey)
 	return storage
 }
 
 func (this *Memory) Remove(key string) bool {
-	arrayMapKey, err := ArrayMapKeyDecode(key)
+	arrayMapKey, err := arrayMapKeyDecode(key)
 	if err != nil {
 		return false
 	}
 	return this.ArrayMap.Remove(arrayMapKey)
 }
 func (this *Memory) Close() {
-	if this.options.MaxAge == 0 || this.stop == nil {
+	if Options.MaxAge == 0 || this.stop == nil {
 		return
 	}
 	select {
@@ -91,7 +66,7 @@ func (this *Memory) Close() {
 }
 
 func (this *Memory) worker() {
-	ticker := time.NewTicker(time.Second * time.Duration(this.options.Heartbeat))
+	ticker := time.NewTicker(time.Second * time.Duration(Options.Heartbeat))
 	defer ticker.Stop()
 	for {
 		select {
@@ -106,7 +81,7 @@ func (this *Memory) worker() {
 func (this *Memory) clean() {
 	nowTime := time.Now().Unix()
 	this.ArrayMap.Range(func(val utils.ArrayMapVal) {
-		if storage, ok := val.(*Storage); ok && storage.expire < nowTime {
+		if storage, ok := val.(*MemoryDataset); ok && storage.expire < nowTime {
 			this.ArrayMap.Remove(storage.GetArrayMapKey())
 		}
 	})

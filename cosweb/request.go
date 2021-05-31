@@ -1,21 +1,33 @@
 package cosweb
 
+type RequestDataType int
+type RequestDataTypeMap []RequestDataType
+
 const (
-	RequestDataTypeParam  int = iota //params
-	RequestDataTypeBody              //POST FORM
-	RequestDataTypeQuery             //GET
-	RequestDataTypeCookie            //COOKIES
-	RequestDataTypeHeader            //HEADER
+	RequestDataTypeParam  RequestDataType = iota //params
+	RequestDataTypeBody                          //POST FORM
+	RequestDataTypeQuery                         //GET
+	RequestDataTypeCookie                        //COOKIES
+	RequestDataTypeHeader                        //HEADER
 )
 
+func (this RequestDataTypeMap) IndexOf(v RequestDataType) int {
+	for i, t := range this {
+		if t == v {
+			return i
+		}
+	}
+	return -1
+}
+
 //默认获取数据的顺序
-var defaultGetRequestDataType []int
+var defaultGetRequestDataType RequestDataTypeMap
 
 func init() {
 	defaultGetRequestDataType = append(defaultGetRequestDataType, RequestDataTypeParam, RequestDataTypeQuery, RequestDataTypeBody, RequestDataTypeCookie)
 }
 
-func GetDataFromRequest(c *Context, key string, dataType int) (string, bool) {
+func GetDataFromRequest(c *Context, key string, dataType RequestDataType) (string, bool) {
 	switch dataType {
 	case RequestDataTypeParam:
 		v, ok := c.params[key]

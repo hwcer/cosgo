@@ -4,6 +4,7 @@ import (
 	ctx "context"
 	"crypto/tls"
 	"fmt"
+	"github.com/hwcer/cosgo/cosweb/session"
 	"github.com/hwcer/cosgo/utils"
 	"net/http"
 	"sync"
@@ -19,7 +20,7 @@ type (
 		Binder           Binder
 		Render           Render
 		Server           *http.Server
-		Options          *Options
+		Storage          session.Storage
 		middleware       []MiddlewareFunc
 		HTTPErrorHandler HTTPErrorHandler
 	}
@@ -52,8 +53,7 @@ var (
 // New creates an instance of Server.
 func NewServer(address string, tlsConfig ...*tls.Config) (e *Server) {
 	e = &Server{
-		Server:  new(http.Server),
-		Options: NewOptions(),
+		Server: new(http.Server),
 	}
 	if len(tlsConfig) > 0 {
 		e.Server.TLSConfig = tlsConfig[0]
@@ -214,15 +214,26 @@ func (s *Server) Start() (err error) {
 			return s.Server.ListenAndServe()
 		}
 	})
+	if err == nil {
+		s.Storage.Start()
+	}
 	return
 }
 
 //立即关闭
 func (s *Server) Close() error {
-	return s.Server.Close()
+	err := s.Server.Close()
+	if err == nil {
+		s.Storage.Close()
+	}
+	return err
 }
 
 //优雅关闭，等所有协程结束
 func (s *Server) Shutdown(ctx ctx.Context) error {
-	return s.Server.Shutdown(ctx)
+	err := s.Server.Shutdown(ctx)
+	if err == nil {
+		s.Storage.Close()
+	}
+	return err
 }

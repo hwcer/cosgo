@@ -104,7 +104,7 @@ func (s *ArrayMap) Get(id ArrayMapKey) ArrayMapVal {
 	if index >= len(s.slices) {
 		return nil
 	}
-	if val := s.slices[index]; val.GetArrayMapKey() == id {
+	if val := s.slices[index]; val != nil && val.GetArrayMapKey() == id {
 		return val
 	} else {
 		return nil
