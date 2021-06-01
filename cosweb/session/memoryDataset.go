@@ -1,7 +1,6 @@
 package session
 
 import (
-	"errors"
 	"github.com/hwcer/cosgo/utils"
 	"strconv"
 	"sync"
@@ -85,28 +84,27 @@ func (this *MemoryDataset) append(key string, val interface{}) {
 	}
 }
 
-func (this *MemoryDataset) GetArrayMapKey() utils.ArrayMapKey {
-	v, _ := arrayMapKeyDecode(this.id)
+func (this *MemoryDataset) GetArraySetKey() utils.ArraySetKey {
+	v, _ := arraySetKeyDecode(this.id)
 	return v
 }
 
-func (this *MemoryDataset) SetArrayMapKey(arrayMapKey utils.ArrayMapKey) error {
+func (this *MemoryDataset) SetArraySetKey(arrayMapKey utils.ArraySetKey) {
 	if this.id != "" {
-		return errors.New("session MemoryDataset id exist")
+		return //ID无法修改
 	}
-	this.id = arrayMapKeyEncode(arrayMapKey)
-	return nil
+	this.id = arraySetKeyEncode(arrayMapKey)
 }
 
-func arrayMapKeyEncode(arrayMapKey utils.ArrayMapKey) string {
+func arraySetKeyEncode(arrayMapKey utils.ArraySetKey) string {
 	return strconv.FormatInt(int64(arrayMapKey), memoryDatasetBitSize)
 }
 
-func arrayMapKeyDecode(key string) (utils.ArrayMapKey, error) {
+func arraySetKeyDecode(key string) (utils.ArraySetKey, error) {
 	num, err := strconv.ParseInt(key, 10, memoryDatasetBitSize)
 	if err != nil {
 		return 0, err
 	} else {
-		return utils.ArrayMapKey(num), nil
+		return utils.ArraySetKey(num), nil
 	}
 }

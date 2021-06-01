@@ -203,7 +203,7 @@ func (zsl *skipList) zslDeleteNode(x *skipListNode, update []*skipListNode) {
 	zsl.length--
 }
 
-/* Remove an element with matching score/element from the skiplist.
+/* Delete an element with matching score/element from the skiplist.
  * The function returns 1 if the node was found and deleted, otherwise
  * 0 is returned.
  *
@@ -318,7 +318,7 @@ func (zsl *skipList) zslLastInRange(ran *zrangespec) *skipListNode {
 	return x
 }
 
-/* Remove all the elements with score between min and max from the skiplist.
+/* Delete all the elements with score between min and max from the skiplist.
  * Min and max are inclusive, so a score >= min || score <= max is deleted.
  * Note that this function takes the reference to the hash table view of the
  * sorted set, in order to remove the elements from the hash table too. */
@@ -345,7 +345,7 @@ func (zsl *skipList) zslDeleteRangeByScore(ran *zrangespec, dict map[int64]*obj)
 	/* Current node is the last with score < or <= min. */
 	x = x.level[0].forward
 
-	/* Remove nodes while in range. */
+	/* Delete nodes while in range. */
 	for x != nil {
 		var condition bool
 		if ran.maxex != 0 {
@@ -383,7 +383,7 @@ func (zsl *skipList) zslDeleteRangeByLex(ran *zlexrangespec, dict map[int64]*obj
 	/* Current node is the last with score < or <= min. */
 	x = x.level[0].forward
 
-	/* Remove nodes while in range. */
+	/* Delete nodes while in range. */
 	for x != nil && zslLexValueLteMax(x.objID, ran) {
 		next := x.level[0].forward
 		zsl.zslDeleteNode(x, update)
@@ -417,7 +417,7 @@ func zslLexValueLteMax(id int64, spec *zlexrangespec) bool {
 	return compareKey(id, spec.maxKey) <= 0
 }
 
-/* Remove all the elements with rank between start and end from the skiplist.
+/* Delete all the elements with rank between start and end from the skiplist.
  * Start and end are inclusive. Note that start and end need to be 1-based */
 func (zsl *skipList) zslDeleteRangeByRank(start, end uint64, dict map[int64]*obj) uint64 {
 	update := make([]*skipListNode, zSkiplistMaxlevel)
@@ -508,7 +508,7 @@ func (z *SortedSet) Set(score float64, key int64, dat interface{}) {
 	v, ok := z.dict[key]
 	z.dict[key] = &obj{attachment: dat, key: key, score: score}
 	if ok {
-		/* Remove and re-insert when score changes. */
+		/* Delete and re-insert when score changes. */
 		if score != v.score {
 			z.zsl.zslDelete(v.score, key)
 			z.zsl.zslInsert(score, key)

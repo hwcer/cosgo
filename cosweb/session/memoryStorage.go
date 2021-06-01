@@ -7,12 +7,12 @@ import (
 
 type Memory struct {
 	stop chan struct{}
-	*utils.ArrayMap
+	*utils.ArraySet
 }
 
 func NewMemory() *Memory {
 	return &Memory{
-		ArrayMap: utils.NewArrayMap(int(Options.MapSize)),
+		ArraySet: utils.NewArraySet(int(Options.MapSize)),
 	}
 }
 
@@ -24,11 +24,11 @@ func (this *Memory) Start() {
 }
 
 func (this *Memory) Get(key string) (Dataset, bool) {
-	arrayMapKey, err := arrayMapKeyDecode(key)
+	arrayMapKey, err := arraySetKeyDecode(key)
 	if err != nil {
 		return nil, false
 	}
-	val := this.ArrayMap.Get(arrayMapKey)
+	val := this.ArraySet.Get(arrayMapKey)
 	if val == nil {
 		return nil, false
 	}
@@ -41,18 +41,15 @@ func (this *Memory) Get(key string) (Dataset, bool) {
 
 //Create 创建新SESSION,返回SESSION ID
 func (this *Memory) Create(data map[string]interface{}) Dataset {
-	storage := NewMemoryDataset(data)
-	arrayMapKey := this.ArrayMap.Add(storage)
-	storage.SetArrayMapKey(arrayMapKey)
-	return storage
+	return NewMemoryDataset(data)
 }
 
 func (this *Memory) Remove(key string) bool {
-	arrayMapKey, err := arrayMapKeyDecode(key)
+	arrayMapKey, err := arraySetKeyDecode(key)
 	if err != nil {
 		return false
 	}
-	return this.ArrayMap.Remove(arrayMapKey)
+	return this.ArraySet.Delete(arrayMapKey)
 }
 func (this *Memory) Close() {
 	if Options.MaxAge == 0 || this.stop == nil {
@@ -80,9 +77,9 @@ func (this *Memory) worker() {
 
 func (this *Memory) clean() {
 	nowTime := time.Now().Unix()
-	this.ArrayMap.Range(func(val utils.ArrayMapVal) {
+	this.ArraySet.Range(func(val utils.ArraySetVal) {
 		if storage, ok := val.(*MemoryDataset); ok && storage.expire < nowTime {
-			this.ArrayMap.Remove(storage.GetArrayMapKey())
+			this.ArraySet.Delete(storage.GetArraySetKey())
 		}
 	})
 }

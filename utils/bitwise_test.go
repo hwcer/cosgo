@@ -15,12 +15,12 @@ func TestBitwis_Add(t *testing.T) {
 	fmt.Printf("Bitwise Has:%v\n", x.Has(2))
 
 	x.Del(2)
-	fmt.Printf("Bitwise Remove:%b\n", x)
+	fmt.Printf("Bitwise Delete:%b\n", x)
 	fmt.Printf("Bitwise Has:%v\n", x.Has(2))
 
 	x.Add(65)
 	fmt.Printf("Bitwise Set:%b\n", x)
 
 	x.Del(65)
-	fmt.Printf("Bitwise Remove:%b\n", x)
+	fmt.Printf("Bitwise Delete:%b\n", x)
 }
