@@ -83,9 +83,8 @@ func (this *SessionContext) Close() {
 	if this.dataset == nil {
 		return
 	}
-	this.dataset.Reset()
 	if this.locked {
-		this.dataset.UnLock()
+		this.dataset.Reset()
 	}
 	this.locked = false
 	this.dataset = nil

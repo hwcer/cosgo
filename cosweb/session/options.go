@@ -15,8 +15,7 @@ type Dataset interface {
 	Set(key string, val interface{})
 	Get(key string) (interface{}, bool)
 	Lock() bool
-	UnLock()
-	Reset() //自动续约
+	Reset() //自动续约,自动解锁,如果调用了lock必选由LOCK协程来调用RESET
 	Expire() int64
 }
 

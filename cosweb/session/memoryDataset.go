@@ -39,10 +39,7 @@ func (this *MemoryDataset) Set(key string, val interface{}) {
 	if index := this.indexOf(key); index >= 0 {
 		this.values[index] = val
 	} else {
-		this.mutex.Lock()
-		defer this.mutex.Unlock()
-		this.keys = append(this.keys, key)
-		this.values = append(this.values, val)
+		this.append(key, val)
 	}
 }
 
@@ -56,12 +53,13 @@ func (this *MemoryDataset) Get(key string) (interface{}, bool) {
 func (this *MemoryDataset) Lock() bool {
 	return atomic.CompareAndSwapInt32(&this.locked, 0, 1)
 }
-func (this *MemoryDataset) UnLock() {
-	atomic.StoreInt32(&this.locked, 0)
-}
+
 func (this *MemoryDataset) Reset() {
 	if Options.MaxAge > 0 {
 		this.expire = time.Now().Unix() + Options.MaxAge
+	}
+	if this.locked > 0 {
+		atomic.StoreInt32(&this.locked, 0)
 	}
 }
 func (this *MemoryDataset) Expire() int64 {
@@ -75,6 +73,16 @@ func (this *MemoryDataset) indexOf(key string) int {
 		}
 	}
 	return -1
+}
+func (this *MemoryDataset) append(key string, val interface{}) {
+	this.mutex.Lock()
+	defer this.mutex.Unlock()
+	if index := this.indexOf(key); index >= 0 {
+		this.values[index] = val
+	} else {
+		this.keys = append(this.keys, key)
+		this.values = append(this.values, val)
+	}
 }
 
 func (this *MemoryDataset) GetArrayMapKey() utils.ArrayMapKey {
