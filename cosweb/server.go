@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"github.com/hwcer/cosgo/storage"
 	"github.com/hwcer/cosgo/utils"
+	"golang.org/x/net/context"
 	"net/http"
 	"sync"
 	"time"
@@ -191,7 +192,7 @@ func (s *Server) Start() (err error) {
 		}
 	})
 	if err == nil {
-		s.Storage.Start()
+		s.Storage.Start(context.Background())
 	}
 	return
 }

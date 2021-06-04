@@ -1,5 +1,7 @@
 package storage
 
+import "context"
+
 var Options = struct {
 	MaxAge    int64 //有效期(S)
 	MapSize   int32
@@ -21,8 +23,8 @@ type Dataset interface {
 
 type Storage interface {
 	Get(string) (Dataset, bool)
-	Start()
+	Start(ctx context.Context)
 	Close()
 	Create(map[string]interface{}) Dataset
-	Remove(string) bool
+	Delete(string) bool
 }

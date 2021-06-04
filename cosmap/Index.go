@@ -1,19 +1,19 @@
-package utils
+package cosmap
 
-func newArrayIndex(cap int) *arrayIndex {
-	return &arrayIndex{
+func NewArrayIndex(cap int) *ArrayIndex {
+	return &ArrayIndex{
 		list:  make([]int, 0, cap),
 		index: -1,
 	}
 }
 
 //已经被删除的index
-type arrayIndex struct {
+type ArrayIndex struct {
 	list  []int
 	index int
 }
 
-func (this *arrayIndex) Add(val int) {
+func (this *ArrayIndex) Add(val int) {
 	if val < 0 {
 		return
 	}
@@ -25,7 +25,7 @@ func (this *arrayIndex) Add(val int) {
 	}
 }
 
-func (this *arrayIndex) Get() int {
+func (this *ArrayIndex) Get() int {
 	if this.index < 0 {
 		return -1
 	}
@@ -35,6 +35,6 @@ func (this *arrayIndex) Get() int {
 	return val
 }
 
-func (this *arrayIndex) Size() int {
+func (this *ArrayIndex) Size() int {
 	return this.index + 1
 }

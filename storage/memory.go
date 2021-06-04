@@ -1,9 +1,9 @@
 package storage
 
 import (
-	"github.com/hwcer/cosgo/utils"
+	"context"
+	"github.com/hwcer/cosgo/cosmap"
 	"strconv"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -12,32 +12,27 @@ const memoryDatasetBitSize = 36
 
 func NewMemory() *MemoryStorage {
 	return &MemoryStorage{
-		ArraySet: utils.NewArraySet(int(Options.MapSize)),
+		Array: cosmap.NewArray(int(Options.MapSize)),
 	}
 }
 
 func NewMemoryDataset(data map[string]interface{}) *MemoryDataset {
-	d := &MemoryDataset{keys: make([]string, 0, len(data)), values: make([]interface{}, 0, len(data))}
-	for k, v := range data {
-		d.keys = append(d.keys, k)
-		d.values = append(d.values, v)
-	}
+	d := &MemoryDataset{SRMap: *cosmap.NewSRMap(len(data))}
+	d.SRMap.MSet(data)
 	d.Reset(false)
 	return d
 }
 
 type MemoryStorage struct {
 	stop chan struct{}
-	*utils.ArraySet
+	*cosmap.Array
 }
 
 type MemoryDataset struct {
 	id     string
-	keys   []string
-	values []interface{}
-	mutex  sync.Mutex
 	locked int32
 	expire int64
+	cosmap.SRMap
 }
 
 //Id 获取session id
@@ -45,21 +40,6 @@ func (this *MemoryDataset) Id() string {
 	return this.id
 }
 
-func (this *MemoryDataset) Set(key string, val interface{}) {
-	if index := this.indexOf(key); index >= 0 {
-		this.values[index] = val
-	} else {
-		this.append(key, val)
-	}
-}
-
-func (this *MemoryDataset) Get(key string) (interface{}, bool) {
-	if index := this.indexOf(key); index >= 0 {
-		return this.values[index], true
-	} else {
-		return nil, false
-	}
-}
 func (this *MemoryDataset) Lock() bool {
 	return atomic.CompareAndSwapInt32(&this.locked, 0, 1)
 }
@@ -76,54 +56,36 @@ func (this *MemoryDataset) Expire() int64 {
 	return this.expire
 }
 
-func (this *MemoryDataset) indexOf(key string) int {
-	for i, k := range this.keys {
-		if k == key {
-			return i
-		}
-	}
-	return -1
-}
-func (this *MemoryDataset) append(key string, val interface{}) {
-	this.mutex.Lock()
-	defer this.mutex.Unlock()
-	if index := this.indexOf(key); index >= 0 {
-		this.values[index] = val
-	} else {
-		this.keys = append(this.keys, key)
-		this.values = append(this.values, val)
-	}
-}
-
-func (this *MemoryDataset) GetArraySetKey() utils.ArraySetKey {
+func (this *MemoryDataset) GetArrayKey() cosmap.ArrayKey {
 	v, _ := arraySetKeyDecode(this.id)
 	return v
 }
 
-func (this *MemoryDataset) SetArraySetKey(arrayMapKey utils.ArraySetKey) {
+func (this *MemoryDataset) SetArrayKey(arrayMapKey cosmap.ArrayKey) {
 	if this.id != "" {
 		return //ID无法修改
 	}
-	this.id = arraySetKeyEncode(arrayMapKey)
+	id := arraySetKeyEncode(arrayMapKey)
+	this.id = id
 }
 
-func arraySetKeyEncode(arrayMapKey utils.ArraySetKey) string {
+func arraySetKeyEncode(arrayMapKey cosmap.ArrayKey) string {
 	return strconv.FormatInt(int64(arrayMapKey), memoryDatasetBitSize)
 }
 
-func arraySetKeyDecode(key string) (utils.ArraySetKey, error) {
-	num, err := strconv.ParseInt(key, 10, memoryDatasetBitSize)
+func arraySetKeyDecode(key string) (cosmap.ArrayKey, error) {
+	num, err := strconv.ParseInt(key, memoryDatasetBitSize, 64)
 	if err != nil {
 		return 0, err
 	} else {
-		return utils.ArraySetKey(num), nil
+		return cosmap.ArrayKey(num), nil
 	}
 }
 
-func (this *MemoryStorage) Start() {
+func (this *MemoryStorage) Start(ctx context.Context) {
 	if Options.MaxAge > 0 {
 		this.stop = make(chan struct{})
-		go this.worker()
+		go this.worker(ctx)
 	}
 }
 
@@ -132,7 +94,7 @@ func (this *MemoryStorage) Get(key string) (Dataset, bool) {
 	if err != nil {
 		return nil, false
 	}
-	val := this.ArraySet.Get(arrayMapKey)
+	val := this.Array.Get(arrayMapKey)
 	if val == nil {
 		return nil, false
 	}
@@ -146,16 +108,16 @@ func (this *MemoryStorage) Get(key string) (Dataset, bool) {
 //Create 创建新SESSION,返回SESSION ID
 func (this *MemoryStorage) Create(data map[string]interface{}) Dataset {
 	dataset := NewMemoryDataset(data)
-	this.ArraySet.Add(dataset)
+	this.Array.Add(dataset)
 	return dataset
 }
 
-func (this *MemoryStorage) Remove(key string) bool {
+func (this *MemoryStorage) Delete(key string) bool {
 	arrayMapKey, err := arraySetKeyDecode(key)
 	if err != nil {
 		return false
 	}
-	return this.ArraySet.Delete(arrayMapKey)
+	return this.Array.Delete(arrayMapKey)
 }
 func (this *MemoryStorage) Close() {
 	if Options.MaxAge == 0 || this.stop == nil {
@@ -168,11 +130,13 @@ func (this *MemoryStorage) Close() {
 	}
 }
 
-func (this *MemoryStorage) worker() {
+func (this *MemoryStorage) worker(ctx context.Context) {
 	ticker := time.NewTicker(time.Second * time.Duration(Options.Heartbeat))
 	defer ticker.Stop()
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-this.stop:
 			return
 		case <-ticker.C:
@@ -183,9 +147,9 @@ func (this *MemoryStorage) worker() {
 
 func (this *MemoryStorage) clean() {
 	nowTime := time.Now().Unix()
-	this.ArraySet.Range(func(val utils.ArraySetVal) {
+	this.Array.Range(func(val cosmap.ArrayVal) {
 		if storage, ok := val.(*MemoryDataset); ok && storage.expire < nowTime {
-			this.ArraySet.Delete(storage.GetArraySetKey())
+			this.Array.Delete(storage.GetArrayKey())
 		}
 	})
 }

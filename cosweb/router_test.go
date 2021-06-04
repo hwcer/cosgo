@@ -7,7 +7,7 @@ import (
 
 var router *Router
 
-func test(c *Context) error {
+func test(c *Context, f func()) error {
 	return nil
 }
 func init() {
