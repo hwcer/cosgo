@@ -1,10 +1,11 @@
 package cosweb
 
 var Options = struct {
-	SessionName   string
-	SessionSecret string
-	SessionMethod RequestDataTypeMap
+	Debug   bool //DEBUG模式会打印所有路由匹配状态,向客户端输出详细错误信息
+	Session sessionOptions
 }{
-	SessionName:   "_cosweb_cookie_key",
-	SessionMethod: RequestDataTypeMap{RequestDataTypeCookie, RequestDataTypeHeader, RequestDataTypeParam},
+	Session: sessionOptions{
+		Name:   "_cosweb_cookie_key",
+		Method: RequestDataTypeMap{RequestDataTypeCookie, RequestDataTypeHeader, RequestDataTypeParam},
+	},
 }

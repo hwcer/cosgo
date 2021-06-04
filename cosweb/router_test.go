@@ -1,23 +1,27 @@
 package cosweb
 
 import (
+	"net/http"
 	"testing"
 )
 
 var router *Router
 
+func test(c *Context) error {
+	return nil
+}
 func init() {
 	router = NewRouter()
 
-	router.Register("/", nil)
-	router.Register("/*", nil)
-	router.Register("/a/*", nil)
-	router.Register("/a/b/*", nil)
-	router.Register("/:a/b/c", nil)
-	router.Register("/a/:b/c", nil)
-	router.Register("/:a/:b/c", nil)
-	router.Register("/:a/:b/:c", nil)
-	router.Register("/a/b/c", nil)
+	router.Register("/", test, http.MethodGet)
+	router.Register("/*", test, http.MethodGet)
+	router.Register("/a/*", test, http.MethodGet)
+	router.Register("/a/b/*", test, http.MethodGet)
+	router.Register("/:a/b/c", test, http.MethodGet)
+	router.Register("/a/:b/c", test, http.MethodGet)
+	router.Register("/:a/:b/c", test, http.MethodGet)
+	router.Register("/:a/:b/:c", test, http.MethodGet)
+	router.Register("/a/b/c", test, http.MethodGet)
 }
 
 func TestRoute(t *testing.T) {
@@ -39,18 +43,18 @@ func BenchmarkRoute(b *testing.B) {
 	matchB("/x/y/z", b)
 }
 func matchT(path string, t *testing.T) {
-	node := router.Match("post", path)
-	if node != nil {
-		t.Logf("匹配成功：%v --> %v , data:%+v", path, node.String(), node.Params(path))
+	node := router.Match(http.MethodGet, path)
+	if len(node) > 0 {
+		t.Logf("匹配成功：%v  , nodes:%+v", path, node)
 	} else {
 		t.Logf("匹配失败：%v ", path)
 	}
 }
 
 func matchB(path string, t *testing.B) {
-	node := router.Match("post", path)
+	node := router.Match(http.MethodGet, path)
 	if node != nil {
-		t.Logf("匹配成功：%v --> %v , data:%+v", path, node.String(), node.Params(path))
+		t.Logf("匹配成功：%v  , nodes:%+v", path, node)
 	} else {
 		t.Logf("匹配失败：%v ", path)
 	}

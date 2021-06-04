@@ -20,17 +20,18 @@ const (
 
 //Context API上下文.
 type Context struct {
-	Server   *Server
+	params   map[string]string
+	engine   *Server
+	aborted  int
 	Session  *SessionContext
 	Request  *http.Request
 	Response http.ResponseWriter
-	params   map[string]string
 }
 
 // NewContext returns a Context instance.
 func NewContext(s *Server, r *http.Request, w http.ResponseWriter) *Context {
 	c := &Context{
-		Server:   s,
+		engine:   s,
 		Request:  r,
 		Response: w,
 	}
@@ -46,19 +47,53 @@ func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
 //释放资源,准备进入缓存池
 func (c *Context) release() {
 	c.params = nil
+	c.aborted = 0
 	c.Request = nil
 	c.Response = nil
 	c.Session.Close()
 }
 
-//doMiddleware 执行中间件
-func (c *Context) doMiddleware(middleware []MiddlewareFunc) error {
-	for _, m := range middleware {
-		if err := m(c); err != nil {
-			return err
+func (c *Context) next() {
+	c.aborted -= 1
+}
+
+func (c *Context) doHandle(nodes []*Node) (err error) {
+	if len(nodes) == 0 {
+		return
+	}
+	c.aborted += len(nodes)
+	num := c.aborted
+	for _, node := range nodes {
+		num -= 1
+		c.params = node.Params(c.Request.URL.Path)
+		err = node.Handler(c, c.next)
+		if Options.Debug {
+			fmt.Printf("Router Match,Path:%v, Node:%v,err:%v\n", c.Request.URL.Path, node, err)
+		}
+		if err != nil || c.aborted != num {
+			return
 		}
 	}
-	return nil
+	return
+}
+
+//doMiddleware 执行中间件
+func (c *Context) doMiddleware(middleware []MiddlewareFunc) {
+	if len(middleware) == 0 {
+		return
+	}
+	c.aborted += len(middleware)
+	num := c.aborted
+	for _, modFun := range middleware {
+		num -= 1
+		modFun(c, c.next)
+		if c.aborted != num {
+			break
+		}
+	}
+}
+func (c *Context) Abort() {
+	c.aborted += 1
 }
 
 //IsWebSocket 判断是否WebSocket
@@ -122,15 +157,15 @@ func (c *Context) SetCookie(cookie *http.Cookie) {
 
 //Bind 绑定JSON XML
 func (c *Context) Bind(i interface{}) error {
-	return c.Server.Binder.Bind(c, i)
+	return c.engine.Binder.Bind(c, i)
 }
 
 func (c *Context) Render(name string, data interface{}) (err error) {
-	if c.Server.Render == nil {
+	if c.engine.Render == nil {
 		return ErrRendererNotRegistered
 	}
 	buf := new(bytes.Buffer)
-	if err = c.Server.Render.Render(buf, name, data); err != nil {
+	if err = c.engine.Render.Render(buf, name, data); err != nil {
 		return
 	}
 	return c.Bytes(ContentTypeTextHTML, buf.Bytes())
@@ -182,7 +217,7 @@ func (c *Context) Bytes(contentType ContentType, b []byte) (err error) {
 	return
 }
 func (c *Context) Error(err error) {
-	c.Server.HTTPErrorHandler(c, err)
+	c.engine.HTTPErrorHandler(c, err)
 }
 
 func (c *Context) Stream(contentType ContentType, r io.Reader) (err error) {
@@ -195,7 +230,7 @@ func (c *Context) Stream(contentType ContentType, r io.Reader) (err error) {
 func (c *Context) File(file string) (err error) {
 	f, err := os.Open(file)
 	if err != nil {
-		return MethodNotFoundHandler(c)
+		return err
 	}
 	defer f.Close()
 
@@ -204,7 +239,7 @@ func (c *Context) File(file string) (err error) {
 		file = filepath.Join(file, indexPage)
 		f, err = os.Open(file)
 		if err != nil {
-			return MethodNotFoundHandler(c)
+			return err
 		}
 		defer f.Close()
 		if fi, err = f.Stat(); err != nil {

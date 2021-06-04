@@ -3,8 +3,7 @@ package cosweb
 import (
 	ctx "context"
 	"crypto/tls"
-	"fmt"
-	"github.com/hwcer/cosgo/cosweb/session"
+	"github.com/hwcer/cosgo/storage"
 	"github.com/hwcer/cosgo/utils"
 	"net/http"
 	"sync"
@@ -16,18 +15,17 @@ type (
 	Server struct {
 		pool             sync.Pool
 		Router           *Router
-		Debug            bool //DEBUG模式会打印所有路由匹配状态,向客户端输出详细错误信息
 		Binder           Binder
 		Render           Render
 		Server           *http.Server
-		Storage          session.Storage
+		Storage          storage.Storage
 		middleware       []MiddlewareFunc
 		HTTPErrorHandler HTTPErrorHandler
 	}
 	// HandlerFunc defines a function to serve HTTP requests.
-	HandlerFunc func(*Context) error
+	HandlerFunc func(*Context, func()) error
 	// MiddlewareFunc defines a function to process middleware.
-	MiddlewareFunc func(*Context) error
+	MiddlewareFunc func(*Context, func())
 	// HTTPErrorHandler is a centralized HTTP error Handler.
 	HTTPErrorHandler func(*Context, error)
 )
@@ -79,7 +77,7 @@ func (s *Server) DefaultHTTPErrorHandler(c *Context, err error) {
 
 	c.WriteHeader(he.Code)
 	if c.Request.Method != http.MethodHead {
-		c.String(he.String(s.Debug))
+		c.String(he.String())
 	}
 }
 
@@ -117,7 +115,7 @@ func (s *Server) Register(path string, handler HandlerFunc, method ...string) {
 
 //Group 注册路由组
 func (s *Server) Group(prefix string, i interface{}, method ...string) *Group {
-	group := NewGroup(GroupModeEasy)
+	group := NewGroup()
 	group.Register(i)
 	group.Route(s, prefix, method...)
 	return group
@@ -165,44 +163,22 @@ func (s *Server) ReleaseContext(c *Context) {
 
 // ServeHTTP implements `http.Handler` interface, which serves HTTP requests.
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Acquire Ctx
 	c := s.AcquireContext(w, r)
 	defer func() {
 		if err := recover(); err != nil {
 			s.HTTPErrorHandler(c, NewHTTPError500(err))
 		}
-		// Release Ctx
 		s.ReleaseContext(c)
 	}()
 	var err error
-	err = c.doMiddleware(s.middleware)
-	if err == nil {
-		err = s.doHandle(c)
+	c.doMiddleware(s.middleware)
+	if c.aborted == 0 {
+		nodes := s.Router.Match(c.Request.Method, c.Request.URL.Path)
+		err = c.doHandle(nodes)
 	}
 	if err != nil {
-		c.Server.HTTPErrorHandler(c, err)
+		s.HTTPErrorHandler(c, err)
 	}
-}
-
-func (s *Server) doHandle(c *Context) (err error) {
-	path := c.Request.URL.Path
-	nodes := s.Router.Match(c.Request.Method, path)
-	if len(nodes) == 0 {
-		return ErrNotFound //404
-	}
-
-	for i := len(nodes) - 1; i >= 0; i -= 1 {
-		node := nodes[i]
-		c.params = node.Params(path)
-		err = node.Handler(c)
-		if c.Server.Debug {
-			fmt.Printf("Router Match,Path:%v, Node:%v, Err:%v\n", path, node.String(), err)
-		}
-		if err != ErrNotFound {
-			break
-		}
-	}
-	return err
 }
 
 // Start starts an HTTP server.

@@ -57,23 +57,24 @@ func (this *RESTful) Register(handle iRESTful) {
 }
 
 //Handle 路由入口
-func (this *RESTful) handle(c *Context) error {
+func (this *RESTful) handle(c *Context, next func()) (err error) {
 	name := c.Get(iRESTfulRoutePath, RequestDataTypeParam)
 	handle := this.nodes[name]
 	if handle == nil {
-		return ErrNotFound
+		next()
+		return
 	}
-
 	switch c.Request.Method {
 	case http.MethodGet:
-		return handle.GET(c)
+		handle.GET(c)
 	case http.MethodPost:
-		return handle.POST(c)
+		handle.POST(c)
 	case http.MethodPut:
-		return handle.PUT(c)
+		handle.PUT(c)
 	case http.MethodDelete:
-		return handle.DELETE(c)
+		handle.DELETE(c)
 	default:
-		return nil
+		next()
 	}
+	return
 }

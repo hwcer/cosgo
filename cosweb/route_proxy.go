@@ -3,7 +3,6 @@ package cosweb
 import (
 	"errors"
 	"github.com/hwcer/cosgo/ioutil"
-	"github.com/hwcer/cosgo/logger"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -34,8 +33,8 @@ func (this *Proxy) Route(s *Server, prefix string, method ...string) {
 	s.Register(r, this.handle, method...)
 }
 
-func (this *Proxy) handle(c *Context) error {
-	target := this.GetTarget(c, this.target)
+func (this *Proxy) handle(c *Context, next func()) (err error) {
+	var target = this.GetTarget(c, this.target)
 	if &target == nil {
 		return errors.New("Proxy AddTarget empty")
 	}
@@ -51,29 +50,27 @@ func (this *Proxy) handle(c *Context) error {
 	}
 
 	address := target.String()
-
-	req, err := http.NewRequest(c.Request.Method, address, c.Request.Body)
+	var req *http.Request
+	req, err = http.NewRequest(c.Request.Method, address, c.Request.Body)
 	if err != nil {
-		logger.Error(err)
-		return err
+		return
 	}
 
 	copyHeader(c.Request.Header, &req.Header)
 
 	// Create a client and query the target
+	var resp *http.Response
 	var transport http.Transport
-	resp, err := transport.RoundTrip(req)
+	resp, err = transport.RoundTrip(req)
 	if err != nil {
-		logger.Error(err)
-		return err
+		return
 	}
 
 	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
+	var body []byte
+	body, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		logger.Error(err)
-		return err
+		return
 	}
 
 	header := c.Response.Header()
@@ -82,8 +79,7 @@ func (this *Proxy) handle(c *Context) error {
 
 	c.WriteHeader(resp.StatusCode)
 	c.Write(body)
-
-	return nil
+	return
 }
 
 //添加代理服务器地址

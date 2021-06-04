@@ -1,4 +1,4 @@
-package session
+package storage
 
 var Options = struct {
 	MaxAge    int64 //有效期(S)
@@ -15,7 +15,7 @@ type Dataset interface {
 	Set(key string, val interface{})
 	Get(key string) (interface{}, bool)
 	Lock() bool
-	Reset() //自动续约,自动解锁,如果调用了lock必选由LOCK协程来调用RESET
+	Reset(bool) //自动续约,参数为true时解除锁定
 	Expire() int64
 }
 

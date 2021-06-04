@@ -46,7 +46,7 @@ func (he *HTTPError) Error() string {
 	}
 }
 
-func (he *HTTPError) String(debug bool) string {
+func (he *HTTPError) String() string {
 	if he.Message != nil {
 		return fmt.Sprintf("%v", he.Message)
 	} else {

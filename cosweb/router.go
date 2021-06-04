@@ -19,7 +19,7 @@ type Node struct {
 	//middleware []MiddlewareFunc //中间件
 }
 
-// Router is the registry of all registered Routes for an `Server` instance for
+// Router is the registry of all registered Routes for an `engine` instance for
 // Request matching and URL path parameter parsing.
 type Router struct {
 	root map[string]*Node //method->Node
@@ -93,6 +93,10 @@ func (r *Router) Match(method, path string) []*Node {
 	}
 	if selectNode != nil {
 		allSpareNodes = append(allSpareNodes, selectNode)
+	}
+	//翻转权重
+	for i, j := 0, len(allSpareNodes)-1; i < j; i, j = i+1, j-1 {
+		allSpareNodes[i], allSpareNodes[j] = allSpareNodes[j], allSpareNodes[i]
 	}
 	return allSpareNodes
 }

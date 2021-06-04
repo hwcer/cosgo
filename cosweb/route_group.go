@@ -13,19 +13,12 @@ const (
 	RouteGroupName = "_RouteGroupName"
 )
 
-type GroupMode int
-
-const (
-	GroupModeEasy   GroupMode = 0 //不区分大小写
-	GroupModeStrict GroupMode = 1 //区分大小写
-)
-
 var typeOfContext = reflect.TypeOf(&Context{})
 
 //Group 使用反射集中注册方法
 //可以使用 /prefix/$Group/$value 的格式访问
 type Group struct {
-	mode       GroupMode
+	Fuzzy      bool //类名和方法名是否模糊匹配(不区分大小写)
 	nodes      map[string]*GroupNode
 	caller     GroupCaller
 	middleware []MiddlewareFunc
@@ -41,9 +34,9 @@ type GroupNode struct {
 type GroupCaller func(reflect.Value, reflect.Value, *Context) error
 
 //NewGroup 创建新的路由组
-func NewGroup(mode GroupMode) *Group {
+func NewGroup() *Group {
 	return &Group{
-		mode:  mode,
+		Fuzzy: true,
 		nodes: make(map[string]*GroupNode),
 	}
 }
@@ -80,7 +73,7 @@ func (g *Group) Register(handle interface{}) error {
 		return errors.New("Group Register error:handle not pointer")
 	}
 	name := handleType.Elem().Name()
-	if g.mode == GroupModeEasy {
+	if g.Fuzzy {
 		name = strings.ToLower(name)
 	}
 	if _, ok := g.nodes[name]; ok {
@@ -120,41 +113,44 @@ func (g *Group) Register(handle interface{}) error {
 		//	logger.Debug("Register value return error,value:%v.%v()\n", name, methodName)
 		//	continue
 		//}
-		if g.mode == GroupModeEasy {
+		if g.Fuzzy {
 			methodName = strings.ToLower(methodName)
 		}
-		node.value[strFirstToLower(methodName)] = method.Func
+		node.value[methodName] = method.Func
 
 	}
 	return nil
 }
 
 //handle 路由入口
-func (g *Group) handle(c *Context) (err error) {
+func (g *Group) handle(c *Context, next func()) (err error) {
 	//group middleware
-	err = c.doMiddleware(g.middleware)
-	if err != nil {
-		return err
+	aborted := c.aborted
+	c.doMiddleware(g.middleware)
+	if c.aborted != aborted {
+		return
 	}
 	path := c.Get(RouteGroupPath, RequestDataTypeParam)
 	name := c.Get(RouteGroupName, RequestDataTypeParam)
-	if g.mode == GroupModeEasy {
+	if g.Fuzzy {
 		path = strings.ToLower(path)
 		name = strings.ToLower(name)
 	}
 	node := g.nodes[path]
 	if node == nil {
-		return ErrNotFound
+		next()
+		return
 	}
 
 	//反射方法
 	var ok bool
 	var method reflect.Value
 	if method, ok = node.value[name]; !ok {
-		return ErrNotFound
+		next()
+		return
 	}
 	if g.caller != nil {
-		return g.caller(node.proto, method, c)
+		err = g.caller(node.proto, method, c)
 	} else {
 		ret := method.Call([]reflect.Value{node.proto, reflect.ValueOf(c)})
 		if !ret[0].IsNil() {

@@ -2,7 +2,7 @@ package cosweb
 
 import (
 	"errors"
-	"github.com/hwcer/cosgo/cosweb/session"
+	"github.com/hwcer/cosgo/storage"
 	"github.com/hwcer/cosgo/utils"
 	"net/http"
 	"time"
@@ -14,10 +14,16 @@ func NewSessionContext(c *Context) *SessionContext {
 	return &SessionContext{c: c}
 }
 
+type sessionOptions struct {
+	Name   string
+	Secret string
+	Method RequestDataTypeMap
+}
+
 type SessionContext struct {
 	c       *Context
 	locked  bool
-	dataset session.Dataset
+	dataset storage.Dataset
 }
 
 func (this *SessionContext) Start(level int) error {
@@ -28,7 +34,7 @@ func (this *SessionContext) Start(level int) error {
 	if err != nil {
 		return err
 	}
-	dataset, ok := this.c.Server.Storage.Get(sid)
+	dataset, ok := this.c.engine.Storage.Get(sid)
 	if !ok {
 		return errors.New("session not exist")
 	} else if dataset == nil {
@@ -60,15 +66,15 @@ func (this *SessionContext) Set(key string, val interface{}) bool {
 }
 
 func (this *SessionContext) Create(val map[string]interface{}) (string, error) {
-	this.dataset = this.c.Server.Storage.Create(val)
+	this.dataset = this.c.engine.Storage.Create(val)
 	this.locked = true
 	sid, err := this.encode(this.dataset.Id())
 	if err != nil {
 		return "", err
 	}
-	if Options.SessionMethod.IndexOf(RequestDataTypeCookie) >= 0 {
+	if Options.Session.Method.IndexOf(RequestDataTypeCookie) >= 0 {
 		cookie := &http.Cookie{
-			Name:  Options.SessionName,
+			Name:  Options.Session.Name,
 			Value: sid,
 		}
 		if expire := this.dataset.Expire(); expire > 0 {
@@ -83,22 +89,20 @@ func (this *SessionContext) Close() {
 	if this.dataset == nil {
 		return
 	}
-	if this.locked {
-		this.dataset.Reset()
-	}
+	this.dataset.Reset(this.locked)
 	this.locked = false
 	this.dataset = nil
 }
 
 func (this *SessionContext) decode() (string, error) {
-	sid := this.c.Get(Options.SessionName, Options.SessionMethod...)
+	sid := this.c.Get(Options.Session.Name, Options.Session.Method...)
 	if sid == "" {
 		return "", errors.New("sid empty")
 	}
-	if Options.SessionSecret == "" {
+	if Options.Session.Secret == "" {
 		return sid, nil
 	}
-	str, err := utils.Crypto.AESDecrypt(sid, Options.SessionSecret)
+	str, err := utils.Crypto.AESDecrypt(sid, Options.Session.Secret)
 	if err != nil {
 		return "", err
 	}
@@ -106,11 +110,11 @@ func (this *SessionContext) decode() (string, error) {
 	return str[SessionContextRandomStringLength:], nil
 }
 func (this *SessionContext) encode(key string) (string, error) {
-	if Options.SessionSecret == "" {
+	if Options.Session.Secret == "" {
 		return key, nil
 	}
 	s := utils.Random.String(SessionContextRandomStringLength)
 	//fmt.Printf("%v--%v---%v\n", key, s, s+key)
 	//fmt.Printf("%v--%v---%v\n", len(key), len(s), len(s+key))
-	return utils.Crypto.AESEncrypt(s+key, Options.SessionSecret)
+	return utils.Crypto.AESEncrypt(s+key, Options.Session.Secret)
 }

@@ -27,10 +27,10 @@ func (this *Static) Route(s *Server, prefix string, method ...string) {
 	s.Register(route, this.handle, method...)
 }
 
-func (this *Static) handle(c *Context) error {
+func (this *Static) handle(c *Context, next func()) (err error) {
 	name := c.Get(iStaticRoutePath, RequestDataTypeParam)
 	file := filepath.Join(this.root, name)
 	//fmt.Printf("static file:%v\n", file)
 	http.ServeFile(c.Response, c.Request, file)
-	return nil
+	return
 }
