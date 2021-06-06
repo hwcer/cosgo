@@ -63,10 +63,9 @@ func (this *MemoryDataset) GetArrayKey() cosmap.ArrayKey {
 
 func (this *MemoryDataset) SetArrayKey(arrayMapKey cosmap.ArrayKey) {
 	if this.id != "" {
-		return //ID无法修改
+		return
 	}
-	id := arraySetKeyEncode(arrayMapKey)
-	this.id = id
+	this.id = arraySetKeyEncode(arrayMapKey)
 }
 
 func arraySetKeyEncode(arrayMapKey cosmap.ArrayKey) string {
@@ -108,7 +107,7 @@ func (this *MemoryStorage) Get(key string) (Dataset, bool) {
 //Create 创建新SESSION,返回SESSION ID
 func (this *MemoryStorage) Create(data map[string]interface{}) Dataset {
 	dataset := NewMemoryDataset(data)
-	this.Array.Add(dataset)
+	this.Array.Set(dataset)
 	return dataset
 }
 
@@ -147,7 +146,7 @@ func (this *MemoryStorage) worker(ctx context.Context) {
 
 func (this *MemoryStorage) clean() {
 	nowTime := time.Now().Unix()
-	this.Array.Range(func(val cosmap.ArrayVal) {
+	this.Array.Range(func(val interface{}) {
 		if storage, ok := val.(*MemoryDataset); ok && storage.expire < nowTime {
 			this.Array.Delete(storage.GetArrayKey())
 		}

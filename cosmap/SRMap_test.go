@@ -22,7 +22,7 @@ func init() {
 		k := strconv.Itoa(i)
 		srmap.Set(k, i)
 		syncMap.Store(k, i)
-		ArrayMapKeys = append(ArrayMapKeys, ArrayMap.Add(newArrayMapVal(i)))
+		ArrayMapKeys = append(ArrayMapKeys, ArrayMap.Set(newArrayMapVal(i)))
 	}
 }
 
@@ -65,7 +65,7 @@ func BenchmarkSRMap(b *testing.B) {
 func BenchmarkArrayMap(b *testing.B) {
 	for i := 0; i < 10000; i++ {
 		RollArrayKey()
-		ArrayMap.Add(newArrayMapVal(i))
+		ArrayMap.Set(newArrayMapVal(i))
 	}
 	for i := 0; i < 100000; i++ {
 		k := RollArrayKey()

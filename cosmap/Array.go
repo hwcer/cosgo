@@ -4,18 +4,18 @@ import "sync"
 
 type ArrayKey uint64
 type ArrayVal interface {
-	GetArrayKey() ArrayKey //获取ArraySet Key
-	SetArrayKey(ArrayKey)  //设置ArraySet Key
+	SetArrayKey(ArrayKey)
+	GetArrayKey() ArrayKey
 }
 
 func NewArray(cap int) *Array {
 	arrayMap := &Array{
 		seed:   1,
-		remove: NewArrayIndex(cap),
+		dirty:  NewArrayIndex(cap),
 		values: make([]ArrayVal, cap, cap),
 	}
 	for i := cap - 1; i >= 0; i-- {
-		arrayMap.remove.Add(i)
+		arrayMap.dirty.Add(i)
 	}
 	return arrayMap
 }
@@ -23,8 +23,8 @@ func NewArray(cap int) *Array {
 type Array struct {
 	seed   uint32 //ID 生成种子
 	mutex  sync.Mutex
+	dirty  *ArrayIndex
 	values []ArrayVal
-	remove *ArrayIndex
 }
 
 //createSocketId 使用index生成ID
@@ -35,14 +35,26 @@ func (s *Array) createId(index int) ArrayKey {
 
 //parseSocketId 返回idPack中的index
 func (s *Array) parseId(id ArrayKey) int {
+	if id == 0 {
+		return -1
+	}
 	return int(id >> 32)
 }
 
-func (s *Array) Add(v ArrayVal) ArrayKey {
+//Get 获取
+func (s *Array) Get(id ArrayKey) ArrayVal {
+	index := s.parseId(id)
+	if index < 0 || index >= len(s.values) || s.values[index].GetArrayKey() != id {
+		return nil
+	}
+	return s.values[index]
+}
+
+func (s *Array) Set(v ArrayVal) ArrayKey {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	var index = -1
-	if index = s.remove.Get(); index >= 0 {
+	if index = s.dirty.Get(); index >= 0 {
 		s.values[index] = v
 	} else {
 		index = len(s.values)
@@ -53,39 +65,26 @@ func (s *Array) Add(v ArrayVal) ArrayKey {
 	return id
 }
 
-//Get 获取
-func (s *Array) Get(id ArrayKey) ArrayVal {
-	index := s.parseId(id)
-	if index >= len(s.values) {
-		return nil
-	}
-	if val := s.values[index]; val != nil && val.GetArrayKey() == id {
-		return val
-	} else {
-		return nil
-	}
-}
-
 //Delete 删除
 func (s *Array) Delete(id ArrayKey) bool {
 	index := s.parseId(id)
-	if index >= len(s.values) || s.values[index] == nil || s.values[index].GetArrayKey() != id {
-		return true
+	if index < 0 || index >= len(s.values) || s.values[index].GetArrayKey() != id {
+		return false
 	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 	s.values[index] = nil
-	s.remove.Add(index)
+	s.dirty.Add(index)
 	return true
 }
 
-//Size 当前socket数量
+//Size 当前数量
 func (s *Array) Size() int {
-	return len(s.values) - s.remove.Size()
+	return len(s.values) - s.dirty.Size()
 }
 
 //遍历
-func (s *Array) Range(f func(ArrayVal)) {
+func (s *Array) Range(f func(interface{})) {
 	for _, val := range s.values {
 		if val != nil {
 			f(val)

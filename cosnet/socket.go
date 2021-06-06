@@ -2,6 +2,7 @@ package cosnet
 
 import (
 	"context"
+	"github.com/hwcer/cosgo/cosmap"
 	"github.com/hwcer/cosgo/cosnet/message"
 	"github.com/hwcer/cosgo/logger"
 	"github.com/hwcer/cosgo/utils"
@@ -21,6 +22,8 @@ type Socket interface {
 	SetUserData(interface{})
 	GetUserData() interface{}
 	SetRealRemoteAddr(addr string)
+	GetArrayKey() cosmap.ArrayKey
+	SetArrayKey(k cosmap.ArrayKey)
 }
 
 func NewSocket(s Server) (sock *NetSocket) {
@@ -46,6 +49,15 @@ type NetSocket struct {
 
 func (s *NetSocket) Id() uint64 {
 	return s.id
+}
+
+func (s *NetSocket) GetArrayKey() cosmap.ArrayKey {
+	return cosmap.ArrayKey(s.id)
+}
+func (s *NetSocket) SetArrayKey(k cosmap.ArrayKey) {
+	if s.id == 0 {
+		s.id = uint64(k)
+	}
 }
 
 //关闭
