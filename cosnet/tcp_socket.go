@@ -108,7 +108,7 @@ func (s *TcpSocket) writeMsgTrue(m *message.Message) {
 		n, err := s.conn.Write(data[writeCount:])
 		if err != nil {
 			s.Close()
-			logger.Error("socket write error,Id:%v err:%v", s.id, err)
+			logger.Error("socket write error,Id:%v err:%v", s.Id(), err)
 			return
 		}
 		writeCount += n

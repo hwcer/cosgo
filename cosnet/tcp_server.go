@@ -2,6 +2,7 @@ package cosnet
 
 import (
 	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/cosgo/storage"
 	"net"
 	"time"
 )
@@ -12,9 +13,11 @@ type TcpServer struct {
 }
 
 func NewTcpServer(address string, handler Handler) *TcpServer {
-	return &TcpServer{
+	s := &TcpServer{
 		NetServer: NewNetServer(address, handler, MsgTypeMsg, NetTypeTcp),
 	}
+	s.sockets.Array.NewDataset = s.addSocket
+	return s
 }
 
 func (s *TcpServer) Close() error {
@@ -54,11 +57,18 @@ func (s *TcpServer) listen() {
 func (s *TcpServer) socket(conn net.Conn) Socket {
 	sock := &TcpSocket{
 		conn:      conn,
-		NetSocket: NewSocket(s),
+		NetSocket: NewNetSocket(s),
 	}
+	s.sockets.Set(sock)
 	s.Emit(EventsTypeConnect, sock)
 	s.GO(sock.readMsg)
 	s.GO(sock.writeMsg)
-	logger.Debug("new socket Id:%d from Addr:%s", sock.id, sock.RemoteAddr())
+	logger.Debug("new socket Id:%d from Addr:%s", sock.Id(), sock.RemoteAddr())
+	return sock
+}
+
+func (s *TcpServer) addSocket(id uint64, val interface{}) storage.ArrayDataset {
+	sock := val.(*TcpSocket)
+	sock.NetSocket.ArrayDatasetDefault = storage.NewArrayDataset(id, nil).(*storage.ArrayDatasetDefault)
 	return sock
 }

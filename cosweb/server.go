@@ -3,7 +3,8 @@ package cosweb
 import (
 	ctx "context"
 	"crypto/tls"
-	"github.com/hwcer/cosgo/storage"
+	"github.com/hwcer/cosgo/cosweb/session"
+	"github.com/hwcer/cosgo/logger"
 	"github.com/hwcer/cosgo/utils"
 	"golang.org/x/net/context"
 	"net/http"
@@ -19,7 +20,6 @@ type (
 		Binder           Binder
 		Render           Render
 		Server           *http.Server
-		Storage          storage.Storage
 		middleware       []MiddlewareFunc
 		HTTPErrorHandler HTTPErrorHandler
 	}
@@ -42,10 +42,6 @@ var (
 		http.MethodConnect,
 		http.MethodOptions,
 		http.MethodTrace,
-	}
-	// Error handlers
-	MethodNotFoundHandler = func(c *Context) error {
-		return ErrNotFound
 	}
 )
 
@@ -79,6 +75,9 @@ func (s *Server) DefaultHTTPErrorHandler(c *Context, err error) {
 	c.WriteHeader(he.Code)
 	if c.Request.Method != http.MethodHead {
 		c.String(he.String())
+	}
+	if Options.Debug {
+		logger.Error(he)
 	}
 }
 
@@ -184,24 +183,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Start starts an HTTP server.
 func (s *Server) Start() (err error) {
-	err = utils.Timeout(time.Second, func() error {
+	err = utils.Timeout(time.Second*1, func() error {
 		if s.Server.TLSConfig != nil {
 			return s.Server.ListenAndServeTLS("", "")
 		} else {
 			return s.Server.ListenAndServe()
 		}
 	})
-	if err == nil {
-		s.Storage.Start(context.Background())
+	if err != nil && err != utils.ErrorTimeout {
+		return err
 	}
-	return
+	return session.Start(context.Background())
 }
 
 //立即关闭
 func (s *Server) Close() error {
 	err := s.Server.Close()
 	if err == nil {
-		s.Storage.Close()
+		err = session.Close()
 	}
 	return err
 }
@@ -210,7 +209,7 @@ func (s *Server) Close() error {
 func (s *Server) Shutdown(ctx ctx.Context) error {
 	err := s.Server.Shutdown(ctx)
 	if err == nil {
-		s.Storage.Close()
+		err = session.Close()
 	}
 	return err
 }

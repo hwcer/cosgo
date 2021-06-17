@@ -1,9 +1,9 @@
 package cosnet
 
 import (
-	"cosgo/utils"
 	"fmt"
 	"github.com/hwcer/cosgo/cosnet/message"
+	"github.com/hwcer/cosgo/utils"
 	"testing"
 	"time"
 )

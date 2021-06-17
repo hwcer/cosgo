@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"github.com/hwcer/cosgo/cosweb/session"
 	"io"
 	"net"
 	"net/http"
@@ -23,7 +24,7 @@ type Context struct {
 	params   map[string]string
 	engine   *Server
 	aborted  int
-	Session  *SessionContext
+	Session  *session.Session
 	Request  *http.Request
 	Response http.ResponseWriter
 }
@@ -35,13 +36,14 @@ func NewContext(s *Server, r *http.Request, w http.ResponseWriter) *Context {
 		Request:  r,
 		Response: w,
 	}
-	c.Session = NewSessionContext(c)
+	c.Session = session.NewSession(c)
 	return c
 }
 
 func (c *Context) reset(r *http.Request, w http.ResponseWriter) {
 	c.Request = r
 	c.Response = w
+	//重新设置session id
 }
 
 //释放资源,准备进入缓存池
@@ -50,7 +52,7 @@ func (c *Context) release() {
 	c.aborted = 0
 	c.Request = nil
 	c.Response = nil
-	c.Session.Close()
+	c.Session.Release()
 }
 
 func (c *Context) next() {
@@ -149,6 +151,10 @@ func (c *Context) Get(key string, dts ...RequestDataType) string {
 		}
 	}
 	return ""
+}
+
+func (c *Context) GetCookie(key string) (*http.Cookie, error) {
+	return c.Request.Cookie(key)
 }
 
 func (c *Context) SetCookie(cookie *http.Cookie) {

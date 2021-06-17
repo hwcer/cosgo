@@ -17,7 +17,7 @@ var (
 
 func assert(err interface{}, s string) {
 	if err != nil {
-		fmt.Printf("app failed, %v: %v\n", s, err)
+		panic(fmt.Sprintf("%v failed: %v\n", s, err))
 	} else {
 		fmt.Printf("app %v done\n", s)
 	}

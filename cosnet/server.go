@@ -43,11 +43,8 @@ func NewNetServer(address string, handler Handler, msgTyp MsgType, netType NetTy
 		handler: handler,
 		sockets: NewSockets(handler, 1024),
 	}
-	s.On(EventsTypeConnect, func(sock Socket) {
-		s.sockets.Set(sock)
-	})
 	s.On(EventsTypeDisconnect, func(sock Socket) {
-		s.sockets.Delete(sock.GetArrayKey())
+		s.sockets.Delete(sock.Id())
 	})
 	return s
 }
