@@ -1,14 +1,26 @@
 package schema
 
 import "sync"
-
-func New(store *sync.Map, namer Namer) (i *Store) {
-	i = &Store{store: store}
-	if namer != nil {
-		i.namer = namer
-	} else {
-		i.namer = &NamingStrategy{}
+//New 新封装schema store namer
+func New(opts ... interface{}) (i *Store) {
+	var (
+		store *sync.Map
+		namer Namer
+	)
+	for _,v:=range opts{
+		if s,ok := v.(*sync.Map);ok{
+			store = s
+		}else if n,ok2 := v.(Namer);ok2{
+			namer = n
+		}
 	}
+	if store == nil{
+		store = &sync.Map{}
+	}
+	if namer == nil{
+		namer = &NamingStrategy{}
+	}
+	i = &Store{store: store,namer: namer}
 	return i
 }
 
