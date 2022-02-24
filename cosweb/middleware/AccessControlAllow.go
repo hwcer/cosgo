@@ -9,20 +9,20 @@ import (
 
 /*跨域
 access := middleware.NewAccessControlAllow("www.test.com","www.test1.com")
-cosweb.Use(access.Handle)
+cosweb.Use(access.handle)
 */
 
 type AccessControlAllow struct {
-	MaxAge      int
-	Origin      []string
-	Methods     []string
-	Headers     []string
+	expire      string
+	origin      []string
+	methods     []string
+	headers     []string
 	Credentials bool
 }
 
 func NewAccessControlAllow(origin ...string) *AccessControlAllow {
 	return &AccessControlAllow{
-		Origin: origin,
+		origin: origin,
 	}
 }
 
@@ -31,28 +31,41 @@ func NewAccessControlAllowHandle(origin ...string) cosweb.MiddlewareFunc {
 	return aca.Handle
 }
 
-func (this *AccessControlAllow) Handle(c *cosweb.Context, next func()) {
+func (this *AccessControlAllow) Expire(second int) {
+	this.expire = strconv.Itoa(second)
+}
+func (this *AccessControlAllow) Origin(origin ...string) {
+	this.origin = append(this.origin, origin...)
+}
+func (this *AccessControlAllow) Methods(methods ...string) {
+	this.methods = append(this.methods, methods...)
+}
+func (this *AccessControlAllow) Headers(headers ...string) {
+	this.headers = append(this.headers, headers...)
+}
+
+func (this *AccessControlAllow) Handle(c *cosweb.Context, next cosweb.Next) error {
 	header := c.Header()
 
-	if len(this.Origin) > 0 {
-		header.Add("Access-Control-Allow-Origin", strings.Join(this.Origin, ","))
+	if len(this.origin) > 0 {
+		header.Add("Access-Control-Allow-Origin", strings.Join(this.origin, ","))
 	}
-	if len(this.Methods) > 0 {
-		header.Add("Access-Control-Allow-Methods", strings.Join(this.Methods, ","))
+	if len(this.methods) > 0 {
+		header.Add("Access-Control-Allow-Methods", strings.Join(this.methods, ","))
 	}
-	if len(this.Headers) > 0 {
-		header.Add("Access-Control-Allow-Headers", strings.Join(this.Headers, ","))
+	if len(this.headers) > 0 {
+		header.Add("Access-Control-Allow-Headers", strings.Join(this.headers, ","))
 	}
 	if this.Credentials {
 		header.Set("Access-Control-Allow-Credentials", "true")
 	}
-	if this.MaxAge > 0 {
-		header.Set("Access-Control-Max-Age", strconv.Itoa(this.MaxAge))
+	if this.expire != "" {
+		header.Set("Access-Control-Max-Age", this.expire)
 	}
 	if c.Request.Method == http.MethodOptions {
-		c.HTML("options OK")
+		c.Write([]byte("options OK"))
 	} else {
 		next()
 	}
-
+	return nil
 }

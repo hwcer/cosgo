@@ -2,137 +2,214 @@ package cosnet
 
 import (
 	"context"
-	"github.com/hwcer/cosgo/cosnet/message"
+	"encoding/json"
+	"github.com/golang/protobuf/proto"
 	"github.com/hwcer/cosgo/logger"
-	"github.com/hwcer/cosgo/storage"
-	"github.com/hwcer/cosgo/utils"
-	"sync/atomic"
+	"github.com/hwcer/cosgo/storage/cache"
+	"net"
 )
 
-//各种服务器(TCP,UDP,WS)也使用该接口
-type Socket interface {
-	Id() uint64
-	Set(interface{})  //设置USER DATA
-	Get() interface{} //获取USER DATA
-	Close() bool
-	Write(m *message.Message) bool
-	IsProxy() bool
-	Heartbeat()
-	KeepAlive()
-	LocalAddr() string
-	RemoteAddr() string
-	SetRealRemoteAddr(addr string)
+type NetIO interface {
+	Read(head []byte) (Message, error)
+	Write(msg Message) error
+	Close() error
+	LocalAddr() net.Addr
+	RemoteAddr() net.Addr
 }
 
-func NewNetSocket(s Server) *NetSocket {
-	sock := &NetSocket{
-		cwrite: make(chan *message.Message, Config.WriteChanSize),
-		server: s,
-	}
-	sock.ctx, sock.cancel = context.WithCancel(s.Context())
-	return sock
+//Socket 基础网络连接
+type Socket struct {
+	io        NetIO
+	stop      chan struct{} //stop
+	agents    *Agents
+	cwrite    chan Message //写入通道
+	netType   NetType      //网络连接类型
+	stopping  int8         //正在关闭
+	heartbeat uint16       //heartbeat >=timeout 时被标记为超时
+	cache.Data
 }
 
-type NetSocket struct {
-	ctx            context.Context       //context
-	cancel         context.CancelFunc    //cancel
-	status         int32                 //0:正常，1:等待断线重连，2:已经关闭
-	server         Server                //server
-	cwrite         chan *message.Message //写入通道
-	heartbeat      int                   //heartbeat >=timeout 时被标记为超时
-	realRemoteAddr string                //当使用代理是，需要特殊设置客户端真实IP
-	*storage.ArrayDatasetDefault
+//start 启动工作进程，status启动前状态
+func (this *Socket) start() error {
+	this.stop = make(chan struct{})
+	this.agents.scc.CGO(this.readMsg)
+	this.agents.scc.CGO(this.writeMsg)
+	return nil
 }
 
-//关闭
-func (s *NetSocket) Close() bool {
-	var newStatus int32
-	if Config.ReconnectTime > 0 {
-		newStatus = 1
-	} else {
-		newStatus = 2
-	}
-	if !atomic.CompareAndSwapInt32(&s.status, 0, newStatus) {
-		return false
-	}
-	s.cancel()
-	logger.Debug("Socket Finish Id:%d", s.Id())
-	return true
-}
-
-func (s *NetSocket) Stopped() bool {
+//close 内部关闭方式
+func (this *Socket) close() {
 	select {
-	case <-s.ctx.Done():
+	case <-this.stop:
+	default:
+		close(this.stop)
+	}
+}
+
+//stopped 读写协程是否关闭或者正在关闭
+func (this *Socket) stopped() bool {
+	select {
+	case <-this.stop:
 		return true
 	default:
 		return false
 	}
 }
 
-func (s *NetSocket) IsProxy() bool {
-	return s.realRemoteAddr != ""
+//Close 强制关闭,无法重连
+func (this *Socket) Close(msg ...Message) {
+	if len(msg) > 0 && !this.stopped() {
+		this.stopping += 1
+		for _, m := range msg {
+			this.Write(m)
+		}
+	} else {
+		this.close()
+	}
+}
+
+func (this *Socket) Agents() *Agents {
+	return this.agents
+}
+
+func (this *Socket) NetType() NetType {
+	return this.netType
+}
+func (this *Socket) HasType(netType NetType) bool {
+	return this.netType.Has(netType)
+}
+func (this *Socket) AnyType(netType NetType) bool {
+	return this.netType.Any(netType)
 }
 
 //Heartbeat 每一次Heartbeat() heartbeat计数加1
-func (s *NetSocket) Heartbeat() {
-	s.heartbeat += 1
-	if s.heartbeat >= Config.SocketTimeout {
-		s.cancel()
+func (this *Socket) Heartbeat() {
+	this.heartbeat += 1
+	if this.stopped() {
+		this.agents.remove(this) //销毁
+	} else if this.heartbeat >= Options.SocketConnectTime || (this.stopping > 0 && len(this.cwrite) == 0) {
+		this.close()
 	}
 }
 
 //KeepAlive 任何行为都清空heartbeat
-func (s *NetSocket) KeepAlive() {
-	s.heartbeat = 0
+func (this *Socket) KeepAlive() {
+	this.heartbeat = 0
 }
 
-func (s *NetSocket) LocalAddr() string {
-	return ""
+func (this *Socket) LocalAddr() net.Addr {
+	return this.io.LocalAddr()
 }
-func (s *NetSocket) RemoteAddr() string {
-	return ""
-}
-
-func (s *NetSocket) SetRealRemoteAddr(addr string) {
-	s.realRemoteAddr = addr
+func (this *Socket) RemoteAddr() net.Addr {
+	return this.io.RemoteAddr()
 }
 
-func (s *NetSocket) Write(m *message.Message) (re bool) {
+//Write 外部写入消息
+func (this *Socket) Write(m Message) (re bool) {
 	if m == nil {
+		return false
+	}
+	if this.stopped() {
+		//logger.Debug("SOCKET已经关闭无法写消息:%v", this.IId())
 		return
 	}
-	defer func() {
-		if err := recover(); err != nil {
-			re = false
-		}
-	}()
-	if Config.AutoCompressSize > 0 && m.Head != nil && m.Head.Size >= Config.AutoCompressSize && !m.Head.Flags.Has(message.FlagCompress) {
-		m.Head.Flags.Set(message.FlagCompress)
-		m.Data = utils.GZipCompress(m.Data)
-		m.Head.Size = int32(len(m.Data))
-	}
 	select {
-	case s.cwrite <- m:
+	case this.cwrite <- m:
+		re = true
 	default:
-		logger.Warn("socket write channel full id:%v", s.Id())
-		s.cancel() //通道已满，直接关闭
+		logger.Debug(" 通道已满无法写消息:%v", this.Id())
+		this.close()
 	}
-	return true
+	return
 }
 
-func (s *NetSocket) processMsg(sock Socket, msg *message.Message) {
-	s.KeepAlive()
-	if msg.Head != nil && msg.Head.Flags.Has(message.FlagCompress) && msg.Data != nil {
-		data, err := utils.GZipUnCompress(msg.Data)
+//Json 发送Json数据
+func (this *Socket) Json(code interface{}, index uint16, msg interface{}) (re bool) {
+	var err error
+	var data []byte
+	if msg != nil {
+		if data, err = json.Marshal(msg); err != nil {
+			logger.Debug("socket Json error:%v", err)
+			return false
+		}
+	}
+	m := this.agents.Handler.New()
+	m.Reset(data, code, index)
+	return this.Write(m)
+}
+
+//Protobuf 发送Protobuf
+func (this *Socket) Protobuf(code interface{}, index uint16, msg proto.Message) (re bool) {
+	var err error
+	var data []byte
+	if msg != nil {
+		if data, err = proto.Marshal(msg); err != nil {
+			logger.Debug("socket Protobuf error; code:%v,err:%v", code, err)
+			return false
+		}
+	}
+	m := this.agents.Handler.New()
+	m.Reset(data, code, index)
+	return this.Write(m)
+}
+
+func (this *Socket) processMsg(socket *Socket, msg Message) {
+	this.KeepAlive()
+	//if msg.Head != nil && msg.Head.Flags.Has(message.FlagCompress) && msg.Data != nil {
+	//	data, err := utils.GZipUnCompress(msg.Data)
+	//	if err != nil {
+	//		this.close()
+	//		logger.Error("uncompress failed socket:%v err:%v", socket.IId(), err)
+	//		return
+	//	}
+	//	msg.Data = data
+	//	msg.Head.Flags.Leave(message.FlagCompress)
+	//	msg.Head.Size = uint32(len(msg.Data))
+	//}
+	this.agents.Handler.Call(socket, msg)
+}
+
+func (this *Socket) readMsg(ctx context.Context) {
+	defer this.close()
+	head := make([]byte, this.agents.Handler.Size())
+	for !this.stopped() {
+		msg, err := this.io.Read(head)
 		if err != nil {
-			s.cancel()
-			logger.Error("uncompress failed socket:%v err:%v", sock.Id(), err)
 			return
 		}
-		msg.Data = data
-		msg.Head.Flags.Remove(message.FlagCompress)
-		msg.Head.Size = int32(len(msg.Data))
+		this.processMsg(this, msg)
 	}
-	handler := s.server.Handler()
-	handler.Message(sock, msg)
+}
+
+func (this *Socket) writeMsg(ctx context.Context) {
+	defer this.close()
+	defer this.io.Close()
+	var msg Message
+	for !this.stopped() {
+		select {
+		case <-this.stop:
+			return
+		case <-ctx.Done():
+			return
+		case msg = <-this.cwrite:
+			if !this.writeMsgTrue(msg) {
+				return
+			}
+		}
+	}
+}
+
+func (this *Socket) writeMsgTrue(msg Message) bool {
+	if this.io == nil {
+		return false
+	}
+	if msg == nil {
+		return true
+	}
+	if err := this.io.Write(msg); err != nil {
+		logger.Debug("socket write error,IId:%v err:%v", this.Id(), err)
+		return false
+	}
+	this.KeepAlive()
+	return true
 }

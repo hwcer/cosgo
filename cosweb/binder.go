@@ -15,20 +15,18 @@ type (
 	DefaultBinder struct{}
 )
 
-// Bind implements the `Binder#Bind` function.
+// Bind implements the `Packer#Bind` function.
 func (b *DefaultBinder) Bind(c *Context, i interface{}) (err error) {
 	req := c.Request
 	if req.ContentLength == 0 {
 		return
 	}
-	ctype := req.Header.Get(HeaderContentType)
+	ctype := strings.ToLower(req.Header.Get(HeaderContentType))
 	switch {
 	case strings.HasPrefix(ctype, ContentTypeApplicationJSON):
 		return json.NewDecoder(req.Body).Decode(i)
 	case strings.HasPrefix(ctype, ContentTypeApplicationXML), strings.HasPrefix(ctype, ContentTypeTextXML):
 		return xml.NewDecoder(req.Body).Decode(i)
-	//case strings.HasPrefix(ctype, MIMEApplicationProtobuf):
-	//	return proto.NewDecoder(req.Body).Decode(i)
 	default:
 		return ErrUnsupportedMediaType
 	}

@@ -1,39 +1,49 @@
 package logger
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"strings"
 	"sync"
-	"time"
 )
 
-type connLogger struct {
-	sync.Mutex
-	innerWriter    io.WriteCloser
-	ReconnectOnMsg bool   `json:"reconnectOnMsg"`
-	Reconnect      bool   `json:"reconnect"`
-	Net            string `json:"net"`
-	Addr           string `json:"addr"`
-	Level          string `json:"level"`
-	LogLevel       int
-	illNetFlag     bool //网络异常标记
+func NewNetOptions() *NetOptions {
+	c := &NetOptions{}
+	c.Level = "DEBUG"
+	return c
 }
 
-func (c *connLogger) Init(jsonConfig string) error {
-	if len(jsonConfig) == 0 {
-		return nil
+func NewNetAdapter(opts *NetOptions) (*NetAdapter, error) {
+	f := &NetAdapter{}
+	if err := f.init(opts); err != nil {
+		return nil, err
 	}
-	fmt.Printf("consoleWriter Init:%s\n", jsonConfig)
-	err := json.Unmarshal([]byte(jsonConfig), c)
-	if err != nil {
-		return err
-	}
-	if l, ok := LevelMap[c.Level]; ok {
-		c.LogLevel = l
+	return f, nil
+}
+
+type NetOptions struct {
+	Options
+	Net       string `json:"net"`
+	Addr      string `json:"addr"`
+	Reconnect bool   `json:"reconnect"`
+}
+
+type NetAdapter struct {
+	sync.Mutex
+	level       int
+	Options     *NetOptions
+	innerWriter io.WriteCloser
+	illNetFlag  bool //网络异常标记
+}
+
+func (c *NetAdapter) init(opts *NetOptions) error {
+	c.Options = opts
+	if l, ok := LevelMap[c.Options.Level]; ok {
+		c.level = l
+	} else {
+		return fmt.Errorf("无效的日志等级:%v", c.Options.Level)
 	}
 	if c.innerWriter != nil {
 		c.innerWriter.Close()
@@ -42,15 +52,15 @@ func (c *connLogger) Init(jsonConfig string) error {
 	return nil
 }
 
-func (c *connLogger) Write(when time.Time, msgText interface{}, level int) (err error) {
-	if level > c.LogLevel {
+func (c *NetAdapter) Write(msg *Message, level int) (err error) {
+	if level < c.level {
 		return nil
 	}
 
-	msg, ok := msgText.(*loginfo)
-	if !ok {
-		return
-	}
+	//msg, ok := msgText.(*Message)
+	//if !ok {
+	//	return
+	//}
 
 	if c.needToConnectOnMsg() {
 		err = c.connect()
@@ -62,13 +72,13 @@ func (c *connLogger) Write(when time.Time, msgText interface{}, level int) (err 
 	}
 
 	//每条消息都重连一次日志中心，适用于写日志频率极低的情况下的服务调用,避免长时间连接，占用资源
-	if c.ReconnectOnMsg { // 频繁日志发送切勿开启
-		defer c.innerWriter.Close()
-	}
+	//if c.Options.ReconnectOnMsg { // 频繁日志发送切勿开启
+	//	defer c.innerWriter.Close()
+	//}
 
 	//网络异常时，消息发出
 	if !c.illNetFlag {
-		err = c.println(when, msg)
+		err = c.println(msg, level)
 		//网络异常，通知处理网络的go程自动重连
 		if err != nil {
 			c.illNetFlag = true
@@ -78,20 +88,20 @@ func (c *connLogger) Write(when time.Time, msgText interface{}, level int) (err 
 	return
 }
 
-func (c *connLogger) Close() {
+func (c *NetAdapter) Close() {
 	if c.innerWriter != nil {
 		c.innerWriter.Close()
 	}
 }
 
-func (c *connLogger) connect() error {
+func (c *NetAdapter) connect() error {
 	if c.innerWriter != nil {
 		c.innerWriter.Close()
 		c.innerWriter = nil
 	}
-	addrs := strings.Split(c.Addr, ";")
+	addrs := strings.Split(c.Options.Addr, ";")
 	for _, addr := range addrs {
-		conn, err := net.Dial(c.Net, addr)
+		conn, err := net.Dial(c.Options.Net, addr)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "net.Dial error:%v\n", err)
 			continue
@@ -104,12 +114,12 @@ func (c *connLogger) connect() error {
 		c.innerWriter = conn
 		return nil
 	}
-	return fmt.Errorf("hava no valid logs service addr:%v", c.Addr)
+	return fmt.Errorf("hava no valid logs service addr:%v", c.Options.Addr)
 }
 
-func (c *connLogger) needToConnectOnMsg() bool {
-	if c.Reconnect {
-		c.Reconnect = false
+func (c *NetAdapter) needToConnectOnMsg() bool {
+	if c.Options.Reconnect {
+		c.Options.Reconnect = false
 		return true
 	}
 
@@ -120,22 +130,22 @@ func (c *connLogger) needToConnectOnMsg() bool {
 	if c.illNetFlag {
 		return true
 	}
-	return c.ReconnectOnMsg
+	return false
+	//return c.Options.ReconnectOnMsg
 }
 
-func (c *connLogger) println(when time.Time, msg *loginfo) error {
+func (c *NetAdapter) println(msg *Message, level int) (err error) {
 	c.Lock()
 	defer c.Unlock()
-	ss, err := json.Marshal(msg)
-	if err != nil {
-		return err
+	var txt string
+	if c.Options.Format != nil {
+		txt = c.Options.Format(msg)
+	} else {
+		txt = msg.Content
 	}
-	_, err = c.innerWriter.Write(append(ss, '\n'))
-
-	//返回err，解决日志系统网络异常后的自动重连
+	if level >= LevelError {
+		txt = txt + "\n" + msg.Stack
+	}
+	_, err = c.innerWriter.Write(append([]byte(txt), '\n'))
 	return err
-}
-
-func init() {
-	Register(AdapterConn, &connLogger{LogLevel: LevelTrace})
 }

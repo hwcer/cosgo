@@ -5,7 +5,10 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/des"
+	"crypto/md5"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 )
 
@@ -32,7 +35,7 @@ func NewCrypto(encoding *base64.Encoding) *crypto {
 }
 
 //Encrypt DES加密
-func (this *crypto) Encrypt(originalBytes, key []byte, scType CryptoType) ([]byte, error) {
+func (this *crypto) Encrypt(originalBytes, key []byte, scType CryptoType, ivs ...[]byte) ([]byte, error) {
 	// 1、实例化密码器block(参数为密钥)
 	var err error
 	var block cipher.Block
@@ -52,10 +55,14 @@ func (this *crypto) Encrypt(originalBytes, key []byte, scType CryptoType) ([]byt
 	blockSize := block.BlockSize()
 	//fmt.Println("---blockSize---", blockSize)
 	// 2、对明文填充字节(参数为原始字节切片和密码对象的区块个数)
-	paddingBytes := PKCSSPadding(originalBytes, blockSize)
+	paddingBytes := PKCS7Padding(originalBytes, blockSize)
 	//fmt.Println("填充后的字节切片：", paddingBytes)
 	// 3、 实例化加密模式(参数为密码对象和密钥)
-	blockMode := cipher.NewCBCEncrypter(block, key[:blockSize])
+	var iv = key[:blockSize]
+	if len(ivs) > 0 {
+		iv = ivs[0]
+	}
+	blockMode := cipher.NewCBCEncrypter(block, iv)
 	//fmt.Println("加密模式：", blockMode)
 	// 4、对填充字节后的明文进行加密(参数为加密字节切片和填充字节切片)
 	cipherBytes := make([]byte, len(paddingBytes))
@@ -64,7 +71,7 @@ func (this *crypto) Encrypt(originalBytes, key []byte, scType CryptoType) ([]byt
 }
 
 // SCDecrypt 解密字节切片，返回字节切片
-func (this *crypto) Decrypt(cipherBytes, key []byte, scType CryptoType) ([]byte, error) {
+func (this *crypto) Decrypt(cipherBytes, key []byte, scType CryptoType, ivs ...[]byte) ([]byte, error) {
 	// 1、实例化密码器block(参数为密钥)
 	var err error
 	var block cipher.Block
@@ -83,13 +90,17 @@ func (this *crypto) Decrypt(cipherBytes, key []byte, scType CryptoType) ([]byte,
 	}
 	blockSize := block.BlockSize()
 	// 2、 实例化解密模式(参数为密码对象和密钥)
-	blockMode := cipher.NewCBCDecrypter(block, key[:blockSize])
+	var iv = key[:blockSize]
+	if len(ivs) > 0 {
+		iv = ivs[0]
+	}
+	blockMode := cipher.NewCBCDecrypter(block, iv)
 	// fmt.Println("解密模式：", blockMode)
 	// 3、对密文进行解密(参数为加密字节切片和填充字节切片)
 	paddingBytes := make([]byte, len(cipherBytes))
 	blockMode.CryptBlocks(paddingBytes, cipherBytes)
 	// 4、去除填充字节(参数为填充切片)
-	originalBytes := PKCSSUnPadding(paddingBytes)
+	originalBytes := PKCS7UnPadding(paddingBytes)
 	return originalBytes, nil
 }
 
@@ -114,29 +125,43 @@ func (this *crypto) DESDecrypt(chipper, secret string) (string, error) {
 	return string(chipperByte), nil
 }
 
-func (this *crypto) AESEncrypt(original, secret string) (string, error) {
-	chipperByte, err := this.Encrypt([]byte(original), []byte(secret), CryptoTypeAES)
+func (this *crypto) AESEncrypt(original, secret string, ivs ...string) (string, error) {
+	var chipperByte []byte
+	var err error
+	if len(ivs) > 0 {
+		iv := []byte(ivs[0])
+		chipperByte, err = this.Encrypt([]byte(original), []byte(secret), CryptoTypeAES, iv)
+	} else {
+		chipperByte, err = this.Encrypt([]byte(original), []byte(secret), CryptoTypeAES)
+	}
+	//chipperByte, err := this.Encrypt([]byte(original), []byte(secret), CryptoTypeAES)
 	if err != nil {
 		return "", err
 	}
-	base64str := this.base64.EncodeToString(chipperByte)
+	base64str := base64.StdEncoding.EncodeToString(chipperByte)
 	return base64str, nil
 }
 
-func (this *crypto) AESDecrypt(chipper, secret string) (string, error) {
-	base64Byte, err := this.base64.DecodeString(chipper)
+func (this *crypto) AESDecrypt(chipper, secret string, ivs ...string) (string, error) {
+	base64Byte, err := base64.StdEncoding.DecodeString(chipper)
 	if err != nil {
 		return "", err
 	}
-	chipperByte, err := this.Decrypt(base64Byte, []byte(secret), CryptoTypeAES)
+	var chipperByte []byte
+	if len(ivs) > 0 {
+		iv := []byte(ivs[0])
+		chipperByte, err = this.Decrypt(base64Byte, []byte(secret), CryptoTypeAES, iv)
+	} else {
+		chipperByte, err = this.Decrypt(base64Byte, []byte(secret), CryptoTypeAES)
+	}
 	if err != nil {
 		return "", err
 	}
 	return string(chipperByte), nil
 }
 
-// PKCSSPadding 填充字节的函数
-func PKCSSPadding(data []byte, blockSize int) []byte {
+// PKCS7Padding 填充字节的函数
+func PKCS7Padding(data []byte, blockSize int) []byte {
 	padding := blockSize - len(data)%blockSize
 	//fmt.Println("要填充的字节：", padding)
 	// 初始化一个元素为padding的切片
@@ -145,9 +170,21 @@ func PKCSSPadding(data []byte, blockSize int) []byte {
 	return append(data, slice2...)
 }
 
-// PKCSSUnPadding 去除填充字节的函数
-func PKCSSUnPadding(data []byte) []byte {
+// PKCS7UnPadding 去除填充字节的函数
+func PKCS7UnPadding(data []byte) []byte {
 	unpadding := data[len(data)-1]
 	result := data[:(len(data) - int(unpadding))]
 	return result
+}
+
+func MD5(data string) string {
+	h := md5.New()
+	h.Write([]byte(data))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func SHA256(message string) string {
+	hash := sha256.New()
+	hash.Write([]byte(message))
+	return hex.EncodeToString(hash.Sum(nil))
 }

@@ -9,18 +9,21 @@ import (
 	"strings"
 )
 
+var enablePidFile = false
+
 func writePidFile() (err error) {
-	pidFile := Config.GetString("pidfile")
-	if pidFile == "" {
-		return nil
+	file := Config.GetString(AppConfigNamePidFile)
+	if file == "" {
+		return
 	}
 	var pid int
-	err, pid = checkPidFile(pidFile)
+	err, pid = checkPidFile(file)
 	if err != nil {
 		return err
 	}
 	if pid != 0 {
-		exist, err := process.PidExists(int32(pid))
+		var exist bool
+		exist, err = process.PidExists(int32(pid))
 		if err != nil {
 			return err
 		}
@@ -35,21 +38,22 @@ func writePidFile() (err error) {
 	}
 
 	var fhdl *os.File
-	fhdl, err = os.OpenFile(pidFile, os.O_RDWR|os.O_CREATE, os.ModePerm)
+	fhdl, err = os.OpenFile(file, os.O_RDWR|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return err
 	}
 	defer fhdl.Close()
+	enablePidFile = true
 	_, err = fhdl.WriteString(fmt.Sprintf("%v", os.Getpid()))
 	return err
 }
 
 func deletePidFile() error {
-	pidFile := Config.GetString("pidfile")
-	if pidFile == "" {
+	if !enablePidFile {
 		return nil
 	}
-	return os.Remove(pidFile)
+	file := Config.GetString(AppConfigNamePidFile)
+	return os.Remove(file)
 }
 
 func checkPidFile(pidFile string) (error, int) {

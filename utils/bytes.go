@@ -5,7 +5,7 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"encoding/binary"
-	"github.com/hwcer/cosgo/ioutil"
+	"github.com/hwcer/cosgo/library/ioutil"
 )
 
 func ZlibCompress(data []byte) []byte {
@@ -47,22 +47,39 @@ func GZipUnCompress(data []byte) ([]byte, error) {
 }
 
 //IntToBytes 整形转换成字节
-func IntToBytes(n interface{}) []byte {
+func IntToBytes(n interface{}) ([]byte, error) {
+	var err error
 	bytesBuffer := bytes.NewBuffer([]byte{})
 	if v, ok := n.(int); ok {
-		binary.Write(bytesBuffer, binary.BigEndian, int32(v))
+		err = binary.Write(bytesBuffer, binary.BigEndian, int32(v))
 	} else if v, ok := n.(float64); ok {
-		binary.Write(bytesBuffer, binary.BigEndian, v)
+		err = binary.Write(bytesBuffer, binary.BigEndian, v)
 	} else {
-		binary.Write(bytesBuffer, binary.BigEndian, n)
+		err = binary.Write(bytesBuffer, binary.BigEndian, n)
 	}
-	return bytesBuffer.Bytes()
+	if err != nil {
+		return nil, err
+	} else {
+		return bytesBuffer.Bytes(), nil
+	}
+
 }
 
-//字节转换成整形,n 必须是指针
+//IntToBuffer 将数字写入BUFFER, buffer := bytes.NewBuffer([]byte{})
+func IntToBuffer(buffer *bytes.Buffer, n interface{}) error {
+	if v, ok := n.(int); ok {
+		return binary.Write(buffer, binary.BigEndian, int32(v))
+	} else if v, ok := n.(float64); ok {
+		return binary.Write(buffer, binary.BigEndian, v)
+	} else {
+		return binary.Write(buffer, binary.BigEndian, n)
+	}
+}
+
+//BytesToInt 字节转换成整形,n 必须是指针
 // var a int32
 // BytesToInt([]byte{1},&a)
-func BytesToInt(b []byte, n interface{}) {
+func BytesToInt(b []byte, n interface{}) error {
 	bytesBuffer := bytes.NewBuffer(b)
-	binary.Read(bytesBuffer, binary.BigEndian, n)
+	return binary.Read(bytesBuffer, binary.BigEndian, n)
 }

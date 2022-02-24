@@ -7,22 +7,22 @@ type Module interface {
 	Close() error
 }
 
-type DefModule struct {
+type ModuleDefault struct {
 	Id string
 }
 
-func (m *DefModule) ID() string {
+func (m *ModuleDefault) ID() string {
 	return m.Id
 }
 
-func (m *DefModule) Init() error {
+func (m *ModuleDefault) Init() error {
 	return nil
 }
 
-func (m *DefModule) Start() error {
+func (m *ModuleDefault) Start() error {
 	return nil
 }
 
-func (m *DefModule) Close() error {
+func (m *ModuleDefault) Close() error {
 	return nil
 }

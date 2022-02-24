@@ -31,19 +31,12 @@ var (
 	ErrInvalidRedirectCode         = errors.New("invalid redirect status code")
 	ErrCookieNotFound              = errors.New("cookie not found")
 	ErrInvalidCertOrKeyType        = errors.New("invalid cert or key type, must be string or []byte")
+	ErrArgsNotFound                = errors.New("args not found")
 )
 
 // Error makes it compatible with `error` interface.
 func (he *HTTPError) Error() string {
-	if he.Message != nil {
-		return fmt.Sprintf("%v", he.Message)
-	} else {
-		code := he.Code
-		if code == 0 {
-			code = http.StatusOK
-		}
-		return http.StatusText(code)
-	}
+	return he.String()
 }
 
 func (he *HTTPError) String() string {

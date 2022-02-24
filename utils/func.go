@@ -1,10 +1,34 @@
 package utils
 
-//MaxNumber l位所能表示的最正大数,0<l<=64
-func MaxNumber(l int) uint64 {
-	var v uint64 = 1
-	for i := 1; i < l; i++ {
-		v |= 1 << i
-	}
-	return v
+import (
+	"fmt"
+	"time"
+)
+
+func Try(f func(), handler ...func(interface{})) {
+	defer func() {
+		if err := recover(); err != nil {
+			if len(handler) == 0 {
+				fmt.Printf("%v", err)
+			} else {
+				handler[0](err)
+			}
+		}
+	}()
+	f()
 }
+
+func Timeout(d time.Duration, fn func() error) error {
+	cher := make(chan error)
+	go func() {
+		cher <- fn()
+	}()
+	select {
+	case err := <-cher:
+		return err
+	case <-time.After(d):
+		return ErrorTimeout
+	}
+}
+
+

@@ -25,7 +25,7 @@ type workerThread struct {
 func NewWorker(num int32, handle func(interface{})) *Worker {
 	worker := &Worker{
 		stop:   make(chan struct{}),
-		cwrite: make(chan interface{}, WorkerWriteChanSize),
+		cwrite: make(chan interface{}, 5000),
 		handle: handle,
 	}
 

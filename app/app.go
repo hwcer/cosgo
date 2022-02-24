@@ -11,15 +11,16 @@ import (
 )
 
 var (
-	banner  func()
-	modules []Module
+	banner         func()
+	modules        []Module
+	DataTimeFormat = "2006-01-02 15:04:05 -0700"
 )
 
-func assert(err interface{}, s string) {
+func assert(err interface{}, s ...string) {
 	if err != nil {
 		panic(fmt.Sprintf("%v failed: %v\n", s, err))
-	} else {
-		fmt.Printf("app %v done\n", s)
+	} else if len(s) > 0 {
+		fmt.Printf("app %v done\n", s[0])
 	}
 }
 
@@ -51,7 +52,7 @@ func Use(mods ...Module) {
  * @param m 需注册的模块
  */
 func Start(mods ...Module) {
-	fmt.Printf("App Starting:%v\n", time.Now().String())
+	fmt.Printf("App Starting:%v\n", time.Now().Format(DataTimeFormat))
 	for _, mod := range mods {
 		modules = append(modules, mod)
 	}
@@ -67,26 +68,30 @@ func Start(mods ...Module) {
 		panic(err)
 	}
 	defer func() {
-		pprofClose()
-		deletePidFile()
-		fmt.Printf("App Closed:%v\n", time.Now().String())
+		if err = deletePidFile(); err != nil {
+			fmt.Printf("App delete pid file err:%v\n", err)
+		}
+		fmt.Printf("App Closed:%v\n", time.Now().Format(DataTimeFormat))
 	}()
 	//=========================加载模块=============================
 	if err = pprofStart(); err != nil {
 		panic(err)
 	}
-
+	defer pprofClose()
+	assert(emit(EventTypInitBefore))
 	for _, v := range modules {
 		assert(v.Init(), fmt.Sprintf("mod [%v] init", v.ID()))
 	}
+	assert(emit(EventTypInitAfter))
 	//=========================启动信息=============================
 	showConfig()
 	//=========================启动模块=============================
+	assert(emit(EventTypStartBefore))
 	for _, v := range modules {
-		scc.Add(1)
+		SCC.WaitGroup.Add(1)
 		assert(v.Start(), fmt.Sprintf("mod [%v] start", v.ID()))
 	}
-
+	assert(emit(EventTypStartAfter))
 	if banner != nil {
 		banner()
 	} else {
@@ -98,21 +103,23 @@ func Start(mods ...Module) {
 }
 
 func Close() {
-	if !scc.Close() {
+	if !SCC.Cancel() {
 		return
 	}
 	fmt.Printf("App will stop\n")
-	for _, m := range modules {
-		closeModule(m)
+	assert(emit(EventTypCloseBefore))
+	for i := len(modules) - 1; i >= 0; i-- {
+		closeModule(modules[i])
 	}
-	if err := scc.Wait(time.Second * 30); err != nil {
+	assert(emit(EventTypCloseAfter))
+	if err := SCC.Wait(time.Second * 30); err != nil {
 		fmt.Printf("App Stop Err:%v\n", err)
 	}
 }
 
 func closeModule(m Module) {
+	defer SCC.WaitGroup.Done()
 	defer func() {
-		scc.Done()
 		if err := recover(); err != nil {
 			logger.Error("%v", err)
 		}
@@ -124,13 +131,26 @@ func showConfig() {
 	var log []string
 	log = append(log, "")
 	log = append(log, "============================Show App Config============================")
-	log = append(log, fmt.Sprintf(">> AppName:%v", GetName()))
-	log = append(log, fmt.Sprintf(">> AppRoot:%v", GetDir()))
-	log = append(log, fmt.Sprintf(">> AppLogs:%v", Config.GetString("logs")))
-	log = append(log, fmt.Sprintf(">> PidFile:%v", Config.GetString("pidfile")))
+	log = append(log, fmt.Sprintf(">> appName:%v", Name()))
+	log = append(log, fmt.Sprintf(">> workDir:%v", WorkDir()))
+
+	logsDir := Config.GetString(AppConfigNameLogsDir)
+	if logsDir == "" {
+		logsDir = "Console"
+	}
+	log = append(log, fmt.Sprintf(">> logsDir:%v", logsDir))
+
+	pidfile := ""
+	if enablePidFile {
+		pidfile = Config.GetString(AppConfigNamePidFile)
+	} else {
+		pidfile = "Disable"
+	}
+	log = append(log, fmt.Sprintf(">> pidFile:%v", pidfile))
+
 	log = append(log, fmt.Sprintf(">> BUIND GO:%v VER:%v  TIME:%v", BUIND_GO, BUIND_VER, BUIND_TIME))
 	log = append(log, fmt.Sprintf(">> RUNTIME GO:%v  CPU:%v  Pid:%v", runtime.Version(), runtime.NumCPU(), os.Getpid()))
-	log = append(log, "========================================================")
+	log = append(log, "========================================================================")
 	log = append(log, "")
 	fmt.Printf(strings.Join(log, "\n"))
 }

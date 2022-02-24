@@ -1,12 +1,10 @@
 package logger
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"runtime"
 	"sync"
-	"time"
 )
 
 type brush func(string) string
@@ -31,61 +29,68 @@ var colors = []brush{
 	newBrush("1;32"), // Trace              绿色
 }
 
-type consoleLogger struct {
-	sync.Mutex
-	Level    string `json:"level"`
-	Colorful bool   `json:"color"`
-	LogLevel int
-}
-
-func init() {
-	Register(AdapterConsole, &consoleLogger{
-		LogLevel: LevelDebug,
+func NewConsoleOptions() *ConsoleOptions {
+	c := &ConsoleOptions{
 		Colorful: runtime.GOOS != "windows",
-	})
+	}
+	c.Level = "DEBUG"
+	return c
 }
 
-func (c *consoleLogger) Init(jsonConfig string) error {
-	if len(jsonConfig) == 0 {
-		return nil
+func NewConsoleAdapter(opts *ConsoleOptions) (*ConsoleAdapter, error) {
+	c := &ConsoleAdapter{}
+	if err := c.init(opts); err != nil {
+		return nil, err
 	}
-	if jsonConfig != "{}" {
-		fmt.Fprintf(os.Stdout, "consoleLogger Init:%s\n", jsonConfig)
-	}
-
-	err := json.Unmarshal([]byte(jsonConfig), c)
-	if runtime.GOOS == "windows" {
-		c.Colorful = false
-	}
-
-	if l, ok := LevelMap[c.Level]; ok {
-		c.LogLevel = l
-		return nil
-	}
-
-	return err
+	return c, nil
 }
 
-func (c *consoleLogger) Write(when time.Time, msgText interface{}, level int) error {
-	if level > c.LogLevel {
+type ConsoleOptions struct {
+	Options
+	Colorful bool
+}
+
+type ConsoleAdapter struct {
+	sync.Mutex
+	level   int
+	Options *ConsoleOptions
+}
+
+func (c *ConsoleAdapter) init(opts *ConsoleOptions) (err error) {
+	c.Options = opts
+	if l, ok := LevelMap[c.Options.Level]; ok {
+		c.level = l
+	} else {
+		return fmt.Errorf("无效的日志等级:%v", c.Options.Level)
+	}
+	return
+}
+
+func (c *ConsoleAdapter) Write(msg *Message, level int) error {
+	if level < c.level {
 		return nil
 	}
-	msg, ok := msgText.(string)
-	if !ok {
-		return nil
+	var txt string
+	if c.Options.Format != nil {
+		txt = c.Options.Format(msg)
+	} else {
+		txt = msg.String()
 	}
-	if c.Colorful {
-		msg = colors[level](msg)
+	if c.Options.Colorful {
+		txt = colors[level](txt)
 	}
-	c.printlnConsole(when, msg)
+	if level >= LevelError {
+		txt = txt + "\n" + msg.Stack
+	}
+	c.printlnConsole(txt)
 	return nil
 }
 
-func (c *consoleLogger) Close() {
+func (c *ConsoleAdapter) Close() {
 
 }
 
-func (c *consoleLogger) printlnConsole(when time.Time, msg string) {
+func (c *ConsoleAdapter) printlnConsole(msg string) {
 	c.Lock()
 	defer c.Unlock()
 	os.Stdout.Write(append([]byte(msg), '\n'))

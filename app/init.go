@@ -6,17 +6,17 @@ import (
 )
 
 var (
-	scc *utils.SCC
+	SCC *utils.SCC
 )
 
 func init() {
-	scc = utils.NewSCC(nil)
+	SCC = utils.NewSCC(nil)
 }
 
 func GO(fn func()) {
-	scc.GO(fn)
+	SCC.GO(fn)
 }
 
 func CGO(fn func(ctx context.Context)) {
-	scc.CGO(fn)
+	SCC.CGO(fn)
 }

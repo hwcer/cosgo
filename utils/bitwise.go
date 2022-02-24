@@ -1,19 +1,29 @@
 package utils
 
-type Bitwise uint64
+const MAXBITVALUE = 7
 
-var bitwiseSitu uint64 = 1
+type Bitwise uint8
 
-//位运算
-func (m *Bitwise) Has(f int) bool {
-	return (*m & Bitwise(bitwiseSitu<<uint64(f))) > 0
-}
-
-func (m *Bitwise) Add(f int) {
-	*m |= Bitwise(bitwiseSitu << uint64(f))
-}
-func (m *Bitwise) Del(f int) {
-	if m.Has(f) {
-		*m -= Bitwise(bitwiseSitu << uint64(f))
+//Has bit位是否设置值
+func (m *Bitwise) Has(bit int) bool {
+	if bit > MAXBITVALUE {
+		return false
 	}
+	return (*m & 1 << bit) > 0
+}
+
+//Set bit位设置为1
+func (m *Bitwise) Set(bit int) {
+	if bit > MAXBITVALUE {
+		return
+	}
+	*m |= 1 << bit
+}
+
+//Delete bit位设置为0
+func (m *Bitwise) Delete(bit int) {
+	if !m.Has(bit) {
+		return
+	}
+	*m -= 1 << bit
 }

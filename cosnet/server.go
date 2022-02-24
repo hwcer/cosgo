@@ -1,88 +1,55 @@
 package cosnet
 
-import (
-	"context"
-	"github.com/hwcer/cosgo/utils"
-	"time"
-)
+type NetType uint8
+type EventType uint8
 
-type MsgType int
-
+//NetType
 const (
-	MsgTypeMsg MsgType = iota //消息基于确定的消息头
-	MsgTypeCmd                //消息没有消息头，以\n分割
+	NetworkTcp    NetType = 1      //TCP
+	NetworkUdp            = 1 << 1 //UDP
+	NetworkWss            = 1 << 2 //wss||ws
+	NetTypeClient         = 1 << 3 //client Request
+	NetTypeServer         = 1 << 4 //Server Listener
 )
 
-type NetType int
-
+//EventType
 const (
-	NetTypeTcp NetType = iota //TCP类型
-	NetTypeUdp                //UDP类型dw
-	NetTypeWss                //websocket
+	EventTypeHeartbeat  EventType = iota + 1 //心跳事件
+	EventTypeConnected                       //连接成功
+	EventTypeDisconnect                      //断开连接
 )
 
-type Server interface {
-	On(EventsType, EventsFunc)
-	Emit(EventsType, Socket)
-	Start() error
-	Close() error
-	Handler() Handler
-	Context() context.Context
-	Sockets() *Sockets
-	GetMsgType() MsgType
-	GetNetType() NetType
+//常用NetType组合
+const (
+	AnyNetType       = NetTypeClient | NetTypeServer
+	AnyNetwork       = NetworkTcp | NetworkUdp | NetworkWss
+	NetworkTcpClient = NetworkTcp | NetTypeClient
+	NetworkTcpServer = NetworkTcp | NetTypeServer
+	NetworkUdpClient = NetworkUdp | NetTypeClient
+	NetworkUdpServer = NetworkUdp | NetTypeServer
+	NetworkWssClient = NetworkWss | NetTypeClient
+	NetworkWssServer = NetworkWss | NetTypeServer
+	//NetAllowClientReconnect = NetAuthorized | NetTypeClient
+	//NetAllowServerReconnect = NetAuthorized | NetTypeServer
+)
+
+//Has 判断是否全包含tar
+func (this NetType) Has(tar NetType) bool {
+	return this&tar == tar
 }
 
-func NewNetServer(address string, handler Handler, msgTyp MsgType, netType NetType) *NetServer {
-	s := &NetServer{
-		SCC:     utils.NewSCC(nil),
-		Events:  NewEvents(),
-		msgTyp:  msgTyp,
-		netType: netType,
-		address: address,
-		handler: handler,
-		sockets: NewSockets(handler, 1024),
+//Any 包含中任意一个状态
+func (this NetType) Any(tar NetType) bool {
+	return this&tar > 0
+}
+
+func (this NetType) String() string {
+	if this.Has(NetworkTcp) {
+		return "tcp"
+	} else if this.Has(NetworkUdp) {
+		return "udp"
+	} else if this.Has(NetworkWss) {
+		return "ws"
 	}
-	s.On(EventsTypeDisconnect, func(sock Socket) {
-		s.sockets.Delete(sock.Id())
-	})
-	return s
-}
-
-type NetServer struct {
-	*utils.SCC
-	*Events
-	msgTyp  MsgType //消息类型
-	netType NetType
-	address string
-	handler Handler
-	sockets *Sockets
-}
-
-func (s *NetServer) Start() error {
-	s.CGO(s.sockets.Start)
-	return nil
-}
-
-func (s *NetServer) Close() error {
-	if !s.SCC.Close() {
-		return nil
-	}
-	return s.SCC.Wait(time.Second * 10)
-}
-
-func (s *NetServer) Handler() Handler {
-	return s.handler
-}
-
-func (s *NetServer) Sockets() *Sockets {
-	return s.sockets
-}
-
-func (s *NetServer) GetMsgType() MsgType {
-	return s.msgTyp
-}
-
-func (s *NetServer) GetNetType() NetType {
-	return s.netType
+	return ""
 }

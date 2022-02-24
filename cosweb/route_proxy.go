@@ -2,7 +2,7 @@ package cosweb
 
 import (
 	"errors"
-	"github.com/hwcer/cosgo/ioutil"
+	"github.com/hwcer/cosgo/library/ioutil"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -33,7 +33,7 @@ func (this *Proxy) Route(s *Server, prefix string, method ...string) {
 	s.Register(r, this.handle, method...)
 }
 
-func (this *Proxy) handle(c *Context, next func()) (err error) {
+func (this *Proxy) handle(c *Context, next Next) (err error) {
 	var target = this.GetTarget(c, this.target)
 	if &target == nil {
 		return errors.New("Proxy AddTarget empty")

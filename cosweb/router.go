@@ -1,7 +1,7 @@
 package cosweb
 
 import (
-	"fmt"
+	"github.com/hwcer/cosgo/logger"
 	"strings"
 )
 
@@ -103,7 +103,7 @@ func (r *Router) Match(method, path string) []*Node {
 
 func (r *Router) Register(route string, handler HandlerFunc, method ...string) {
 	if len(method) == 0 || route == "" {
-		panic("Router.Register method or route empty")
+		panic("Router.Watch method or route empty")
 	}
 	if !strings.HasPrefix(route, "/") {
 		route = "/" + route
@@ -132,7 +132,7 @@ func (this *Node) addChild(arr []string, handler HandlerFunc) {
 	}
 	//(*)必须放在结尾
 	if name == RoutePathName_Vague && len(arr) != length {
-		panic(fmt.Sprintf("Router(*) must be at the end:%v", strings.Join(arr, "/")))
+		logger.Fatal("Router(*) must be at the end:%v", strings.Join(arr, "/"))
 	}
 
 	childNode := this.child[name]
@@ -141,7 +141,7 @@ func (this *Node) addChild(arr []string, handler HandlerFunc) {
 		childNode = NewNode(step, name)
 		this.child[name] = childNode
 	} else if len(childNode.Route) > 0 {
-		panic(fmt.Sprintf("Router conflict,%v == %v", childNode.String(), strings.Join(arr, "/")))
+		logger.Fatal("Router conflict,%v == %v", childNode.String(), strings.Join(arr, "/"))
 	}
 
 	if length == len(arr) {

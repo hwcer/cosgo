@@ -30,7 +30,7 @@ func WaitForSystemExit() {
 		case <-timer.C:
 			timer.Reset(gcSummaryTime)
 			gcSummaryLogger()
-		case <-scc.Context().Done():
+		case <-SCC.Context().Done():
 			return
 		}
 	}

@@ -11,85 +11,142 @@ import (
 )
 
 //其他模块可以使用pflag设置额外的参数
+//Config 值读取优先级
+// 1. overrides  use Config.Set()
+// 2. flags
+// 3. env. variables
+// 4. config file
+// 5. key/value store
+// 6. defaults
 var (
+	debug   bool
 	appDir  string
 	appName string
+	workDir string
+)
+var Config *viper.Viper
 
-	Config *viper.Viper
+const (
+	AppConfigNamePidFile    string = "pidfile"
+	AppConfigNameLogsDir    string = "logsdir"
+	AppConfigNameConfigFile string = "config"
 )
 
 func init() {
 	Config = viper.New()
-	pflag.Bool("debug", false, "developer model")
-	pflag.String("logs", "", "app logs dir")
+	pflag.String(AppConfigNamePidFile, "", "app pid file")
+	pflag.String(AppConfigNameLogsDir, "", "app logs dir")
+	pflag.String("name", "", "app name")
 	pflag.String("pprof", "", "pprof server address")
-	pflag.String("pidfile", "", "app pid file")
+	pflag.Bool("debug", false, "developer model")
 	pflag.StringP("config", "c", "", "use config file")
 
 	var (
 		tmpDir     string
-		appBinDir  string
 		appBinFile string
 	)
-	appDir, _ = os.Getwd()
+	workDir, _ = os.Getwd()
 	appBinFile, _ = exec.LookPath(os.Args[0])
 	tmpDir, appName = filepath.Split(appBinFile)
 
 	if filepath.IsAbs(appBinFile) {
-		appBinDir = filepath.Dir(tmpDir)
-		appDir = filepath.Dir(appBinDir)
+		appDir = filepath.Dir(tmpDir)
+		workDir = filepath.Dir(appDir)
 	} else {
-		appBinDir = filepath.Join(appDir, filepath.Dir(appBinFile))
-		appDir, _ = filepath.Split(appBinDir)
-		appDir = filepath.Dir(appDir)
+		appDir = filepath.Join(workDir, filepath.Dir(appBinFile))
+		workDir, _ = filepath.Split(appDir)
+		workDir = filepath.Dir(workDir)
 	}
 
 	ext := filepath.Ext(appBinFile)
 	if ext != "" {
-		appName = strings.TrimRight(appName, ext)
+		appName = strings.TrimSuffix(appName, ext)
 	}
-	//设置配置默认值
-	Config.SetDefault("logs", filepath.Join(appDir, "logs"))
-	Config.SetDefault("pidfile", appName+".pid")
+	logger.SetLogPathTrim(workDir)
 }
 
-func initFlag() error {
+func initFlag() (err error) {
 	pflag.Parse()
 	Config.BindPFlags(pflag.CommandLine)
 	//通过配置读取
-	if Config.IsSet("Config") {
-		f := Config.GetString("Config")
-		if !filepath.IsAbs(f) {
-			f = filepath.Join(appDir, f)
-		}
-		Config.AddConfigPath(f)
-		err := Config.ReadInConfig()
+	if configFile := Config.GetString(AppConfigNameConfigFile); configFile != "" {
+		f := Abs(configFile)
+		//Config.AddConfigPath(f)
+		Config.SetConfigFile(f)
+		err = Config.ReadInConfig()
 		if err != nil {
 			return err
 		}
 	}
-	//设置PIDfile
-	pidfile := Config.GetString("pidfile")
-	if !filepath.IsAbs(pidfile) {
-		Config.Set("pidfile", filepath.Join(appDir, pidfile))
+	debug = Config.GetBool("debug")
+	//设置pidfile
+	if pidfile := Config.GetString(AppConfigNamePidFile); pidfile != "" {
+		file := Abs(pidfile)
+		stat, osErr := os.Stat(file)
+		if osErr != nil && !os.IsExist(osErr) {
+			return osErr
+		}
+		if stat.IsDir() {
+			file = filepath.Join(file, appName+".pid")
+		}
+		Config.Set(AppConfigNamePidFile, file)
 	}
-
 	//设置日志
-	logs := Config.GetString("logs")
-	if !filepath.IsAbs(logs) {
-		logs = filepath.Join(appDir, logs)
+	if logsdir := Config.GetString(AppConfigNameLogsDir); logsdir != "" {
+		logsdir = Abs(logsdir)
+		_, osErr := os.Stat(logsdir)
+		if osErr != nil && !os.IsExist(osErr) {
+			if err = os.MkdirAll(logsdir, 0777); err != nil {
+				return
+			}
+		}
+		Config.Set(AppConfigNameLogsDir, logsdir)
+		logsFile := filepath.Join(logsdir, appName+".log")
+		opts := logger.NewFileOptions()
+		opts.Filename = Abs(logsFile)
+		if Config.GetBool("Debug") {
+			opts.Level = "DEBUG"
+		} else {
+			opts.Level = "INFO"
+		}
+		var adapter *logger.FileAdapter
+		adapter, err = logger.NewFileAdapter(opts)
+		if err != nil {
+			return
+		}
+		if err = logger.Adapter("file", adapter); err != nil {
+			return
+		}
+		logger.Remove(logger.DefaultAdapterName)
 	}
-	logger.SetLogPathTrim(logs)
 
 	return nil
 }
 
-//GetDir 项目内部获取appWorkDir
-func GetDir() string {
+//Abs 获取以工作路径为起点的绝对路径
+func Abs(dir ...string) string {
+	path := filepath.Join(dir...)
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(workDir, path)
+	}
+	return path
+}
+
+func Debug() bool {
+	return debug
+}
+
+//Dir APP主程序所在目录
+func Dir() string {
 	return appDir
 }
 
-//GetName 项目内部获取appName
-func GetName() string {
+//Name 项目内部获取appName
+func Name() string {
 	return appName
+}
+
+//WorkDir 程序工作目录
+func WorkDir() string {
+	return workDir
 }
