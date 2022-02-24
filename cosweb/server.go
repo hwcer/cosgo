@@ -4,7 +4,6 @@ import (
 	ctx "context"
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"github.com/hwcer/cosgo/logger"
 	"github.com/hwcer/cosgo/session"
 	"github.com/hwcer/cosgo/utils"
@@ -139,7 +138,7 @@ func (s *Server) Register(path string, handler HandlerFunc, method ...string) {
 	if len(method) == 0 {
 		method = AnyHttpMethod
 	}
-	fmt.Printf("Server Registry:%v  Method:%v\n", path, method)
+	//fmt.Printf("Server Registry:%v  Method:%v\n", path, method)
 	s.Router.Register(path, handler, method...)
 }
 
