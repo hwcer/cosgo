@@ -122,7 +122,7 @@ func (r *Registry) Route(name string, middleware ...MiddlewareFunc) *registry.Ro
 //Handle 注册服务器
 func (r *Registry) Handle(s *Server, method ...string) {
 	for _, k := range r.Registry.Nodes() {
-		arr := []string{}
+		var arr []string
 		if r.prefix != "/" {
 			arr = append(arr, r.prefix)
 		}
