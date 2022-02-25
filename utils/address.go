@@ -99,6 +99,10 @@ func isLocalIpv4(a net.Addr) (string, bool) {
 
 //Ip2Int Ipv4 转uint32
 func Ipv4Encode(ip string) uint32 {
+	if i:= strings.Index(ip,":");i>0{
+		ip = ip[0:i]
+	}
+	ip = strings.TrimSpace(ip)
 	ips := strings.Split(ip, ".")
 	var ipCode int = 0
 	var pos uint = 24
