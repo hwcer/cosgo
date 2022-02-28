@@ -5,31 +5,36 @@ import (
 	"strings"
 )
 
-type RegistryRangeHandle func(path string, method interface{}) error
+//type RegistryRangeHandle func(route *Route) error
+type RegistryRangeHandle func(name string, method interface{}) error
 type RegistryFilterHandle func(reflect.Value, reflect.Value) bool
 
 type Registry struct {
+	*Prefix
 	dict   map[string]*Route
 	filter RegistryFilterHandle //用于判断struct中的方法是否合法接口
 	Fuzzy  bool                 //模糊匹配，不区分大小写
 }
 
-func New(filter ...RegistryFilterHandle) *Registry {
+func New(prefix string, filter ...RegistryFilterHandle) *Registry {
 	n := &Registry{
-		dict:  make(map[string]*Route),
-		Fuzzy: true,
+		dict:   make(map[string]*Route),
+		Fuzzy:  true,
+		Prefix: NewPrefix(prefix),
 	}
 	if len(filter) > 0 {
 		n.filter = filter[0]
 	}
 	return n
 }
-func (this *Registry) Nodes() (r []string) {
+func (this *Registry) Paths() (r []string) {
+	prefix := this.Name()
 	for k, _ := range this.dict {
-		r = append(r, k)
+		r = append(r, prefix+k)
 	}
 	return
 }
+
 func (this *Registry) Route(name string) *Route {
 	route := NewRoute(this, name)
 
@@ -41,8 +46,9 @@ func (this *Registry) Route(name string) *Route {
 }
 
 func (this *Registry) Range(fn RegistryRangeHandle) (err error) {
+	prefix := this.Name()
 	for _, r := range this.dict {
-		if err = this.rangeRoute(r, fn); err != nil {
+		if err = r.Range(prefix, fn); err != nil {
 			return
 		}
 	}
@@ -55,7 +61,7 @@ func (this *Registry) Match(path string) (route *Route, pr, fn reflect.Value, ok
 		path = "/" + path
 	}
 	for _, r := range this.dict {
-		if pr, fn, ok = r.match(path); ok {
+		if pr, fn, ok = r.Match(path); ok {
 			route = r
 			return
 		}
@@ -63,41 +69,9 @@ func (this *Registry) Match(path string) (route *Route, pr, fn reflect.Value, ok
 	return
 }
 func (this *Registry) Format(path string) (new string) {
-	new = strings.Trim(path, "/")
+	new = Format(path)
 	if this.Fuzzy {
 		new = strings.ToLower(new)
 	}
 	return
-}
-
-func (this *Registry) rangeRoute(r *Route, fn RegistryRangeHandle) (err error) {
-	for _, n := range r.nodes {
-		if err = this.rangeNode(r, n, fn); err != nil {
-			return
-		}
-	}
-	for k, m := range r.method {
-		name := this.pathName(r.name, k)
-		if err = fn(name, m); err != nil {
-			return
-		}
-	}
-	return nil
-}
-
-func (this *Registry) rangeNode(route *Route, node *Node, fn RegistryRangeHandle) (err error) {
-	for k, m := range node.method {
-		name := this.pathName(route.name, node.name, k)
-		if err = fn(name, m); err != nil {
-			return
-		}
-	}
-	return nil
-}
-
-func (this *Registry) pathName(prefix string, path ...string) string {
-	if prefix == "/" {
-		prefix = ""
-	}
-	return strings.Join(append([]string{prefix}, path...), "/")
 }

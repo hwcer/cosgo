@@ -16,14 +16,9 @@ import (
 //NewRoute name: /x/y
 //文件加载init()中调用
 
-func newNode(name string, i reflect.Value) *Node {
-	return &Node{name: name, i: i, method: make(map[string]reflect.Value)}
-}
-
 func NewRoute(registry *Registry, name string) *Route {
-	name = "/" + strings.Trim(name, "/")
 	r := &Route{
-		name:     name,
+		Prefix:   NewPrefix(name),
 		nodes:    make(map[string]*Node),
 		method:   make(map[string]reflect.Value),
 		registry: registry,
@@ -31,21 +26,11 @@ func NewRoute(registry *Registry, name string) *Route {
 	return r
 }
 
-type Node struct {
-	i      reflect.Value
-	name   string
-	method map[string]reflect.Value
-}
-
 type Route struct {
-	name     string
+	*Prefix
 	nodes    map[string]*Node
 	method   map[string]reflect.Value
 	registry *Registry
-}
-
-func (this *Route) Name() string {
-	return this.name
 }
 
 //Register
@@ -78,18 +63,17 @@ func (this *Route) RegisterFun(i interface{}, name ...string) error {
 	} else {
 		fname = FuncName(v)
 	}
-	fname = this.registry.Format(strings.Trim(fname, "/"))
+	fname = this.registry.Format(fname)
 	var proto reflect.Value
-	//logger.Debug("RegisterFun:%v", fname)
 	if this.registry.filter != nil && !this.registry.filter(proto, v) {
 		return fmt.Errorf("RegisterFun filter return false:%v", fname)
 	}
 
-	if strings.Contains(fname, "/") {
-		return fmt.Errorf("RegisterFun name error:%v", name)
+	if strings.LastIndex(fname, "/") > 0 {
+		return fmt.Errorf("RegisterFun name error:%v", fname)
 	}
 	if _, ok := this.method[fname]; ok {
-		return fmt.Errorf("RegisterFun exist:%v", name)
+		return fmt.Errorf("RegisterFun exist:%v", fname)
 	}
 	this.method[fname] = v
 	return nil
@@ -115,7 +99,7 @@ func (this *Route) RegisterStruct(i interface{}, name ...string) error {
 	if _, ok := this.nodes[sname]; ok {
 		return fmt.Errorf("RegisterStruct name exist:%v", sname)
 	}
-	node := newNode(sname, v)
+	node := NewNode(sname, v)
 	this.nodes[sname] = node
 	//logger.Debug("Watch:%v\n", sname)
 	for m := 0; m < handleType.NumMethod(); m++ {
@@ -146,16 +130,13 @@ func (this *Route) RegisterStruct(i interface{}, name ...string) error {
 	return nil
 }
 
-func (this *Route) match(path string) (proto, fn reflect.Value, ok bool) {
-	if !strings.HasPrefix(path, this.name) {
+func (this *Route) Match(path string) (proto, fn reflect.Value, ok bool) {
+	index := this.Index()
+	if index > 0 && !strings.HasPrefix(path, this.name) {
 		return
 	}
-	var prefix = this.name
-	if !strings.HasSuffix(prefix, "/") {
-		prefix = prefix + "/"
-	}
 
-	name := strings.TrimPrefix(path, prefix)
+	name := path[index:]
 	if fn, ok = this.method[name]; ok {
 		return
 	}
@@ -167,10 +148,25 @@ func (this *Route) match(path string) (proto, fn reflect.Value, ok bool) {
 	if node, ok = this.nodes[name[0:lastIndex]]; !ok {
 		return
 	}
-	if fn, ok = node.method[name[lastIndex+1:]]; !ok {
+	if fn, ok = node.method[name[lastIndex:]]; !ok {
 		return
 	}
 
 	proto = node.i
 	return
+}
+
+func (r *Route) Range(prefix string, fn RegistryRangeHandle) (err error) {
+	rp := prefix + r.Name()
+	for k, node := range r.nodes {
+		if err = node.Range(rp+k, fn); err != nil {
+			return
+		}
+	}
+	for k, m := range r.method {
+		if err = fn(rp+k, m); err != nil {
+			return
+		}
+	}
+	return nil
 }

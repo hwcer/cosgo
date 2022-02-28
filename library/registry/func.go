@@ -32,3 +32,13 @@ func IsExported(name string) bool {
 	r, _ := utf8.DecodeRuneInString(name)
 	return unicode.IsUpper(r)
 }
+
+//Format 格式化路径为 /x/y模式
+func Format(name string) string {
+	s := strings.Trim(name, "/")
+	if s == "" {
+		return s
+	} else {
+		return "/" + s
+	}
+}
