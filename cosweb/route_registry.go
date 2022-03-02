@@ -17,7 +17,7 @@ const (
 type RegistryCaller interface {
 	Caller(c *Context, fn reflect.Value) interface{}
 }
-
+type RegistryFilter func(pr, fn reflect.Value) bool
 type RegistrySerialize func(ctx *Context, reply interface{}) error
 
 //NewRegistry 创建新的路由组
@@ -32,11 +32,15 @@ func NewRegistry(prefix string) *Registry {
 type Registry struct {
 	*registry.Registry
 	Caller     func(c *Context, pr reflect.Value, fn reflect.Value) (interface{}, error) //自定义全局消息调用
-	Serialize  RegistrySerialize                                                         //消息序列化封装
+	Filter     RegistryFilter
+	Serialize  RegistrySerialize //消息序列化封装
 	middleware map[string][]MiddlewareFunc
 }
 
 func (r *Registry) filter(pr, fn reflect.Value) bool {
+	if r.Filter != nil {
+		return r.Filter(pr, fn)
+	}
 	if !pr.IsValid() {
 		_, ok := fn.Interface().(func(*Context) interface{})
 		return ok
