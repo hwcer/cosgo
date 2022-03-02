@@ -18,7 +18,7 @@ type RegistryCaller interface {
 	Caller(c *Context, fn reflect.Value) interface{}
 }
 
-type RegistrySerialize func(ctx *Context, reply interface{})
+type RegistrySerialize func(ctx *Context, reply interface{}) error
 
 //NewRegistry 创建新的路由组
 // prefix路由前缀
@@ -73,11 +73,10 @@ func (r *Registry) handle(c *Context, next Next) (err error) {
 		return
 	}
 	if r.Serialize != nil {
-		r.Serialize(c, reply)
+		return r.Serialize(c, reply)
 	} else {
-		c.JSON(reply)
+		return c.JSON(reply)
 	}
-	return
 }
 
 func (r *Registry) caller(c *Context, pr, fn reflect.Value) (reply interface{}, err error) {
