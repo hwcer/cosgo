@@ -67,17 +67,19 @@ func getDataFromRequest(c *Context, key string, dataType RequestDataType) (strin
 }
 
 func getBodyValue(c *Context, key string) (v string, ok bool) {
-	if body, err := c.Body(); err == nil {
-		var d interface{}
-		if d, ok = body[key]; !ok {
-			return
-		}
-		switch d.(type) {
-		case string:
-			v = d.(string)
-		default:
-			v = fmt.Sprintf("%v", d)
-		}
+	body, err := c.Body()
+	if  err != nil {
+		return
+	}
+	var d interface{}
+	if d, ok = body[key]; !ok {
+		return
+	}
+	switch d.(type) {
+	case string:
+		v = d.(string)
+	default:
+		v = fmt.Sprintf("%v", d)
 	}
 	return
 }

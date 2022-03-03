@@ -6,10 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 )
-
-var c = &http.Client{Timeout: time.Second * 10}
 
 func New() *Client {
 	r := &Client{}
@@ -17,32 +14,33 @@ func New() *Client {
 	return r
 }
 
+type middleware func(req *http.Request) error
+
 type Client struct {
-	Packer Packer
-	Header func(method, url string, data io.Reader) map[string]string
+	Packer     Packer
+	middleware []middleware
 }
 
-func (this *Client) reader(i interface{}) (rd io.Reader, err error) {
+func (c *Client) Use(m middleware) {
+	c.middleware = append(c.middleware, m)
+}
+
+func (this *Client) reader(i interface{}) (rd []byte, err error) {
 	if i == nil {
 		return nil, err
 	}
-	if v, ok := i.(io.Reader); ok {
-		return v, nil
-	}
 	switch i.(type) {
 	case string:
-		rd = bytes.NewReader([]byte(i.(string)))
+		rd = []byte(i.(string))
 	case []byte:
-		rd = bytes.NewReader(i.([]byte))
+		rd = i.([]byte)
 	default:
-		bf := new(bytes.Buffer)
-		err = this.Packer.Encode(bf, i)
-		rd = bf
+		rd, err = this.Packer.Encode(i)
 	}
 	return
 }
 
-func (this *Client) Request(method, url string, data interface{}, reply func(io.Reader) error) (err error) {
+func (this *Client) Request(method, url string, data interface{}) (reply []byte, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("%v", e)
@@ -53,12 +51,12 @@ func (this *Client) Request(method, url string, data interface{}, reply func(io.
 		req *http.Request
 		res *http.Response
 	)
-	var buf io.Reader
+	var buf []byte
 	if buf, err = this.reader(data); err != nil {
 		return
 	}
 
-	req, err = http.NewRequest(method, url, buf)
+	req, err = http.NewRequest(method, url, bytes.NewReader(buf))
 	if err != nil {
 		return
 	}
@@ -69,33 +67,39 @@ func (this *Client) Request(method, url string, data interface{}, reply func(io.
 	if contentType := this.Packer.ContentType(); contentType != "" {
 		req.Header.Add("Content-Type", contentType)
 	}
-	if this.Header != nil {
-		for k, v := range this.Header(method, url, buf) {
-			req.Header.Add(k, v)
+	for _, m := range this.middleware {
+		if err = m(req); err != nil {
+			return
 		}
 	}
-	res, err = c.Do(req)
+	res, err = http.DefaultClient.Do(req)
 	if err != nil {
 		return
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return errors.New(res.Status)
+		return nil, errors.New(res.Status)
 	}
-	if reply != nil {
-		err = reply(res.Body)
-	}
+	reply, err = io.ReadAll(res.Body)
 	return
 }
 
 func (this *Client) Get(url string, reply interface{}) (err error) {
-	return this.Request(http.MethodGet, url, nil, func(reader io.Reader) error {
-		return this.Packer.Decode(reader, reply)
-	})
+	var body []byte
+	body, err = this.Request(http.MethodGet, url, nil)
+	if err != nil {
+		return
+	}
+	err = this.Packer.Decode(body, reply)
+	return
 }
 
 func (this *Client) Post(url string, data interface{}, reply interface{}) (err error) {
-	return this.Request(http.MethodPost, url, data, func(reader io.Reader) error {
-		return this.Packer.Decode(reader, reply)
-	})
+	var body []byte
+	body, err = this.Request(http.MethodPost, url, data)
+	if err != nil {
+		return
+	}
+	err = this.Packer.Decode(body, reply)
+	return
 }

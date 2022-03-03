@@ -62,7 +62,7 @@ func init() {
 	if ext != "" {
 		appName = strings.TrimSuffix(appName, ext)
 	}
-	logger.SetLogPathTrim(workDir)
+	//logger.SetLogPathTrim(workDir)
 }
 
 func initFlag() (err error) {

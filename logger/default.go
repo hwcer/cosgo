@@ -5,7 +5,7 @@ package logger
 var Default *Logger
 
 func init() {
-	Default = New(3)
+	Default = New()
 	opts := NewConsoleOptions()
 	console, _ := NewConsoleAdapter(opts)
 	Default.Adapter(DefaultAdapterName, console)

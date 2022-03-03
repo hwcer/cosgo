@@ -1,6 +1,7 @@
 package request
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/hex"
@@ -27,7 +28,7 @@ func NewOAuth(key, secret string) *OAuth {
 		Timeout: 5,
 	}
 	oauth.Client = New()
-	oauth.Client.Header = oauth.header
+	oauth.Client.Use(oauth.setHeader)
 	return oauth
 }
 
@@ -41,16 +42,25 @@ type OAuth struct {
 
 var oauthParams = []string{"oauth_consumer_key", "oauth_nonce", "oauth_timestamp", "oauth_version", "oauth_signature_method"}
 
-func (this *OAuth) header(method, address string, data io.Reader) map[string]string {
+func (this *OAuth) setHeader(req *http.Request) (err error) {
 	header := this.NewOAuthParams()
-	var body string
-	if this.Strict && data != nil {
-		b, _ := io.ReadAll(data)
-		body = string(b)
+	var bodyBytes []byte
+	if this.Strict {
+		var body io.ReadCloser
+		if body, err = req.GetBody(); err != nil {
+			return
+		}
+		if bodyBytes, err = io.ReadAll(body); err != nil {
+			return
+		}
 	}
-	signature := this.Signature(method, address, header, body)
+	signature := this.Signature(req.Method, req.URL.String(), header, string(bodyBytes))
 	header[OAuthSignatureName] = signature
-	return header
+
+	for k, v := range header {
+		req.Header.Add(k, v)
+	}
+	return nil
 }
 
 func (this *OAuth) NewOAuthParams() map[string]string {
@@ -111,14 +121,22 @@ func (this *OAuth) Verify(req *http.Request) (err error) {
 
 	var strBody string
 	if this.Strict {
-		var byteBody []byte
-		byteBody, err = io.ReadAll(req.Body)
+		var body []byte
+		body, err = io.ReadAll(req.Body)
 		if err != nil {
 			return err
 		}
-		strBody = string(byteBody)
+		req.Body.Close()
+		req.Body = io.NopCloser(bytes.NewBuffer(body))
+		strBody = string(body)
 	}
-	if signature != this.Signature(req.Method, req.URL.String(), OAuthMap, strBody) {
+
+	url := req.URL
+	if url.Scheme == "" {
+
+	}
+
+	if signature != this.Signature(req.Method, RequestURL(req), OAuthMap, strBody) {
 		return errors.New("OAuth signature error")
 	}
 	return nil

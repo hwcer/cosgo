@@ -2,23 +2,22 @@ package request
 
 import (
 	"encoding/json"
-	"io"
 )
 
 type Packer interface {
-	Encode(b io.Writer, i interface{}) error
-	Decode(b io.Reader, i interface{}) error
+	Encode(i interface{}) ([]byte, error)
+	Decode(b []byte, i interface{}) error
 	ContentType() string
 }
 
 type PackerJson struct{}
 
-func (b *PackerJson) Encode(w io.Writer, i interface{}) (err error) {
-	return json.NewEncoder(w).Encode(i)
+func (b *PackerJson) Encode( i interface{}) ([]byte, error) {
+	return json.Marshal(i)
 }
 
-func (b *PackerJson) Decode(r io.Reader, i interface{}) (err error) {
-	return json.NewDecoder(r).Decode(i)
+func (b *PackerJson) Decode( data []byte, i interface{}) (err error) {
+	return json.Unmarshal(data,i)
 }
 
 func (b *PackerJson) ContentType() string {

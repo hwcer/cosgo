@@ -3,7 +3,6 @@ package cosweb
 import (
 	"fmt"
 	"github.com/hwcer/cosgo/library/registry"
-	"github.com/hwcer/cosgo/logger"
 	"reflect"
 	"strings"
 )
@@ -87,7 +86,7 @@ func (r *Registry) caller(c *Context, pr, fn reflect.Value) (reply interface{}, 
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("%v", e)
-			logger.Error("%v", err)
+			//logger.Error("%v", err)
 		}
 	}()
 	if r.Caller != nil {
