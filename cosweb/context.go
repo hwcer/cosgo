@@ -4,6 +4,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -166,6 +167,14 @@ func (c *Context) Get(key string, dts ...RequestDataType) string {
 		}
 	}
 	return ""
+}
+func (c *Context) GetInt(key string, dts ...RequestDataType) int32 {
+	v := c.Get(key, dts...)
+	if v == "" {
+		return 0
+	}
+	r, _ := strconv.ParseInt(v, 10, 32)
+	return int32(r)
 }
 
 //Body 将结果快速绑定到Body对象并返回Body
