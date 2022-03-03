@@ -28,7 +28,11 @@ func (this *Address) Parse(address string) (err error) {
 	return
 }
 func (this *Address) String(scheme ...string) string {
-	s := this.Host + ":" + strconv.Itoa(this.Port)
+	host := this.Host
+	if host == "" {
+		host = "0.0.0.0"
+	}
+	s := host + ":" + strconv.Itoa(this.Port)
 	if len(scheme) > 0 && scheme[0] != "" {
 		s = scheme[0] + "://" + s
 	}
@@ -99,7 +103,7 @@ func isLocalIpv4(a net.Addr) (string, bool) {
 
 //Ip2Int Ipv4 转uint32
 func Ipv4Encode(ip string) uint32 {
-	if i:= strings.Index(ip,":");i>0{
+	if i := strings.Index(ip, ":"); i > 0 {
 		ip = ip[0:i]
 	}
 	ip = strings.TrimSpace(ip)
