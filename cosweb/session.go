@@ -126,6 +126,7 @@ func (this *Session) Create(uuid string, data map[string]interface{}) (sid strin
 		cookie := &http.Cookie{
 			Name:  session.Options.Name,
 			Value: this.sid,
+			Path:  "/",
 		}
 		if expires > 0 {
 			cookie.Expires = time.Unix(expires, 0)
