@@ -24,8 +24,8 @@ func NewOAuth(key, secret string) *OAuth {
 	oauth := &OAuth{
 		key:     key,
 		secret:  secret,
-		Strict:  true,
-		Timeout: 5,
+		Strict:  false,
+		Timeout: 10,
 	}
 	oauth.Client = New()
 	oauth.Client.Use(oauth.setHeader)
