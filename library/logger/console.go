@@ -2,9 +2,7 @@ package logger
 
 import (
 	"fmt"
-	"os"
 	"runtime"
-	"sync"
 )
 
 type brush func(string) string
@@ -51,7 +49,7 @@ type ConsoleOptions struct {
 }
 
 type ConsoleAdapter struct {
-	sync.Mutex
+	//sync.Mutex
 	level   int
 	Options *ConsoleOptions
 }
@@ -91,7 +89,8 @@ func (c *ConsoleAdapter) Close() {
 }
 
 func (c *ConsoleAdapter) printlnConsole(msg string) {
-	c.Lock()
-	defer c.Unlock()
-	os.Stdout.Write(append([]byte(msg), '\n'))
+	//c.Lock()
+	//defer c.Unlock()
+	//os.Stdout.Write(append([]byte(msg), '\n'))
+	fmt.Printf(msg + "\n")
 }

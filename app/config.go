@@ -1,7 +1,7 @@
 package app
 
 import (
-	logger2 "github.com/hwcer/cosgo/library/logger"
+	"github.com/hwcer/cosgo/library/logger"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"os"
@@ -23,7 +23,7 @@ var (
 	appDir               string
 	appName              string
 	workDir              string
-	loggerConsoleAdapter *logger2.ConsoleAdapter
+	loggerConsoleAdapter *logger.ConsoleAdapter
 )
 var Config *viper.Viper
 
@@ -63,14 +63,14 @@ func init() {
 	if ext != "" {
 		appName = strings.TrimSuffix(appName, ext)
 	}
-	loggerConsoleAdapter, _ = logger2.Default.Get(logger2.DefaultAdapterName).(*logger2.ConsoleAdapter)
+	loggerConsoleAdapter, _ = logger.Default.Get(logger.DefaultAdapterName).(*logger.ConsoleAdapter)
 	if loggerConsoleAdapter != nil {
 		loggerConsoleAdapter.Options.Format = loggerMessageFormat
 	}
-	//logger.SetLogPathTrim(workDir)
+	logger.SetLogPathTrim(workDir)
 }
 
-func loggerMessageFormat(message *logger2.Message) string {
+func loggerMessageFormat(message *logger.Message) string {
 	return "[" + message.Level + "] " + message.Content
 }
 
@@ -111,22 +111,22 @@ func initFlag() (err error) {
 		}
 		Config.Set(AppConfigNameLogsDir, logsdir)
 		logsFile := filepath.Join(logsdir, appName+".log")
-		opts := logger2.NewFileOptions()
+		opts := logger.NewFileOptions()
 		opts.Filename = Abs(logsFile)
 		if Config.GetBool("Debug") {
 			opts.Level = "DEBUG"
 		} else {
 			opts.Level = "INFO"
 		}
-		var adapter *logger2.FileAdapter
-		adapter, err = logger2.NewFileAdapter(opts)
+		var adapter *logger.FileAdapter
+		adapter, err = logger.NewFileAdapter(opts)
 		if err != nil {
 			return
 		}
-		if err = logger2.Adapter("file", adapter); err != nil {
+		if err = logger.Adapter("file", adapter); err != nil {
 			return
 		}
-		logger2.Remove(logger2.DefaultAdapterName)
+		logger.Remove(logger.DefaultAdapterName)
 	}
 
 	return nil

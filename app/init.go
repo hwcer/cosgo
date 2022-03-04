@@ -11,6 +11,7 @@ var (
 
 func init() {
 	SCC = utils.NewSCC(nil)
+
 }
 
 func GO(fn func()) {

@@ -20,7 +20,7 @@ type Logger struct {
 }
 
 func New(depth ...int) *Logger {
-	dep := append(depth, 0)[0]
+	dep := append(depth, 2)[0]
 	l := &Logger{}
 	l.outputs = make(map[string]adapter)
 	l.callDepth = dep

@@ -12,7 +12,7 @@ const (
 )
 
 // 日志记录等级字段
-var levelPrefix = []string{"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "PANIC", "FATAL"}
+var levelPrefix = []string{"TRACE", "DEBUG", "INFO ", "WARN ", "ERROR", "PANIC", "FATAL"}
 
 // 日志等级和描述映射关系
 var LevelMap = map[string]int{
