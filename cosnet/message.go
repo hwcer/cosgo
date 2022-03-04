@@ -3,7 +3,7 @@ package cosnet
 import (
 	"bytes"
 	"errors"
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/cosgo/library/logger"
 	"github.com/hwcer/cosgo/utils"
 )
 

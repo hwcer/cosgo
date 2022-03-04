@@ -1,8 +1,5 @@
 package logger
 
-const DefTimeFormat = "2006-01-02 15:04:05 -0700" // 日志输出默认格式
-const DefaultAdapterName string = "default"
-
 // 日志等级，从0-7，日优先级由高到低
 const (
 	LevelTrace = iota // 用户级基本输出

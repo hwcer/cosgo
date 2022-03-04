@@ -2,7 +2,7 @@ package app
 
 import (
 	"fmt"
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/cosgo/library/logger"
 	"math/rand"
 	"os"
 	"runtime"
@@ -97,7 +97,9 @@ func Start(mods ...Module) {
 	} else {
 		defBanner()
 	}
-
+	if loggerConsoleAdapter != nil {
+		loggerConsoleAdapter.Options.Format = nil
+	}
 	WaitForSystemExit()
 	//fmt.Printf("App Wait Done\n")
 }

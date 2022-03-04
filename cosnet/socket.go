@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/golang/protobuf/proto"
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/cosgo/library/logger"
 	"github.com/hwcer/cosgo/storage/cache"
 	"net"
 )

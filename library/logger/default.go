@@ -1,6 +1,8 @@
 package logger
 
 // 默认日志输出
+const DefTimeFormat = "2006-01-02 15:04:05 -0700" // 日志输出默认格式
+const DefaultAdapterName string = "default"
 
 var Default *Logger
 

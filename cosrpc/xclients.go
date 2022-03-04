@@ -3,7 +3,7 @@ package cosrpc
 import (
 	"context"
 	"fmt"
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/cosgo/library/logger"
 	rpcx "github.com/smallnest/rpcx/client"
 	"sync/atomic"
 )

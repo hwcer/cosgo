@@ -1,7 +1,7 @@
 package updater
 
 import (
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/cosgo/library/logger"
 )
 
 //Table 不可以叠加的物品,卡牌，装备...

@@ -3,7 +3,7 @@ package etcdv3
 import (
 	"context"
 	"errors"
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/cosgo/library/logger"
 	"strings"
 	"sync/atomic"
 	"time"

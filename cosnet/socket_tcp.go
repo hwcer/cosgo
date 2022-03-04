@@ -3,7 +3,7 @@ package cosnet
 import (
 	"errors"
 	"fmt"
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/cosgo/library/logger"
 	"io"
 	"net"
 	"net/url"

@@ -2,7 +2,7 @@ package cosrpc
 
 import (
 	"fmt"
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/cosgo/library/logger"
 	"github.com/smallnest/rpcx/log"
 )
 

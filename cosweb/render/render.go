@@ -2,7 +2,7 @@ package render
 
 import (
 	"fmt"
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/cosgo/library/logger"
 	"html/template"
 	"io"
 	"path/filepath"
