@@ -19,11 +19,10 @@ import (
 // 5. key/value store
 // 6. defaults
 var (
-	debug                bool
-	appDir               string
-	appName              string
-	workDir              string
-	loggerConsoleAdapter *logger.ConsoleAdapter
+	debug   bool
+	appDir  string
+	appName string
+	workDir string
 )
 var Config *viper.Viper
 
@@ -63,11 +62,6 @@ func init() {
 	if ext != "" {
 		appName = strings.TrimSuffix(appName, ext)
 	}
-	loggerConsoleAdapter, _ = logger.Default.Get(logger.DefaultAdapterName).(*logger.ConsoleAdapter)
-	if loggerConsoleAdapter != nil {
-		loggerConsoleAdapter.Options.Format = loggerMessageFormat
-	}
-	logger.SetLogPathTrim(workDir)
 }
 
 func loggerMessageFormat(message *logger.Message) string {
@@ -118,17 +112,10 @@ func initFlag() (err error) {
 		} else {
 			opts.Level = "INFO"
 		}
-		var adapter *logger.FileAdapter
-		adapter, err = logger.NewFileAdapter(opts)
-		if err != nil {
+		if loggerFileAdapter, err = logger.NewFileAdapter(opts); err != nil {
 			return
 		}
-		if err = logger.Adapter("file", adapter); err != nil {
-			return
-		}
-		logger.Remove(logger.DefaultAdapterName)
 	}
-
 	return nil
 }
 

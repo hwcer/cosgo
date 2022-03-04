@@ -97,9 +97,7 @@ func Start(mods ...Module) {
 	} else {
 		defBanner()
 	}
-	if loggerConsoleAdapter != nil {
-		loggerConsoleAdapter.Options.Format = nil
-	}
+	setLogger()
 	WaitForSystemExit()
 	//fmt.Printf("App Wait Done\n")
 }
