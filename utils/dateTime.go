@@ -45,8 +45,9 @@ func (this *dateTime) Now() time.Time {
 	}
 }
 
-func (this *dateTime) Unix() int64 {
-	return this.time.Unix()
+func (this *dateTime) Unix(sec int64, nsec int64) *dateTime {
+	t := time.Unix(sec, nsec)
+	return this.New(t)
 }
 
 func (this *dateTime) Reset(args ...int) {
@@ -117,21 +118,33 @@ Expire 有效期
 2 周刷新  刷新礼包时间可配置具体几周
 3 月刷新  刷新礼包时间可配置具体几月
 4 按当天0点时间   刷新礼包时间配置秒数
-5 具体到期时间 20210101235959  //年月日时分秒
+5 具体到期时间 2021010123  //年月日时,精确到小时
 v = 1 :当天，周，月晚上24点
 */
-func (this *dateTime) Expire(t, v int) (ttl time.Time, err error) {
+
+type DateTimeExpire int
+
+const (
+	DateTimeExpireNone      DateTimeExpire = 0
+	DateTimeExpireDaily                    = 1
+	DateTimeExpireWeekly                   = 2
+	DateTimeExpireMonthly                  = 3
+	DateTimeExpireSecond                   = 4
+	DateTimeExpireCustomize                = 5
+)
+
+func (this *dateTime) Expire(t DateTimeExpire, v int) (ttl time.Time, err error) {
 	switch t {
-	case 1:
+	case DateTimeExpireDaily:
 		ttl = this.Daily(v)
-	case 2:
+	case DateTimeExpireWeekly:
 		ttl = this.Weekly(v)
-	case 3:
+	case DateTimeExpireMonthly:
 		ttl = this.Monthly(v)
-	case 4:
+	case DateTimeExpireSecond:
 		ttl = this.Daily(0).Add(time.Second * time.Duration(v))
-	case 5:
-		ttl, err = time.Parse("20060102   150405-0700", fmt.Sprintf("%v%v", v, this.zone))
+	case DateTimeExpireCustomize:
+		ttl, err = time.Parse("2006010215-0700", fmt.Sprintf("%v%v", v, this.zone))
 	}
 	return
 }
