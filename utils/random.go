@@ -39,11 +39,14 @@ func (this *random) String(l int) string {
 
 //Probability 独立概率，args单位，默认万分比，，，百分比传入100
 func (this *random) Probability(per int, args ...int) bool {
+	if per <= 0 {
+		return false
+	}
 	var unit = 10000
 	if len(args) > 0 && args[0] != 0 {
 		unit = args[0]
 	}
-	if per >= unit || per <= 0 {
+	if per >= unit {
 		return true
 	}
 	return per >= this.Roll(1, unit)
@@ -90,7 +93,7 @@ func (this *random) RelativeMulti(items map[int32]int32, num int, repeat ...bool
 		re = true
 	}
 	ret := make([]int32, num)
-	for i:=0;i<num;i++ {
+	for i := 0; i < num; i++ {
 		rnd := int32(Random.Roll(1, int(total)))
 		for it, v := range items {
 			if v > 0 {
