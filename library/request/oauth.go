@@ -18,6 +18,12 @@ import (
 */
 
 const OAuthSignatureName = "oauth_signature"
+const (
+	HeaderXForwardedProto    = "X-Forwarded-Code"
+	HeaderXForwardedProtocol = "X-Forwarded-Protocol"
+	HeaderXForwardedSsl      = "X-Forwarded-Ssl"
+	HeaderXUrlScheme         = "X-Url-Protocol"
+)
 
 func NewOAuth(key, secret string) *OAuth {
 	oauth := &OAuth{
@@ -129,12 +135,7 @@ func (this *OAuth) Verify(req *http.Request, body []byte) (err error) {
 		strBody = string(body)
 	}
 
-	url := req.URL
-	if url.Scheme == "" {
-
-	}
-
-	if signature != this.Signature(req.Method, RequestURL(req), OAuthMap, strBody) {
+	if signature != this.Signature(req.Method, Url(req), OAuthMap, strBody) {
 		return errors.New("OAuth signature error")
 	}
 	return nil
