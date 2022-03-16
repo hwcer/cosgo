@@ -55,6 +55,10 @@ func (d Data) GetInt(key string) int64 {
 		return 0
 	}
 }
+
+func (d Data) GetInt32(key string) int32 {
+	return int32(d.GetInt(key))
+}
 func (d Data) GetFloat(key string) (r float64) {
 	v, ok := d[key]
 	if !ok {
