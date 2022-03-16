@@ -1,6 +1,7 @@
 package updater
 
 import (
+	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"strconv"
 )
@@ -54,22 +55,39 @@ func (d Data) GetInt(key string) int64 {
 		return 0
 	}
 }
-
-func (d Data) GetString(key string) string {
+func (d Data) GetFloat(key string) (r float64) {
+	v, ok := d[key]
+	if !ok {
+		return 0
+	}
+	switch v.(type) {
+	case int:
+		r = float64(v.(int))
+	case int32:
+		r = float64(v.(int32))
+	case int64:
+		r = float64(v.(int64))
+	case float32:
+		r = float64(v.(float32))
+	case float64:
+		r = v.(float64)
+	case string:
+		r, _ = strconv.ParseFloat(v.(string), 10)
+	}
+	return
+}
+func (d Data) GetString(key string) (r string) {
 	v, ok := d[key]
 	if !ok {
 		return ""
 	}
 	switch v.(type) {
-	case int32:
-		return strconv.Itoa(int(v.(int32)))
-	case int64:
-		return strconv.Itoa(int(v.(int64)))
 	case string:
-		return v.(string)
+		r = v.(string)
 	default:
-		return ""
+		r = fmt.Sprintf("%v", v)
 	}
+	return
 }
 
 type Dataset struct {
