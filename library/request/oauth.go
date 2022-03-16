@@ -1,6 +1,7 @@
 package request
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/hex"
@@ -93,7 +94,7 @@ func (this *OAuth) Signature(method, address string, oauth map[string]string, bo
 }
 
 //Verify http(s)验签
-func (this *OAuth) Verify(req *http.Request, body []byte) (err error) {
+func (this *OAuth) Verify(req *http.Request, body io.Reader) (err error) {
 	signature := req.Header.Get(OAuthSignatureName)
 	if signature == "" {
 		return errors.New("OAuth Signature empty")
@@ -127,12 +128,13 @@ func (this *OAuth) Verify(req *http.Request, body []byte) (err error) {
 	var strBody string
 	if this.Strict {
 		if body == nil {
-			body, err = io.ReadAll(req.Body)
+			body = req.Body
 		}
-		if err != nil {
+		buf := &bytes.Buffer{}
+		if _, err = buf.ReadFrom(body); err != nil {
 			return err
 		}
-		strBody = string(body)
+		strBody = string(buf.Bytes())
 	}
 
 	if signature != this.Signature(req.Method, Url(req), OAuthMap, strBody) {
