@@ -190,7 +190,7 @@ func (u *Updater) Save() (ret []*Cache, err error) {
 		}
 	}
 
-	u.Emit(UpdaterListenerTypeBeforeSave, 0)
+	u.Emit(UpdaterListenerTypeFinishSave, 0)
 
 	return
 }
