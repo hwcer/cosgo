@@ -156,7 +156,7 @@ func (this *Route) Match(path string) (proto, fn reflect.Value, ok bool) {
 	return
 }
 
-func (r *Route) Range(prefix string, fn RegistryRangeHandle) (err error) {
+func (r *Route) Range(prefix string, fn RangeHandle) (err error) {
 	rp := prefix + r.Name()
 	for k, node := range r.nodes {
 		if err = node.Range(rp+k, fn); err != nil {

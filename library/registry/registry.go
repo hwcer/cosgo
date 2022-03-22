@@ -5,18 +5,18 @@ import (
 	"strings"
 )
 
-//type RegistryRangeHandle func(route *Route) error
-type RegistryRangeHandle func(name string, method interface{}) error
-type RegistryFilterHandle func(reflect.Value, reflect.Value) bool
+
+type RangeHandle func(name string, method interface{}) error
+type FilterHandle func(reflect.Value, reflect.Value) bool
 
 type Registry struct {
 	*Prefix
 	dict   map[string]*Route
-	filter RegistryFilterHandle //用于判断struct中的方法是否合法接口
-	Fuzzy  bool                 //模糊匹配，不区分大小写
+	filter FilterHandle //用于判断struct中的方法是否合法接口
+	Fuzzy  bool         //模糊匹配，不区分大小写
 }
 
-func New(prefix string, filter ...RegistryFilterHandle) *Registry {
+func New(prefix string, filter ...FilterHandle) *Registry {
 	n := &Registry{
 		dict:   make(map[string]*Route),
 		Fuzzy:  true,
@@ -45,7 +45,7 @@ func (this *Registry) Route(name string) *Route {
 	return route
 }
 
-func (this *Registry) Range(fn RegistryRangeHandle) (err error) {
+func (this *Registry) Range(fn RangeHandle) (err error) {
 	prefix := this.Name()
 	for _, r := range this.dict {
 		if err = r.Range(prefix, fn); err != nil {

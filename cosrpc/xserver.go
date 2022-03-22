@@ -26,8 +26,8 @@ type service struct {
 }
 
 type Register interface {
-	Start() error
 	Stop() error
+	Start() error
 }
 
 func (this *XServer) Register(name string, rcvr interface{}, metadata ...string) {

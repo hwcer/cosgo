@@ -12,7 +12,7 @@ type Node struct {
 	method map[string]reflect.Value
 }
 
-func (this *Node) Range(prefix string, fn RegistryRangeHandle) (err error) {
+func (this *Node) Range(prefix string, fn RangeHandle) (err error) {
 	for k, m := range this.method {
 		if err = fn(prefix+k, m); err != nil {
 			return

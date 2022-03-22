@@ -1,39 +1,39 @@
-package utils
+package values
 
 import (
 	"fmt"
 	"strconv"
 )
 
-type Dataset map[string]interface{}
+type Values map[string]interface{}
 
-func (m Dataset) Has(key string) bool {
+func (m Values) Has(key string) bool {
 	_, ok := m[key]
 	return ok
 }
 
-func (m Dataset) Get(key string) interface{} {
+func (m Values) Get(key string) interface{} {
 	return m[key]
 }
 
-func (m Dataset) Set(key string, val interface{}) interface{} {
+func (m Values) Set(key string, val interface{}) interface{} {
 	m[key] = val
 	return val
 }
 
-func (m Dataset) Add(key string, val int64) (r int64) {
+func (m Values) Add(key string, val int64) (r int64) {
 	r = m.GetInt(key) + val
 	m[key] = r
 	return
 }
 
-func (m Dataset) Sub(key string, val int64) (r int64) {
+func (m Values) Sub(key string, val int64) (r int64) {
 	r = m.GetInt(key) - val
 	m[key] = r
 	return
 }
 
-func (m Dataset) GetInt(key string) int64 {
+func (m Values) GetInt(key string) int64 {
 	v, ok := m[key]
 	if !ok {
 		return 0
@@ -54,7 +54,7 @@ func (m Dataset) GetInt(key string) int64 {
 		return 0
 	}
 }
-func (m Dataset) GetFloat(key string) (r float64) {
+func (m Values) GetFloat(key string) (r float64) {
 	v, ok := m[key]
 	if !ok {
 		return 0
@@ -75,7 +75,7 @@ func (m Dataset) GetFloat(key string) (r float64) {
 	}
 	return
 }
-func (m Dataset) GetString(key string) (r string) {
+func (m Values) GetString(key string) (r string) {
 	v, ok := m[key]
 	if !ok {
 		return ""
