@@ -1,6 +1,8 @@
 package utils
 
-import "strconv"
+import (
+	"strconv"
+)
 
 func StringSliceIndexOf(s []string, tar string) int {
 	for i, v := range s {
@@ -30,4 +32,12 @@ func SliceStringToInt32(s []string) []int32 {
 		ret = append(ret, int32(in))
 	}
 	return ret
+}
+
+func ConditionalOperator(op bool,a,b interface{}) interface{}  {
+	if op{
+		return a
+	}else {
+		return b
+	}
 }
