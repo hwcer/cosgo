@@ -62,7 +62,6 @@ func (s *fields) Query() mongo.Query {
 	}
 	var oid []string
 	var iid []interface{}
-	query := mongo.Query{}
 	for _, v := range s.fields {
 		switch v.(type) {
 		case string:
@@ -71,10 +70,16 @@ func (s *fields) Query() mongo.Query {
 			iid = append(iid, v)
 		}
 	}
-	if len(oid) > 0 {
+	query := mongo.Query{}
+	if len(oid) > 0 && len(iid) > 0 {
+		q1 := mongo.Query{}
+		q1.PrimaryString(oid...)
+		q2 := mongo.Query{}
+		q2.In(ItemNameId, iid...)
+		query.OR(q1, q2)
+	} else if len(oid) > 0 {
 		query.PrimaryString(oid...)
-	}
-	if len(iid) > 0 {
+	} else if len(iid) > 0 {
 		query.In(ItemNameId, iid...)
 	}
 	return query

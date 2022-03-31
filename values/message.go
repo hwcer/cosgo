@@ -34,3 +34,15 @@ func (this *Message) SetCode(code int, err interface{}, args ...interface{}) {
 func (this *Message) SetData(v interface{}) {
 	this.Data = v
 }
+
+
+func (this *Message)Parse(v interface{})  {
+	if r, ok := v.(*Message); ok {
+		this.Code = r.Code
+		this.Data = r.Data
+	} else if _, ok2 := v.(error); ok2 {
+		this.SetCode(0, v)
+	} else {
+		this.SetData(v)
+	}
+}

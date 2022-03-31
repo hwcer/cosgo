@@ -117,7 +117,7 @@ func (this *Dataset) Get(id interface{}) (r itemHMap) {
 		oid = this.indexes[iid][0]
 	}
 	if oid != "" {
-		r, _ = this.dataset[id.(string)]
+		r, _ = this.dataset[oid]
 	}
 	return
 }

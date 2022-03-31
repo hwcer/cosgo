@@ -33,6 +33,10 @@ func (m Values) Sub(key string, val int64) (r int64) {
 	return
 }
 
+func (m Values) GetInt32(key string) int32{
+	return int32(m.GetInt(key))
+}
+
 func (m Values) GetInt(key string) int64 {
 	v, ok := m[key]
 	if !ok {
@@ -54,6 +58,8 @@ func (m Values) GetInt(key string) int64 {
 		return 0
 	}
 }
+
+
 func (m Values) GetFloat(key string) (r float64) {
 	v, ok := m[key]
 	if !ok {

@@ -1,5 +1,7 @@
 package registry
 
+import "strings"
+
 func NewPrefix(name string) *Prefix {
 	p := &Prefix{
 		name: Format(name),
@@ -19,4 +21,12 @@ func (this *Prefix) Name() string {
 
 func (this *Prefix) Index() int {
 	return this.index
+}
+
+func (this *Prefix) Format(path string) (r string) {
+	r = Format(path)
+	if this.name !="/"{
+		r = strings.TrimPrefix(path,this.name)
+	}
+	return
 }
