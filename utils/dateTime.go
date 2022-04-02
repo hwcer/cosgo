@@ -6,38 +6,38 @@ import (
 	"time"
 )
 
-var Time *dateTime
+var Time *DateTime
 
 const (
 	DaySecond int64 = 24 * 60 * 60
 )
 
 func init() {
-	Time = &dateTime{}
+	Time = &DateTime{}
 	//Time.time = time.Now()
-	Time.zone = time.Now().Format("-0700")
-	Time.reset = []int{0, 0, 0, 0}
+	Time.timeZone = time.Now().Format("-0700")
+	Time.timeReset = []int{0, 0, 0, 0}
 	Time.layout = "2006-01-02 15:04:05-0700"
 	Time.WeekStartDay = 1
 }
 
-type dateTime struct {
+type DateTime struct {
 	time         time.Time //时间
-	zone         string    //时区偏移量 -0700
-	reset        []int     //时间重置设置，时分秒毫秒
 	layout       string    //日期输入格式，必须带时区-0700,默认精确到秒
+	timeZone     string    //时区偏移量 -0700
+	timeReset    []int     //时间重置设置，时分秒毫秒
 	WeekStartDay int       //每周开始时间,默认周一   1:周一，0:周日
 }
 
-func (this *dateTime) New(t time.Time) *dateTime {
+func (this *DateTime) New(t time.Time) *DateTime {
 	dt := *this
 	dt.time = t
-	dt.zone = dt.time.Format("-0700")
+	dt.timeZone = dt.time.Format("-0700")
 	return &dt
 }
 
 //Now 获取dateTime中的当前时间，默认TIME 未设置当前时间则返回系统当前时间
-func (this *dateTime) Now() time.Time {
+func (this *DateTime) Now() time.Time {
 	if this.time.IsZero() {
 		return time.Now()
 	} else {
@@ -45,33 +45,37 @@ func (this *dateTime) Now() time.Time {
 	}
 }
 
-func (this *dateTime) Unix(sec int64, nsec int64) *dateTime {
+func (this *DateTime) Unix(sec int64, nsec int64) *DateTime {
 	t := time.Unix(sec, nsec)
 	return this.New(t)
 }
 
-func (this *dateTime) Reset(args ...int) {
+func (this *DateTime) TimeZone(zone string) {
+	this.timeZone = zone
+}
+
+func (this *DateTime) TimeReset(args ...int) {
 	if len(args) < 4 {
 		args = append(args, 0, 0, 0, 0)
 	}
-	this.reset = args
+	this.timeReset = args
 }
 
-func (this *dateTime) Layout(layout string) *dateTime {
+func (this *DateTime) Layout(layout string) *DateTime {
 	this.layout = layout
 	return this
 }
 
-func (this *dateTime) Format() string {
+func (this *DateTime) Format() string {
 	return this.Now().Format(this.layout)
 }
 
 //Daily 获取一天的开始时间
 //addDays：天偏移，0：今天凌晨,1:明天凌晨
 //args :时,分,秒,毫秒
-func (this *dateTime) Daily(addDays int) time.Time {
+func (this *DateTime) Daily(addDays int) time.Time {
 	t := this.Now()
-	r := time.Date(t.Year(), t.Month(), t.Day(), this.reset[0], this.reset[1], this.reset[2], this.reset[3], t.Location())
+	r := time.Date(t.Year(), t.Month(), t.Day(), this.timeReset[0], this.timeReset[1], this.timeReset[2], this.timeReset[3], t.Location())
 	if addDays != 0 {
 		r = r.AddDate(0, 0, addDays)
 	}
@@ -80,7 +84,7 @@ func (this *dateTime) Daily(addDays int) time.Time {
 
 //Weekly 获取本周开始时间
 //addWeeks：周偏移，0：本周,1:下周 -1:上周
-func (this *dateTime) Weekly(addWeeks int) time.Time {
+func (this *DateTime) Weekly(addWeeks int) time.Time {
 	var addDay int
 	t := this.Now()
 	week := int(t.Weekday())
@@ -93,7 +97,7 @@ func (this *dateTime) Weekly(addWeeks int) time.Time {
 		t = t.AddDate(0, 0, addDay)
 	}
 
-	r := time.Date(t.Year(), t.Month(), t.Day(), this.reset[0], this.reset[1], this.reset[2], this.reset[3], t.Location())
+	r := time.Date(t.Year(), t.Month(), t.Day(), this.timeReset[0], this.timeReset[1], this.timeReset[2], this.timeReset[3], t.Location())
 	if addWeeks != 0 {
 		r = r.AddDate(0, 0, addWeeks*7)
 	}
@@ -102,9 +106,9 @@ func (this *dateTime) Weekly(addWeeks int) time.Time {
 
 //Monthly 获取本月开始时间
 //addMonth：月偏移，0：本月,1:下月 -1:上月
-func (this *dateTime) Monthly(addMonth int) time.Time {
+func (this *DateTime) Monthly(addMonth int) time.Time {
 	t := this.Now()
-	r := time.Date(t.Year(), t.Month(), 1, this.reset[0], this.reset[1], this.reset[2], this.reset[3], t.Location())
+	r := time.Date(t.Year(), t.Month(), 1, this.timeReset[0], this.timeReset[1], this.timeReset[2], this.timeReset[3], t.Location())
 	if addMonth > 0 {
 		r = r.AddDate(0, addMonth, 0)
 	}
@@ -122,18 +126,16 @@ Expire 有效期
 v = 1 :当天，周，月晚上24点
 */
 
-type DateTimeExpire int
-
 const (
-	DateTimeExpireNone      DateTimeExpire = 0
-	DateTimeExpireDaily                    = 1
-	DateTimeExpireWeekly                   = 2
-	DateTimeExpireMonthly                  = 3
-	DateTimeExpireSecond                   = 4
-	DateTimeExpireCustomize                = 5
+	DateTimeExpireNone      int = 0
+	DateTimeExpireDaily         = 1
+	DateTimeExpireWeekly        = 2
+	DateTimeExpireMonthly       = 3
+	DateTimeExpireSecond        = 4
+	DateTimeExpireCustomize     = 5
 )
 
-func (this *dateTime) Expire(t DateTimeExpire, v int) (ttl time.Time, err error) {
+func (this *DateTime) Expire(t, v int) (ttl time.Time, err error) {
 	switch t {
 	case DateTimeExpireDaily:
 		ttl = this.Daily(v)
@@ -144,12 +146,14 @@ func (this *dateTime) Expire(t DateTimeExpire, v int) (ttl time.Time, err error)
 	case DateTimeExpireSecond:
 		ttl = this.Daily(0).Add(time.Second * time.Duration(v))
 	case DateTimeExpireCustomize:
-		ttl, err = time.Parse("2006010215-0700", fmt.Sprintf("%v%v", v, this.zone))
+		ttl, err = time.Parse("2006010215-0700", fmt.Sprintf("%v%v", v, this.timeZone))
+	default:
+		ttl = time.Unix(0,0)
 	}
 	return
 }
 
-func (this *dateTime) Sign(addDays int) (sign int32, str string) {
+func (this *DateTime) Sign(addDays int) (sign int32, str string) {
 	t := this.Daily(addDays)
 	format := "20060102"
 	str = t.Format(format)
