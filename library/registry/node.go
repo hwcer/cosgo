@@ -11,12 +11,3 @@ type Node struct {
 	name   string
 	method map[string]reflect.Value
 }
-
-func (this *Node) Range(prefix string, fn RangeHandle) (err error) {
-	for k, m := range this.method {
-		if err = fn(prefix+k, m); err != nil {
-			return
-		}
-	}
-	return nil
-}

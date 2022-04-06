@@ -16,21 +16,33 @@ import (
 //NewRoute name: /x/y
 //文件加载init()中调用
 
-func NewRoute(registry *Registry, name string) *Route {
+func NewRoute(opts *Options, name string) *Route {
 	r := &Route{
-		Prefix:   NewPrefix(name),
-		nodes:    make(map[string]*Node),
-		method:   make(map[string]reflect.Value),
-		registry: registry,
+		Options: opts,
+		nodes:   make(map[string]*Node),
+		method:  make(map[string]reflect.Value),
 	}
+	r.name = r.Format(name)
 	return r
 }
 
 type Route struct {
-	*Prefix
-	nodes    map[string]*Node
-	method   map[string]reflect.Value
-	registry *Registry
+	*Options
+	name   string
+	nodes  map[string]*Node
+	method map[string]reflect.Value
+}
+
+func (this *Route) Name() string {
+	return this.name
+}
+
+func (this *Route) Format(path string) string {
+	if this.Options.Format != nil {
+		return this.Options.Format(path)
+	} else {
+		return strings.ToLower(path)
+	}
 }
 
 //Register
@@ -63,9 +75,9 @@ func (this *Route) RegisterFun(i interface{}, name ...string) error {
 	} else {
 		fname = FuncName(v)
 	}
-	fname = this.registry.Format(fname)
+	fname = this.Format(fname)
 	var proto reflect.Value
-	if this.registry.filter != nil && !this.registry.filter(proto, v) {
+	if this.Options.Filter != nil && !this.Options.Filter(proto, v) {
 		return fmt.Errorf("RegisterFun filter return false:%v", fname)
 	}
 
@@ -95,7 +107,7 @@ func (this *Route) RegisterStruct(i interface{}, name ...string) error {
 	} else {
 		sname = handleType.Elem().Name()
 	}
-	sname = this.registry.Format(sname)
+	sname = this.Format(sname)
 	if _, ok := this.nodes[sname]; ok {
 		return fmt.Errorf("RegisterStruct name exist:%v", sname)
 	}
@@ -121,17 +133,21 @@ func (this *Route) RegisterStruct(i interface{}, name ...string) error {
 		//	logger.Debug("Watch value data num or return num error,value:%v.%v()", sname, fname)
 		//	continue
 		//}
-		if this.registry.filter != nil && !this.registry.filter(v, method.Func) {
+		if this.Options.Filter != nil && !this.Options.Filter(v, method.Func) {
 			continue
 		}
-		fname = this.registry.Format(fname)
+		fname = this.Format(fname)
 		node.method[fname] = method.Func
 	}
 	return nil
 }
 
+//Match 匹配一个路径
+// path : $prefix/$methodName
+// path : $prefix/$nodeName/$methodName
 func (this *Route) Match(path string) (proto, fn reflect.Value, ok bool) {
-	index := this.Index()
+	path = this.Format(path)
+	index := len(this.name)
 	if index > 0 && !strings.HasPrefix(path, this.name) {
 		return
 	}
@@ -154,19 +170,4 @@ func (this *Route) Match(path string) (proto, fn reflect.Value, ok bool) {
 
 	proto = node.i
 	return
-}
-
-func (r *Route) Range(prefix string, fn RangeHandle) (err error) {
-	rp := prefix + r.Name()
-	for k, node := range r.nodes {
-		if err = node.Range(rp+k, fn); err != nil {
-			return
-		}
-	}
-	for k, m := range r.method {
-		if err = fn(rp+k, m); err != nil {
-			return
-		}
-	}
-	return nil
 }

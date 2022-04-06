@@ -1,43 +1,24 @@
 package registry
 
-import (
-	"reflect"
-	"strings"
-)
-
-
-type RangeHandle func(name string, method interface{}) error
-type FilterHandle func(reflect.Value, reflect.Value) bool
+type RangeHandle func(name string, route *Route) error
 
 type Registry struct {
-	*Prefix
-	dict   map[string]*Route
-	filter FilterHandle //用于判断struct中的方法是否合法接口
-	Fuzzy  bool         //模糊匹配，不区分大小写
+	*Options
+	dict map[string]*Route
 }
 
-func New(prefix string, filter ...FilterHandle) *Registry {
-	n := &Registry{
-		dict:   make(map[string]*Route),
-		Fuzzy:  true,
-		Prefix: NewPrefix(prefix),
+func New(opts *Options) *Registry {
+	if opts == nil {
+		opts = &Options{}
 	}
-	if len(filter) > 0 {
-		n.filter = filter[0]
+	return &Registry{
+		Options: opts,
+		dict:    make(map[string]*Route),
 	}
-	return n
-}
-func (this *Registry) Paths() (r []string) {
-	prefix := this.Name()
-	for k, _ := range this.dict {
-		r = append(r, prefix+k)
-	}
-	return
 }
 
 func (this *Registry) Route(name string) *Route {
-	route := NewRoute(this, name)
-
+	route := NewRoute(this.Options, name)
 	if r, ok := this.dict[route.name]; ok {
 		return r
 	}
@@ -45,33 +26,18 @@ func (this *Registry) Route(name string) *Route {
 	return route
 }
 
-func (this *Registry) Range(fn RangeHandle) (err error) {
-	prefix := this.Name()
-	for _, r := range this.dict {
-		if err = r.Range(prefix, fn); err != nil {
-			return
-		}
+func (this *Registry) Paths() (r []string) {
+	for k, _ := range this.dict {
+		r = append(r, k)
 	}
 	return
 }
 
-func (this *Registry) Match(path string) (route *Route, pr, fn reflect.Value, ok bool) {
-	path = this.Format(path)
-	if !strings.HasPrefix(path, "/") {
-		path = "/" + path
-	}
-	for _, r := range this.dict {
-		if pr, fn, ok = r.Match(path); ok {
-			route = r
+func (this *Registry) Range(fn RangeHandle) (err error) {
+	for k, r := range this.dict {
+		if err = fn(k, r); err != nil {
 			return
 		}
-	}
-	return
-}
-func (this *Registry) Format(path string) (new string) {
-	new = Format(path)
-	if this.Fuzzy {
-		new = strings.ToLower(new)
 	}
 	return
 }

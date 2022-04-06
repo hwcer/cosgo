@@ -18,7 +18,7 @@ func ABC() {
 func TestRoute(t *testing.T) {
 	registry := New("/:x")
 
-	route := registry.Route("srv")
+	route := registry.Namespace("srv")
 	route.Register(&services{})
 
 	if err := route.Register(ABC); err != nil {
