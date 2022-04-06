@@ -2,4 +2,3 @@
 .vscode
 *.iml
 *.out
-go.sum
