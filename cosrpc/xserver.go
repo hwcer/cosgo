@@ -1,78 +1,152 @@
 package cosrpc
 
 import (
+	"errors"
+	"fmt"
+	"github.com/hwcer/cosgo/library/registry"
 	"github.com/hwcer/cosgo/utils"
 	"github.com/smallnest/rpcx/server"
 	"net/url"
+	"reflect"
 	"strings"
 	"time"
 )
 
-func NewXServer() *XServer {
-	return &XServer{}
+// 通过registry集中注册对象
+
+type XServerRegistryCaller interface {
+	Caller(c *server.Context, fn reflect.Value) interface{}
+}
+
+type XServerRegistrySerialize func(c *server.Context, reply interface{}) error
+
+type RpcRegister interface {
+	Stop() error
+	Start() error
+	Register(name string, i interface{}, metadata string) (err error)
+}
+
+func NewXServer(opts *registry.Options) *XServer {
+	r := &XServer{}
+	if opts == nil {
+		opts = registry.NewOptions()
+	}
+	if opts.Filter == nil {
+		opts.Filter = r.filter
+	}
+	r.Registry = registry.New(opts)
+	return r
 }
 
 type XServer struct {
-	rpcxServer   *server.Server
-	rpcxServices []*service
-	rpcxRegister Register
+	*registry.Registry
+	Caller      func(c *server.Context, pr reflect.Value, fn reflect.Value) (interface{}, error) //自定义全局消息调用
+	Serialize   XServerRegistrySerialize                                                         //消息序列化封装
+	rpcServer   *server.Server
+	rpcRegister RpcRegister
 }
 
-type service struct {
-	rcvr        interface{}
-	metadata    string
-	methodName  string
-	servicePath string
-}
-
-type Register interface {
-	Stop() error
-	Start() error
-}
-
-func (this *XServer) Register(name string, rcvr interface{}, metadata ...string) {
-	this.RegisterFunc(name, "", rcvr, metadata...)
-}
-
-func (this *XServer) RegisterFunc(servicePath, methodName string, rcvr interface{}, metadata ...string) {
-	s := &service{
-		rcvr:        rcvr,
-		methodName:  methodName,
-		servicePath: servicePath,
+func (this *XServer) filter(pr, fn reflect.Value) bool {
+	if !pr.IsValid() {
+		_, ok := fn.Interface().(func(*server.Context) interface{})
+		return ok
 	}
-	if len(metadata) > 0 {
-		s.metadata = strings.Join(metadata, "&")
+	t := fn.Type()
+	if t.NumIn() != 2 {
+		return false
 	}
-	this.rpcxServices = append(this.rpcxServices, s)
+	if t.NumOut() != 1 {
+		return false
+	}
+	return true
 }
 
-//address 使用内网或者外网地址，不能使用127.0.0.1,localhost之类的外网无法访问
-func (this *XServer) Start(address *url.URL, register Register) (err error) {
-	//server
+//handle cosweb入口
+func (this *XServer) handle(c *server.Context) (err error) {
+	urlPath := this.Clean(c.ServicePath(), c.ServiceMethod())
+	route, ok := this.Match(urlPath)
+	if !ok {
+		return errors.New("ServicePath not exist")
+	}
+	pr, fn, ok := route.Match(urlPath)
+	if !ok {
+		return errors.New("ServiceMethod not exist")
+	}
+
+	var reply interface{}
+	reply, err = this.caller(c, pr, fn)
+
+	if err != nil {
+		return
+	}
+	if this.Serialize != nil {
+		return this.Serialize(c, reply)
+	} else {
+		return c.Write(reply)
+	}
+}
+
+func (this *XServer) caller(c *server.Context, pr, fn reflect.Value) (reply interface{}, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%v", r)
+			//logger.Error("%v", err)
+		}
+	}()
+	if this.Caller != nil {
+		return this.Caller(c, pr, fn)
+	}
+	if !pr.IsValid() {
+		f, _ := fn.Interface().(func(c *server.Context) interface{})
+		reply = f(c)
+	} else if s, ok := pr.Interface().(XServerRegistryCaller); ok {
+		reply = s.Caller(c, fn)
+	} else {
+		ret := fn.Call([]reflect.Value{pr, reflect.ValueOf(c)})
+		reply = ret[0].Interface()
+	}
+	return
+}
+
+func (this *XServer) Server() *server.Server {
+	return this.rpcServer
+}
+
+func (this *XServer) Route(name string) *registry.Service {
+	route := this.Registry.Service(name)
+	return route
+}
+
+func (this *XServer) Services() (s []string) {
+	this.Registry.Range(func(name string, _ *registry.Service) bool {
+		servicePath := strings.TrimPrefix(name, "/")
+		s = append(s, servicePath)
+		return true
+	})
+	return
+}
+
+func (this *XServer) Start(address *url.URL, register RpcRegister) (err error) {
 	if err = register.Start(); err != nil {
 		return
 	}
-	this.rpcxServer = server.NewServer()
-	this.rpcxServer.DisableHTTPGateway = true
-	this.rpcxServer.Plugins.Add(register)
-	this.rpcxRegister = register
-	for _, v := range this.rpcxServices {
-		metadata := v.metadata
-		if v.methodName != "" {
-			err = this.rpcxServer.RegisterFunctionName(v.servicePath, v.methodName, v.rcvr, metadata)
-		} else {
-			err = this.rpcxServer.RegisterName(v.servicePath, v.rcvr, metadata)
+	this.rpcServer = server.NewServer()
+	this.rpcServer.DisableHTTPGateway = true
+	this.Registry.Range(func(name string, route *registry.Service) bool {
+		servicePath := strings.Trim(name, "/")
+		register.Register(servicePath, nil, "")
+		for _, serviceMethod := range route.Paths() {
+			this.rpcServer.AddHandler(servicePath, serviceMethod, this.handle)
 		}
-		if err != nil {
-			return
-		}
-	}
-	var scheme = address.Scheme
+		return true
+	})
+
+	scheme := address.Scheme
 	if scheme == "" {
 		scheme = "tcp"
 	}
 	err = utils.Timeout(time.Second, func() error {
-		return this.rpcxServer.Serve(scheme, address.Host)
+		return this.rpcServer.Serve(scheme, address.Host)
 	})
 	if err == utils.ErrorTimeout {
 		err = nil
@@ -80,18 +154,8 @@ func (this *XServer) Start(address *url.URL, register Register) (err error) {
 	return
 }
 
-func (this *XServer) Close() (errs []error) {
-
-	var err error
-	if err = this.rpcxServer.Shutdown(nil); err != nil {
-		errs = append(errs, err)
-	}
-	if err = this.rpcxRegister.Stop(); err != nil {
-		errs = append(errs, err)
-	}
-	return
-}
-
-func (this *XServer) Size() int {
-	return len(this.rpcxServices)
+func (this *XServer) Close() error {
+	this.rpcServer.Shutdown(nil)
+	this.rpcRegister.Stop()
+	return nil
 }

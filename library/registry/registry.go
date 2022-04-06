@@ -1,43 +1,57 @@
 package registry
 
-type RangeHandle func(name string, route *Route) error
+type RangeHandle func(name string, route *Service) bool
 
 type Registry struct {
 	*Options
-	dict map[string]*Route
+	dict map[string]*Service
 }
 
 func New(opts *Options) *Registry {
 	if opts == nil {
-		opts = &Options{}
+		opts = NewOptions()
+	} else if opts.route == nil {
+		opts.route = map[string]*Service{}
 	}
 	return &Registry{
+		dict:    make(map[string]*Service),
 		Options: opts,
-		dict:    make(map[string]*Route),
 	}
 }
 
-func (this *Registry) Route(name string) *Route {
-	route := NewRoute(this.Options, name)
-	if r, ok := this.dict[route.name]; ok {
-		return r
-	}
-	this.dict[route.name] = route
-	return route
+func (this *Registry) Len() int {
+	return len(this.dict)
 }
 
-func (this *Registry) Paths() (r []string) {
-	for k, _ := range this.dict {
-		r = append(r, k)
-	}
+func (this *Registry) Get(name string) (srv *Service, ok bool) {
+	name = this.Clean(name)
+	srv, ok = this.dict[name]
 	return
 }
 
-func (this *Registry) Range(fn RangeHandle) (err error) {
+//Match 通过路径匹配Route,path必须是使用 Registry.Clean()处理后的
+func (this *Registry) Match(path string) (srv *Service, ok bool) {
+	//path = this.Clean(path)
+	srv, ok = this.Options.route[path]
+	return
+}
+
+func (this *Registry) Range(fn RangeHandle) {
 	for k, r := range this.dict {
-		if err = fn(k, r); err != nil {
+		if !fn(k, r) {
 			return
 		}
 	}
 	return
+}
+
+//Service GET OR CREATE
+func (this *Registry) Service(name string) *Service {
+	name = this.Clean(name)
+	if r, ok := this.dict[name]; ok {
+		return r
+	}
+	srv := NewService(name, this.Options)
+	this.dict[srv.name] = srv
+	return srv
 }

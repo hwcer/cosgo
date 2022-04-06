@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hwcer/cosgo/library/logger"
+	"path"
 	"reflect"
 	"strings"
 )
@@ -13,40 +14,32 @@ import (
 使用updater时必须使用playerHandle.Data()来获取updater
 */
 
-//NewRoute name: /x/y
+//NewService name: /x/y
 //文件加载init()中调用
 
-func NewRoute(opts *Options, name string) *Route {
-	r := &Route{
+func NewService(name string, opts *Options) *Service {
+	r := &Service{
 		Options: opts,
 		nodes:   make(map[string]*Node),
 		method:  make(map[string]reflect.Value),
 	}
-	r.name = r.Format(name)
+	r.name = r.Clean(name)
 	return r
 }
 
-type Route struct {
+type Service struct {
 	*Options
 	name   string
 	nodes  map[string]*Node
 	method map[string]reflect.Value
 }
 
-func (this *Route) Name() string {
+func (this *Service) Name() string {
 	return this.name
 }
 
-func (this *Route) Format(path string) string {
-	if this.Options.Format != nil {
-		return this.Options.Format(path)
-	} else {
-		return strings.ToLower(path)
-	}
-}
-
 //Register
-func (this *Route) Register(i interface{}, name ...string) error {
+func (this *Service) Register(i interface{}, name ...string) error {
 	v := reflect.ValueOf(i)
 	var kind reflect.Kind
 	if v.Kind() == reflect.Ptr {
@@ -64,7 +57,7 @@ func (this *Route) Register(i interface{}, name ...string) error {
 	}
 }
 
-func (this *Route) RegisterFun(i interface{}, name ...string) error {
+func (this *Service) RegisterFun(i interface{}, name ...string) error {
 	v := ValueOf(i)
 	if v.Kind() != reflect.Func {
 		return errors.New("RegisterFun fn type must be reflect.Func")
@@ -75,7 +68,10 @@ func (this *Route) RegisterFun(i interface{}, name ...string) error {
 	} else {
 		fname = FuncName(v)
 	}
-	fname = this.Format(fname)
+	fname = this.Clean(fname)
+	if fname == "" {
+		return errors.New("RegisterFun name empty")
+	}
 	var proto reflect.Value
 	if this.Options.Filter != nil && !this.Options.Filter(proto, v) {
 		return fmt.Errorf("RegisterFun filter return false:%v", fname)
@@ -88,11 +84,12 @@ func (this *Route) RegisterFun(i interface{}, name ...string) error {
 		return fmt.Errorf("RegisterFun exist:%v", fname)
 	}
 	this.method[fname] = v
+	this.Options.addRoutePath(this, fname)
 	return nil
 }
 
 //Register 注册一组handle
-func (this *Route) RegisterStruct(i interface{}, name ...string) error {
+func (this *Service) RegisterStruct(i interface{}, name ...string) error {
 	v := ValueOf(i)
 	if v.Kind() != reflect.Ptr {
 		return errors.New("RegisterStruct handle type must be reflect.Struct")
@@ -107,7 +104,10 @@ func (this *Route) RegisterStruct(i interface{}, name ...string) error {
 	} else {
 		sname = handleType.Elem().Name()
 	}
-	sname = this.Format(sname)
+	sname = this.Clean(sname)
+	if sname == "" {
+		return errors.New("RegisterStruct name empty")
+	}
 	if _, ok := this.nodes[sname]; ok {
 		return fmt.Errorf("RegisterStruct name exist:%v", sname)
 	}
@@ -136,8 +136,9 @@ func (this *Route) RegisterStruct(i interface{}, name ...string) error {
 		if this.Options.Filter != nil && !this.Options.Filter(v, method.Func) {
 			continue
 		}
-		fname = this.Format(fname)
+		fname = this.Clean(fname)
 		node.method[fname] = method.Func
+		this.Options.addRoutePath(this, sname, fname)
 	}
 	return nil
 }
@@ -145,13 +146,11 @@ func (this *Route) RegisterStruct(i interface{}, name ...string) error {
 //Match 匹配一个路径
 // path : $prefix/$methodName
 // path : $prefix/$nodeName/$methodName
-func (this *Route) Match(path string) (proto, fn reflect.Value, ok bool) {
-	path = this.Format(path)
+func (this *Service) Match(path string) (proto, fn reflect.Value, ok bool) {
 	index := len(this.name)
 	if index > 0 && !strings.HasPrefix(path, this.name) {
 		return
 	}
-
 	name := path[index:]
 	if fn, ok = this.method[name]; ok {
 		return
@@ -169,5 +168,18 @@ func (this *Route) Match(path string) (proto, fn reflect.Value, ok bool) {
 	}
 
 	proto = node.i
+	return
+}
+
+func (this *Service) Paths() (r []string) {
+	for k, _ := range this.method {
+		r = append(r, k)
+	}
+	for k, node := range this.nodes {
+		for n, _ := range node.method {
+			r = append(r, path.Join(k, n))
+		}
+	}
+
 	return
 }
