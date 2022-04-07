@@ -17,4 +17,5 @@ func (this *Paging) Init(size int) {
 	} else if this.Size > size {
 		this.Size = size
 	}
+	this.Rows = make([]interface{}, 0)
 }
