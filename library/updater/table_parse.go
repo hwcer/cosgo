@@ -3,6 +3,7 @@ package updater
 import (
 	"fmt"
 	"github.com/hwcer/cosgo/storage/mongo"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 var tableParseHandle = make(map[ActType]func(*Table, *Cache) error)
@@ -76,7 +77,9 @@ func tableHandleSet(t *Table, act *Cache) error {
 	act.R = act.V
 	item.Set(act.V.(map[string]interface{}))
 	query := mongo.NewPrimaryQuery(act.ID)
-	update := mongo.Update(act.V.(map[string]interface{}))
+	v := bson.M{}
+	v["$set"] = act.V
+	update := mongo.Update(v)
 	bulkWrite.Update(query, update)
 	return nil
 }

@@ -143,7 +143,7 @@ func (this *HMap) parseId(id interface{}) (iid int32, oid string, err error) {
 	switch id.(type) {
 	case string:
 		oid = id.(string)
-		iid, err = this.model.Parse(this.updater.uid)
+		iid, err = this.model.Parse(oid)
 	case int, int32, int64:
 		iid = int32(ParseInt(iid))
 		oid, err = this.model.ObjectId(this.updater.uid, iid)
