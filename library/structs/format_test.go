@@ -293,7 +293,7 @@ func TestMap_NestedMapWithStructValues(t *testing.T) {
 
 	in, ok := m["A"].(map[string]interface{})
 	if !ok {
-		t.Errorf("Nested type of map should be of type map[string]interface{}, have %AType", m["A"])
+		t.Errorf("Nested type of map should be of type map[string]interface{}, have %T", m["A"])
 	}
 
 	example := in["example_key"].(map[string]interface{})
@@ -325,9 +325,9 @@ func TestMap_NestedMapWithStringValues(t *testing.T) {
 		t.Errorf("Map should return a map type, got: %v", typ)
 	}
 
-	in, ok := m["Bag"].(map[string]interface{})
+	in, ok := m["B"].(map[string]interface{})
 	if !ok {
-		t.Errorf("Nested type of map should be of type map[string]interface{}, have %AType", m["Bag"])
+		t.Errorf("Nested type of map should be of type map[string]interface{}, have %T", m["B"])
 	}
 
 	foo := in["Foo"].(map[string]string)
@@ -358,9 +358,9 @@ func TestMap_NestedMapWithInterfaceValues(t *testing.T) {
 		t.Errorf("Map should return a map type, got: %v", typ)
 	}
 
-	in, ok := m["Bag"].(map[string]interface{})
+	in, ok := m["B"].(map[string]interface{})
 	if !ok {
-		t.Errorf("Nested type of map should be of type map[string]interface{}, have %AType", m["Bag"])
+		t.Errorf("Nested type of map should be of type map[string]interface{}, have %T", m["B"])
 	}
 
 	foo := in["Foo"].(map[string]interface{})
@@ -392,9 +392,9 @@ func TestMap_NestedMapWithSliceIntValues(t *testing.T) {
 		t.Errorf("Map should return a map type, got: %v", typ)
 	}
 
-	in, ok := m["Bag"].(map[string]interface{})
+	in, ok := m["B"].(map[string]interface{})
 	if !ok {
-		t.Errorf("Nested type of map should be of type map[string]interface{}, have %AType", m["Bag"])
+		t.Errorf("Nested type of map should be of type map[string]interface{}, have %T", m["B"])
 	}
 
 	foo := in["Foo"].(map[string][]int)
@@ -431,9 +431,9 @@ func TestMap_NestedMapWithSliceStructValues(t *testing.T) {
 		t.Errorf("Map should return a map type, got: %v", typ)
 	}
 
-	in, ok := m["Bag"].(map[string]interface{})
+	in, ok := m["B"].(map[string]interface{})
 	if !ok {
-		t.Errorf("Nested type of map should be of type map[string]interface{}, have %AType", m["Bag"])
+		t.Errorf("Nested type of map should be of type map[string]interface{}, have %T", m["B"])
 	}
 
 	foo := in["Foo"].(map[string]interface{})
@@ -442,7 +442,7 @@ func TestMap_NestedMapWithSliceStructValues(t *testing.T) {
 
 	addr, ok := addresses[0].(map[string]interface{})
 	if !ok {
-		t.Errorf("Nested type of map should be of type map[string]interface{}, have %AType", m["Bag"])
+		t.Errorf("Nested type of map should be of type map[string]interface{}, have %T", m["B"])
 	}
 
 	if _, exists := addr["country"]; !exists {
@@ -522,7 +522,7 @@ func TestMap_NestedSliceWithIntValues(t *testing.T) {
 
 	ports, ok := m["ports"].([]int)
 	if !ok {
-		t.Errorf("Nested type of map should be of type []int, have %AType", m["ports"])
+		t.Errorf("Nested type of map should be of type []int, have %T", m["ports"])
 	}
 
 	if ports[0] != 80 {
@@ -687,11 +687,11 @@ func TestStruct(t *testing.T) {
 	var T = struct{}{}
 
 	if !IsStruct(T) {
-		t.Errorf("AType should be a struct, got: %AType", T)
+		t.Errorf("T should be a struct, got: %T", T)
 	}
 
 	if !IsStruct(&T) {
-		t.Errorf("AType should be a struct, got: %AType", T)
+		t.Errorf("T should be a struct, got: %T", T)
 	}
 
 }
@@ -873,7 +873,7 @@ func TestNames(t *testing.T) {
 		return false
 	}
 
-	for _, val := range []string{"A", "Bag", "C"} {
+	for _, val := range []string{"A", "B", "C"} {
 		if !inSlice(val) {
 			t.Errorf("Names should have the Value %v", val)
 		}
@@ -906,7 +906,7 @@ func TestFields(t *testing.T) {
 		return false
 	}
 
-	for _, val := range []string{"A", "Bag", "C"} {
+	for _, val := range []string{"A", "B", "C"} {
 		if !inSlice(val) {
 			t.Errorf("fields should have the Value %v", val)
 		}
@@ -1016,7 +1016,7 @@ func TestIsZero(t *testing.T) {
 
 	ok = IsZero(Y)
 	if ok {
-		t.Error("IsZero should return false because A and Bag is initialized")
+		t.Error("IsZero should return false because A and B is initialized")
 	}
 }
 
@@ -1035,7 +1035,7 @@ func TestIsZero_OmitNested(t *testing.T) {
 
 	ok := IsZero(b)
 	if ok {
-		t.Error("IsZero should return false because A, Bag and C are initialized")
+		t.Error("IsZero should return false because A, B and C are initialized")
 	}
 
 	aZero := A{}
@@ -1043,7 +1043,7 @@ func TestIsZero_OmitNested(t *testing.T) {
 
 	ok = IsZero(bZero)
 	if !ok {
-		t.Error("IsZero should return true because neither A nor Bag is initialized")
+		t.Error("IsZero should return true because neither A nor B is initialized")
 	}
 
 }
@@ -1063,7 +1063,7 @@ func TestIsZero_Nested(t *testing.T) {
 
 	ok := IsZero(b)
 	if ok {
-		t.Error("IsZero should return false because A, Bag and C are initialized")
+		t.Error("IsZero should return false because A, B and C are initialized")
 	}
 
 	aZero := A{}
@@ -1071,7 +1071,7 @@ func TestIsZero_Nested(t *testing.T) {
 
 	ok = IsZero(bZero)
 	if !ok {
-		t.Error("IsZero should return true because neither A nor Bag is initialized")
+		t.Error("IsZero should return true because neither A nor B is initialized")
 	}
 
 }
@@ -1092,7 +1092,7 @@ func TestIsZero_Anonymous(t *testing.T) {
 
 	ok := IsZero(b)
 	if ok {
-		t.Error("IsZero should return false because A, Bag and C are initialized")
+		t.Error("IsZero should return false because A, B and C are initialized")
 	}
 
 	aZero := A{}
@@ -1101,7 +1101,7 @@ func TestIsZero_Anonymous(t *testing.T) {
 
 	ok = IsZero(bZero)
 	if !ok {
-		t.Error("IsZero should return true because neither A nor Bag is initialized")
+		t.Error("IsZero should return true because neither A nor B is initialized")
 	}
 }
 
@@ -1118,7 +1118,7 @@ func TestHasZero(t *testing.T) {
 
 	ok := HasZero(T)
 	if !ok {
-		t.Error("HasZero should return true because A and Bag are initialized.")
+		t.Error("HasZero should return true because A and B are initialized.")
 	}
 
 	var X = struct {
@@ -1143,7 +1143,7 @@ func TestHasZero(t *testing.T) {
 
 	ok = HasZero(Y)
 	if ok {
-		t.Error("HasZero should return false because A and Bag is initialized")
+		t.Error("HasZero should return false because A and B is initialized")
 	}
 }
 
@@ -1160,7 +1160,7 @@ func TestHasZero_OmitNested(t *testing.T) {
 	}
 	b := &B{A: a, C: 123}
 
-	// Because the Field A inside Bag is omitted  HasZero should return false
+	// Because the Field A inside B is omitted  HasZero should return false
 	// because it will stop iterating deeper andnot going to lookup for D
 	ok := HasZero(b)
 	if ok {
@@ -1296,10 +1296,10 @@ func TestSetValueOnNestedField(t *testing.T) {
 
 	u := User{}
 	s := New(&u)
-	f := s.Field("base").Field("Index")
+	f := s.Field("Base").Field("Index")
 	err := f.Set(10)
 	if err != nil {
-		t.Errorf("errMsg %v", err)
+		t.Errorf("Error %v", err)
 	}
 	if f.Value().(int) != 10 {
 		t.Errorf("Value should be equal to 10, got %v", f.Value())
@@ -1351,7 +1351,7 @@ func TestTagWithStringOption(t *testing.T) {
 
 	vs := s.Values()
 	if vs[1] != person.String() {
-		t.Errorf("Value for 2nd field (person) should be %AType, got: %AType", person.String(), vs[1])
+		t.Errorf("Value for 2nd field (person) should be %T, got: %T", person.String(), vs[1])
 	}
 }
 

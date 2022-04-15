@@ -49,7 +49,7 @@ func hmapHandleNew(h *HMap, act *Cache) (err error) {
 	case ActTypeAdd:
 		r.Add(act.V.(int64))
 	//case ActTypeSub:
-	//	r.Create(-act.Val.(int64))
+	//	r.Create(-act.V.(int64))
 	case ActTypeSet:
 		r.Set(act.V.(map[string]interface{}))
 	}

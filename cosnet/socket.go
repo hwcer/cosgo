@@ -159,7 +159,7 @@ func (this *Socket) processMsg(socket *Socket, msg Message) {
 	//	data, err := utils.GZipUnCompress(msg.Data)
 	//	if err != nil {
 	//		this.close()
-	//		logger.errMsg("uncompress failed socket:%v err:%v", socket.IId(), err)
+	//		logger.Error("uncompress failed socket:%v err:%v", socket.IId(), err)
 	//		return
 	//	}
 	//	msg.Data = data
