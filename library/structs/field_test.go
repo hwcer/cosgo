@@ -36,7 +36,7 @@ func newStruct() *Format {
 		g: []string{"zeynep", "fatih"},
 	}
 
-	// B and x is not initialized for testing
+	// Bag and x is not initialized for testing
 	f := &Foo{
 		A: "gopher",
 		C: true,
@@ -227,9 +227,9 @@ func TestField_Kind(t *testing.T) {
 		t.Errorf("Field A has wrong kind: %s want: %s", f.Kind(), reflect.String)
 	}
 
-	f = s.Field("B")
+	f = s.Field("Bag")
 	if f.Kind() != reflect.Int {
-		t.Errorf("Field B has wrong kind: %s want: %s", f.Kind(), reflect.Int)
+		t.Errorf("Field Bag has wrong kind: %s want: %s", f.Kind(), reflect.Int)
 	}
 
 	// unexported
@@ -242,7 +242,7 @@ func TestField_Kind(t *testing.T) {
 func TestField_Tag(t *testing.T) {
 	s := newStruct()
 
-	v := s.Field("B").Tag("json")
+	v := s.Field("Bag").Tag("json")
 	if v != "" {
 		t.Errorf("Field's tag Value of a non existing tag should return empty, got: %s", v)
 	}
@@ -327,8 +327,8 @@ func TestField_IsZero(t *testing.T) {
 		t.Errorf("fields 'A' field is an initialized field")
 	}
 
-	if !s.Field("B").IsZero() {
-		t.Errorf("fields 'B' field is not an initialized field")
+	if !s.Field("Bag").IsZero() {
+		t.Errorf("fields 'Bag' field is not an initialized field")
 	}
 }
 
