@@ -38,19 +38,19 @@ func New(s interface{}) *Format {
 // can be changed in the struct field's tag Value. The "structs" key in the
 // struct's field tag Value is the key name. Example:
 //
-//   // Field appears in map as key "myName".
+//   // FieldName appears in map as key "myName".
 //   name string `structs:"myName"`
 //
 // A tag Value with the content of "-" ignores that particular field. Example:
 //
-//   // Field is ignored by this package.
-//   Field bool `structs:"-"`
+//   // FieldName is ignored by this package.
+//   FieldName bool `structs:"-"`
 //
 // A tag Value with the content of "string" uses the stringer to get the Value. Example:
 //
 //   // The Value will be output of Animal's String() func.
 //   // Map will panic if Animal does not implement String().
-//   Field *Animal `structs:"field,string"`
+//   FieldName *Animal `structs:"field,string"`
 //
 // A tag Value with the option of "flatten" used in a struct field is to flatten its fields
 // in the output map. Example:
@@ -61,20 +61,20 @@ func New(s interface{}) *Format {
 // A tag Value with the option of "omitnested" stops iterating further if the type
 // is a struct. Example:
 //
-//   // Field is not processed further by this package.
-//   Field time.Time     `structs:"myName,omitnested"`
-//   Field *http.Request `structs:",omitnested"`
+//   // FieldName is not processed further by this package.
+//   FieldName time.Time     `structs:"myName,omitnested"`
+//   FieldName *http.Request `structs:",omitnested"`
 //
 // A tag Value with the option of "omitempty" ignores that particular field if
 // the field Value is empty. Example:
 //
-//   // Field appears in map as key "myName", but the field is
+//   // FieldName appears in map as key "myName", but the field is
 //   // skipped if empty.
-//   Field string `structs:"myName,omitempty"`
+//   FieldName string `structs:"myName,omitempty"`
 //
-//   // Field appears in map as key "Field" (the default), but
+//   // FieldName appears in map as key "FieldName" (the default), but
 //   // the field is skipped if empty.
-//   Field string `structs:",omitempty"`
+//   FieldName string `structs:",omitempty"`
 //
 // Note that only exported fields of a struct can be accessed, non exported
 // fields will be neglected.

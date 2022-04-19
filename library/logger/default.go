@@ -7,7 +7,7 @@ const DefaultAdapterName string = "default"
 var Default *Logger
 
 func init() {
-	Default = New(3)
+	Default = New(15)
 	opts := NewConsoleOptions()
 	console, _ := NewConsoleAdapter(opts)
 	Default.Adapter(DefaultAdapterName, console)

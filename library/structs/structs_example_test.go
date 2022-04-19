@@ -281,7 +281,7 @@ func ExampleField() {
 	// Create a new Format type
 	s := New(access)
 
-	// GetString the Field type for "Person" field
+	// GetString the FieldName type for "Person" field
 	p := s.Field("Person")
 
 	// GetString the underlying "name field" and print the Value of it

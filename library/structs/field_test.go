@@ -86,7 +86,7 @@ func TestField_Set(t *testing.T) {
 
 	// let's pass a different type
 	f = s.Field("A")
-	err = f.Set(123) // Field A is of type string, but we are going to pass an integer
+	err = f.Set(123) // FieldName A is of type string, but we are going to pass an integer
 	if err == nil {
 		t.Error("Setting a field's Value with a different type than the field's type should return an error")
 	}
@@ -224,18 +224,18 @@ func TestField_Kind(t *testing.T) {
 
 	f := s.Field("A")
 	if f.Kind() != reflect.String {
-		t.Errorf("Field A has wrong kind: %s want: %s", f.Kind(), reflect.String)
+		t.Errorf("FieldName A has wrong kind: %s want: %s", f.Kind(), reflect.String)
 	}
 
 	f = s.Field("B")
 	if f.Kind() != reflect.Int {
-		t.Errorf("Field B has wrong kind: %s want: %s", f.Kind(), reflect.Int)
+		t.Errorf("FieldName B has wrong kind: %s want: %s", f.Kind(), reflect.Int)
 	}
 
 	// unexported
 	f = s.Field("d")
 	if f.Kind() != reflect.String {
-		t.Errorf("Field d has wrong kind: %s want: %s", f.Kind(), reflect.String)
+		t.Errorf("FieldName d has wrong kind: %s want: %s", f.Kind(), reflect.String)
 	}
 }
 
@@ -244,27 +244,27 @@ func TestField_Tag(t *testing.T) {
 
 	v := s.Field("B").Tag("json")
 	if v != "" {
-		t.Errorf("Field's tag Value of a non existing tag should return empty, got: %s", v)
+		t.Errorf("FieldName's tag Value of a non existing tag should return empty, got: %s", v)
 	}
 
 	v = s.Field("C").Tag("json")
 	if v != "c" {
-		t.Errorf("Field's tag Value of the existing field C should return 'c', got: %s", v)
+		t.Errorf("FieldName's tag Value of the existing field C should return 'c', got: %s", v)
 	}
 
 	v = s.Field("d").Tag("json")
 	if v != "" {
-		t.Errorf("Field's tag Value of a non exported field should return empty, got: %s", v)
+		t.Errorf("FieldName's tag Value of a non exported field should return empty, got: %s", v)
 	}
 
 	v = s.Field("x").Tag("xml")
 	if v != "x" {
-		t.Errorf("Field's tag Value of a non exported field with a tag should return 'x', got: %s", v)
+		t.Errorf("FieldName's tag Value of a non exported field with a tag should return 'x', got: %s", v)
 	}
 
 	v = s.Field("A").Tag("json")
 	if v != "" {
-		t.Errorf("Field's tag Value of a existing field without a tag should return empty, got: %s", v)
+		t.Errorf("FieldName's tag Value of a existing field without a tag should return empty, got: %s", v)
 	}
 }
 
@@ -274,11 +274,11 @@ func TestField_Value(t *testing.T) {
 	v := s.Field("A").Value()
 	val, ok := v.(string)
 	if !ok {
-		t.Errorf("Field's Value of a A should be string")
+		t.Errorf("FieldName's Value of a A should be string")
 	}
 
 	if val != "gopher" {
-		t.Errorf("Field's Value of a existing tag should return 'gopher', got: %s", val)
+		t.Errorf("FieldName's Value of a existing tag should return 'gopher', got: %s", val)
 	}
 
 	defer func() {
@@ -357,7 +357,7 @@ func TestField_Field(t *testing.T) {
 	defer func() {
 		err := recover()
 		if err == nil {
-			t.Error("Field of a non existing nested struct should panic")
+			t.Error("FieldName of a non existing nested struct should panic")
 		}
 	}()
 

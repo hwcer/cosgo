@@ -1160,7 +1160,7 @@ func TestHasZero_OmitNested(t *testing.T) {
 	}
 	b := &B{A: a, C: 123}
 
-	// Because the Field A inside B is omitted  HasZero should return false
+	// Because the FieldName A inside B is omitted  HasZero should return false
 	// because it will stop iterating deeper andnot going to lookup for D
 	ok := HasZero(b)
 	if ok {
