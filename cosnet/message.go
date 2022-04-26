@@ -12,7 +12,7 @@ const HeaderSize = 8
 var MaxMsgDataSize uint32 = 100 * 1024 //1M
 
 type Message interface {
-	Code() interface{}                      //协议号
+	Code() uint16                           //协议号
 	Size() uint32                           //BODY长度
 	Data() []byte                           //获取包体
 	Index() uint16                          //唯一编号
@@ -28,7 +28,7 @@ type message struct {
 	data  []byte //消息数据
 }
 
-func (this *message) Code() interface{} {
+func (this *message) Code() uint16 {
 	return this.code
 }
 func (this *message) Size() uint32 {

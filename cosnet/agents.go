@@ -133,11 +133,6 @@ func (this *Agents) Broadcast(msg Message, filter func(*Socket) bool) {
 	})
 }
 
-//Register 注册消息处理器
-func (this *Agents) Register(code int32, fun HandlerFunc) {
-	this.Handler.Register(code, fun)
-}
-
 //Listen 启动柜服务器,监听address
 func (this *Agents) Listen(address string) (server Server, err error) {
 	var addrs *url.URL

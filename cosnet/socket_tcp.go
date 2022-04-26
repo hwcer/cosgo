@@ -24,11 +24,13 @@ func (this *tcpSocket) Read(head []byte) (Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	//logger.Debug("READ HEAD:%v", head)
+	logger.Debug("READ HEAD:%v", head)
 	msg, err = this.agents.Handler.Parse(head)
 	if err != nil {
-		//logger.Debug("READ ERR:%v", err)
+		logger.Debug("READ ERR:%v", err)
 		return nil, err
+	} else {
+		logger.Debug("READ HEAD:%+v", msg)
 	}
 	if msg.Size() > 0 {
 		data := make([]byte, msg.Size())

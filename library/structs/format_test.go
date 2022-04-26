@@ -710,7 +710,7 @@ func TestValues(t *testing.T) {
 	s := Values(T)
 
 	if typ := reflect.TypeOf(s).Kind(); typ != reflect.Slice {
-		t.Errorf("Values should return a slice type, got: %v", typ)
+		t.Errorf("Flags should return a slice type, got: %v", typ)
 	}
 
 	inSlice := func(val interface{}) bool {
@@ -724,7 +724,7 @@ func TestValues(t *testing.T) {
 
 	for _, val := range []interface{}{"a-Value", 2, true} {
 		if !inSlice(val) {
-			t.Errorf("Values should have the Value %v", val)
+			t.Errorf("Flags should have the Value %v", val)
 		}
 	}
 }
@@ -739,11 +739,11 @@ func TestValues_OmitEmpty(t *testing.T) {
 	s := Values(a)
 
 	if len(s) != 1 {
-		t.Errorf("Values of omitted empty fields should be not counted")
+		t.Errorf("Flags of omitted empty fields should be not counted")
 	}
 
 	if s[0].(string) != "example" {
-		t.Errorf("Values of omitted empty fields should left the Value example")
+		t.Errorf("Flags of omitted empty fields should left the Value example")
 	}
 }
 
@@ -767,7 +767,7 @@ func TestValues_OmitNested(t *testing.T) {
 	s := Values(b)
 
 	if len(s) != 2 {
-		t.Errorf("Values of omitted nested struct should be not counted")
+		t.Errorf("Flags of omitted nested struct should be not counted")
 	}
 
 	inSlice := func(val interface{}) bool {
@@ -781,7 +781,7 @@ func TestValues_OmitNested(t *testing.T) {
 
 	for _, val := range []interface{}{123, a} {
 		if !inSlice(val) {
-			t.Errorf("Values should have the Value %v", val)
+			t.Errorf("Flags should have the Value %v", val)
 		}
 	}
 }
@@ -811,7 +811,7 @@ func TestValues_Nested(t *testing.T) {
 
 	for _, val := range []interface{}{"example", 123} {
 		if !inSlice(val) {
-			t.Errorf("Values should have the Value %v", val)
+			t.Errorf("Flags should have the Value %v", val)
 		}
 	}
 }
@@ -842,7 +842,7 @@ func TestValues_Anonymous(t *testing.T) {
 
 	for _, val := range []interface{}{"example", 123} {
 		if !inSlice(val) {
-			t.Errorf("Values should have the Value %v", val)
+			t.Errorf("Flags should have the Value %v", val)
 		}
 	}
 }

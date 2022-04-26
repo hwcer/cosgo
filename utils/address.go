@@ -10,20 +10,22 @@ import (
 )
 
 type Address struct {
-	Port  int    `json:"port"`
-	Host  string `json:"host"`
-	Retry int    `json:"retry"`
+	Port   int    `json:"port"`
+	Host   string `json:"host"`
+	Retry  int    `json:"retry"`
+	Scheme string `json:"scheme"`
 }
 
-func (this *Address) Parse(address string) (err error) {
+func (this *Address) Parse(address string) {
 	if strings.Contains(address, "://") {
 		arr := strings.Split(address, "://")
 		address = arr[1]
+		this.Scheme = strings.ToLower(arr[0])
 	}
 	pair := strings.Split(address, ":")
 	this.Host = pair[0]
 	if len(pair) > 0 {
-		this.Port, err = strconv.Atoi(pair[1])
+		this.Port, _ = strconv.Atoi(pair[1])
 	}
 	return
 }
@@ -35,6 +37,8 @@ func (this *Address) String(scheme ...string) string {
 	s := host + ":" + strconv.Itoa(this.Port)
 	if len(scheme) > 0 && scheme[0] != "" {
 		s = scheme[0] + "://" + s
+	} else if this.Scheme != "" {
+		s = this.Scheme + "://" + s
 	}
 	return s
 }
@@ -58,20 +62,20 @@ func (this *Address) Handle(scheme string, handle func(string) error) (err error
 }
 
 //NewAddress 解析url,scheme:默认协议
-func NewAddress(address ...string) (r *Address, err error) {
+func NewAddress(address ...string) (r *Address) {
 	r = &Address{}
 	if len(address) > 0 {
-		err = r.Parse(address[0])
+		r.Parse(address[0])
 	}
 	return
 }
 
-func NewUrl(address, scheme string) (*url.URL, error) {
-	if !strings.Contains(address, "://") {
-		address = scheme + "://" + address
-	}
-	return url.Parse(address)
-}
+//func NewUrl(address, scheme string) (*url.URL, error) {
+//	if !strings.Contains(address, "://") {
+//		address = scheme + "://" + address
+//	}
+//	return url.Parse(address)
+//}
 
 // LocalIPs return all non-loopback IPv4 addresses
 func LocalIPv4s() ([]string, error) {

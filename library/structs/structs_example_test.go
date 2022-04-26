@@ -21,11 +21,11 @@ func ExampleNew() {
 	s := New(server)
 
 	fmt.Printf("name        : %v\n", s.Name())
-	fmt.Printf("Values      : %v\n", s.Values())
+	fmt.Printf("Flags      : %v\n", s.Values())
 	fmt.Printf("Value of Index : %v\n", s.Field("Index").Value())
 	// Output:
 	// name        : Server
-	// Values      : [Arslan 123456 true]
+	// Flags      : [Arslan 123456 true]
 	// Value of Index : 123456
 
 }
@@ -148,9 +148,9 @@ func ExampleValues() {
 
 	m := Values(s)
 
-	fmt.Printf("Values: %+v\n", m)
+	fmt.Printf("Flags: %+v\n", m)
 	// Output:
-	// Values: [Fatih 135790 false]
+	// Flags: [Fatih 135790 false]
 }
 
 func ExampleValues_omitEmpty() {
@@ -170,9 +170,9 @@ func ExampleValues_omitEmpty() {
 	m := Values(s)
 
 	// values contains only the Location field
-	fmt.Printf("Values: %+v\n", m)
+	fmt.Printf("Flags: %+v\n", m)
 	// Output:
-	// Values: [Ankara]
+	// Flags: [Ankara]
 }
 
 func ExampleValues_tags() {
@@ -199,9 +199,9 @@ func ExampleValues_tags() {
 	// from the Location field
 	m := Values(s)
 
-	fmt.Printf("Values: %+v\n", m)
+	fmt.Printf("Flags: %+v\n", m)
 	// Output:
-	// Values: [Fatih 135790 false]
+	// Flags: [Fatih 135790 false]
 }
 
 func ExampleFields() {
