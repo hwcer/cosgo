@@ -70,12 +70,12 @@ func NewAddress(address ...string) (r *Address) {
 	return
 }
 
-//func NewUrl(address, scheme string) (*url.URL, error) {
-//	if !strings.Contains(address, "://") {
-//		address = scheme + "://" + address
-//	}
-//	return url.Parse(address)
-//}
+func NewUrl(address, scheme string) (*url.URL, error) {
+	if !strings.Contains(address, "://") {
+		address = scheme + "://" + address
+	}
+	return url.Parse(address)
+}
 
 // LocalIPs return all non-loopback IPv4 addresses
 func LocalIPv4s() ([]string, error) {

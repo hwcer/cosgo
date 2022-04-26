@@ -32,7 +32,8 @@ func (c *Client) Address(db int) string {
 
 func New(address string) (client *Client, err error) {
 	var uri *url.URL
-	if uri, err = utils.NewUrl(address, "tcp"); err != nil {
+	uri, err = utils.NewUrl(address, "tcp")
+	if err != nil {
 		return
 	}
 	opts := &redis.Options{
