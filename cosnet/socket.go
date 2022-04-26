@@ -164,7 +164,7 @@ func (this *Socket) processMsg(socket *Socket, msg Message) {
 	//	}
 	//	msg.Data = data
 	//	msg.Head.Flags.Leave(message.FlagCompress)
-	//	msg.Head.Size = uint32(len(msg.Data))
+	//	msg.Head.size = uint32(len(msg.Data))
 	//}
 	logger.Debug("processMsg:%+v", msg)
 	this.agents.Handler.Call(socket, msg)

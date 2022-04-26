@@ -60,7 +60,7 @@ func ReadFile(filename string) ([]byte, error) {
 	var n int64 = bytes.MinRead
 
 	if fi, err := f.Stat(); err == nil {
-		// As initial capacity for readAll, use Size + a little extra in case Size
+		// As initial capacity for readAll, use size + a little extra in case size
 		// is zero, and to avoid another allocation after Read has filled the
 		// buffer. The readAll call will read into its allocated internal buffer
 		// cheaply. If the size was wrong, we'll either waste some space off the end

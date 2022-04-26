@@ -51,11 +51,11 @@ func TestNew(t *testing.T) {
 		t.Error("GetDataByRank is not nil")
 	}
 	if s.Length() != 6 {
-		t.Error("Rank Data Size is wrong")
+		t.Error("Rank Data size is wrong")
 	}
 	s.Delete(1001)
 	if s.Length() != 5 {
-		t.Error("Rank Data Size is wrong")
+		t.Error("Rank Data size is wrong")
 	}
 	d, ok := s.GetData(1004)
 	t.Log(d, ok)
