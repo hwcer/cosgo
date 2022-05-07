@@ -109,12 +109,12 @@ func (this *crypto) DESEncrypt(original, secret string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	base64str := base64.URLEncoding.EncodeToString(chipperByte)
+	base64str := this.base64.EncodeToString(chipperByte)
 	return base64str, nil
 }
 
 func (this *crypto) DESDecrypt(chipper, secret string) (string, error) {
-	base64Byte, err := base64.URLEncoding.DecodeString(chipper)
+	base64Byte, err := this.base64.DecodeString(chipper)
 	if err != nil {
 		return "", err
 	}
@@ -138,12 +138,12 @@ func (this *crypto) AESEncrypt(original, secret string, ivs ...string) (string, 
 	if err != nil {
 		return "", err
 	}
-	base64str := base64.StdEncoding.EncodeToString(chipperByte)
+	base64str := this.base64.EncodeToString(chipperByte)
 	return base64str, nil
 }
 
 func (this *crypto) AESDecrypt(chipper, secret string, ivs ...string) (string, error) {
-	base64Byte, err := base64.StdEncoding.DecodeString(chipper)
+	base64Byte, err := this.base64.DecodeString(chipper)
 	if err != nil {
 		return "", err
 	}
