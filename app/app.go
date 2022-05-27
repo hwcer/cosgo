@@ -10,11 +10,7 @@ import (
 	"time"
 )
 
-var (
-	banner         func()
-	modules        []Module
-	DataTimeFormat = "2006-01-02 15:04:05 -0700"
-)
+var modules []Module
 
 func assert(err interface{}, s ...string) {
 	if err != nil {
@@ -22,23 +18,6 @@ func assert(err interface{}, s ...string) {
 	} else if len(s) > 0 {
 		fmt.Printf("app %v done\n", s[0])
 	}
-}
-
-func defBanner() {
-	str := `
-  _________  _____________ 
- / ___/ __ \/ __/ ___/ __ \
-/ /__/ /_/ /\ \/ (_ / /_/ /
-\___/\____/___/\___/\____/
-____________________________________O/_______
-                                    O\
-`
-	fmt.Printf(str)
-}
-
-//设置默认启动界面，启动完所有MOD后执行
-func SetBanner(m func()) {
-	banner = m
 }
 
 func Use(mods ...Module) {
@@ -49,10 +28,10 @@ func Use(mods ...Module) {
 
 /**
  * 应用程序启动
- * @param m 需注册的模块
+ * @param mods 需注册的模块
  */
 func Start(mods ...Module) {
-	fmt.Printf("App Starting:%v\n", time.Now().Format(DataTimeFormat))
+	fmt.Printf("App Starting:%v\n", time.Now().Format(Options.DataTimeFormat))
 	for _, mod := range mods {
 		modules = append(modules, mod)
 	}
@@ -71,7 +50,7 @@ func Start(mods ...Module) {
 		if err = deletePidFile(); err != nil {
 			fmt.Printf("App delete pid file err:%v\n", err)
 		}
-		fmt.Printf("App Closed:%v\n", time.Now().Format(DataTimeFormat))
+		fmt.Printf("App Closed:%v\n", time.Now().Format(Options.DataTimeFormat))
 	}()
 	//=========================加载模块=============================
 	if err = pprofStart(); err != nil {
@@ -83,6 +62,10 @@ func Start(mods ...Module) {
 		assert(v.Init(), fmt.Sprintf("mod [%v] init", v.ID()))
 	}
 	assert(emit(EventTypInitAfter))
+	//自定义进程
+	if Options.Process != nil && !Options.Process() {
+		return
+	}
 	//=========================启动信息=============================
 	showConfig()
 	//=========================启动模块=============================
@@ -92,11 +75,7 @@ func Start(mods ...Module) {
 		assert(v.Start(), fmt.Sprintf("mod [%v] start", v.ID()))
 	}
 	assert(emit(EventTypStartAfter))
-	if banner != nil {
-		banner()
-	} else {
-		defBanner()
-	}
+	Options.Banner()
 	setLogger()
 	WaitForSystemExit()
 	//fmt.Printf("App Wait Done\n")

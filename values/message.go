@@ -35,8 +35,7 @@ func (this *Message) SetData(v interface{}) {
 	this.Data = v
 }
 
-
-func (this *Message)Parse(v interface{})  {
+func (this *Message) Parse(v interface{}) {
 	if r, ok := v.(*Message); ok {
 		this.Code = r.Code
 		this.Data = r.Data
