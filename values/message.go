@@ -11,11 +11,23 @@ type Message struct {
 	Data interface{} `json:"data"`
 }
 
-func (this *Message) Error() string {
-	return fmt.Sprintf("%v", this.Data)
+func (this *Message) Parse(v interface{}) *Message {
+	if r, ok := v.(*Message); ok {
+		this.Code = r.Code
+		this.Data = r.Data
+	} else if _, ok2 := v.(error); ok2 {
+		this.Errorf(0, v)
+	} else {
+		this.SetData(v)
+	}
+	return this
 }
 
-func (this *Message) SetCode(code int, err interface{}, args ...interface{}) {
+func (this *Message) Error() string {
+	return fmt.Sprintf("%v,code:%v", this.Data, this.Code)
+}
+
+func (this *Message) Errorf(code int, err interface{}, args ...interface{}) *Message {
 	if code == 0 {
 		this.Code = DefaultErrorCode
 	} else {
@@ -29,19 +41,15 @@ func (this *Message) SetCode(code int, err interface{}, args ...interface{}) {
 		msg = fmt.Sprintf(msg, args...)
 	}
 	this.Data = msg
+	return this
 }
 
-func (this *Message) SetData(v interface{}) {
+func (this *Message) SetCode(v int) *Message {
+	this.Code = v
+	return this
+}
+
+func (this *Message) SetData(v interface{}) *Message {
 	this.Data = v
-}
-
-func (this *Message) Parse(v interface{}) {
-	if r, ok := v.(*Message); ok {
-		this.Code = r.Code
-		this.Data = r.Data
-	} else if _, ok2 := v.(error); ok2 {
-		this.SetCode(0, v)
-	} else {
-		this.SetData(v)
-	}
+	return this
 }
