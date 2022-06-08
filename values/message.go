@@ -41,20 +41,18 @@ func (this *Message) Error() string {
 	return fmt.Sprintf("%v,code:%v", this.Data, this.Code)
 }
 
-func (this *Message) Errorf(code int, err interface{}, args ...interface{}) *Message {
+func (this *Message) Errorf(code int, format interface{}, args ...interface{}) *Message {
 	if code == 0 {
 		this.Code = DefaultErrorCode
 	} else {
 		this.Code = code
 	}
-	msg, ok := err.(string)
-	if !ok {
-		msg = fmt.Sprintf("%v", err)
+	switch format.(type) {
+	case string:
+		this.Data = fmt.Sprintf(format.(string), args...)
+	default:
+		this.Data = fmt.Sprintf("%v", format)
 	}
-	if len(args) > 0 {
-		msg = fmt.Sprintf(msg, args...)
-	}
-	this.Data = msg
 	return this
 }
 
