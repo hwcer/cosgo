@@ -15,8 +15,11 @@ func Errorf(code int, err interface{}, args ...interface{}) (r *Message) {
 	return r.Errorf(code, err, args...)
 }
 
-func Parse(v interface{}) (r *Message) {
-	r = &Message{}
+func Parse(v interface{}) *Message {
+	if r, ok := v.(*Message); ok {
+		return r
+	}
+	r := &Message{}
 	return r.Parse(v)
 }
 
@@ -27,14 +30,12 @@ type Message struct {
 
 func (this *Message) Parse(v interface{}) *Message {
 	if r, ok := v.(*Message); ok {
-		this.Code = r.Code
-		this.Data = r.Data
+		return r
 	} else if _, ok2 := v.(error); ok2 {
-		this.Errorf(0, v)
+		return this.Errorf(0, v)
 	} else {
-		this.SetData(v)
+		return this.SetData(v)
 	}
-	return this
 }
 
 func (this *Message) Error() string {
