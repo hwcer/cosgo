@@ -10,17 +10,22 @@ func New(data interface{}) *Message {
 	return &Message{Data: data}
 }
 
-func Errorf(code int, err interface{}, args ...interface{}) (r *Message) {
-	r = &Message{}
-	return r.Errorf(code, err, args...)
-}
-
 func Parse(v interface{}) *Message {
 	if r, ok := v.(*Message); ok {
 		return r
 	}
 	r := &Message{}
 	return r.Parse(v)
+}
+
+func Error(err interface{}) (r *Message) {
+	r = &Message{}
+	return r.Errorf(0, err)
+}
+
+func Errorf(code int, err interface{}, args ...interface{}) (r *Message) {
+	r = &Message{}
+	return r.Errorf(code, err, args...)
 }
 
 type Message struct {
