@@ -36,13 +36,8 @@ func (this *DateTime) New(t time.Time) *DateTime {
 	return &dt
 }
 
-//Now 获取dateTime中的当前时间，默认TIME 未设置当前时间则返回系统当前时间
 func (this *DateTime) Now() time.Time {
-	if this.time.IsZero() {
-		return time.Now()
-	} else {
-		return this.time
-	}
+	return this.Time()
 }
 
 func (this *DateTime) Unix(sec int64, nsec int64) *DateTime {
@@ -50,6 +45,14 @@ func (this *DateTime) Unix(sec int64, nsec int64) *DateTime {
 	return this.New(t)
 }
 
+//Time 获取dateTime中的当前时间，默认TIME 未设置当前时间则返回系统当前时间
+func (this *DateTime) Time() time.Time {
+	if this.time.IsZero() {
+		return time.Now()
+	} else {
+		return this.time
+	}
+}
 func (this *DateTime) TimeZone(zone string) {
 	this.timeZone = zone
 }
@@ -148,7 +151,7 @@ func (this *DateTime) Expire(t, v int) (ttl time.Time, err error) {
 	case DateTimeExpireCustomize:
 		ttl, err = time.Parse("2006010215-0700", fmt.Sprintf("%v%v", v, this.timeZone))
 	default:
-		ttl = time.Unix(0,0)
+		ttl = time.Unix(0, 0)
 	}
 	return
 }
