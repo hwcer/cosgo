@@ -6,42 +6,68 @@ import (
 
 var DefaultErrorCode int = 9999
 
+func New(data interface{}) *Message {
+	return &Message{Data: data}
+}
+
+func Parse(v interface{}) *Message {
+	if r, ok := v.(*Message); ok {
+		return r
+	}
+	r := &Message{}
+	return r.Parse(v)
+}
+
+func Error(err interface{}) (r *Message) {
+	r = &Message{}
+	return r.Errorf(0, err)
+}
+
+func Errorf(code int, err interface{}, args ...interface{}) (r *Message) {
+	r = &Message{}
+	return r.Errorf(code, err, args...)
+}
+
 type Message struct {
 	Code int         `json:"code"`
 	Data interface{} `json:"data"`
 }
 
-func (this *Message) Error() string {
-	return fmt.Sprintf("%v", this.Data)
+func (this *Message) Parse(v interface{}) *Message {
+	if r, ok := v.(*Message); ok {
+		return r
+	} else if _, ok2 := v.(error); ok2 {
+		return this.Errorf(0, v)
+	} else {
+		return this.SetData(v)
+	}
 }
 
-func (this *Message) SetCode(code int, err interface{}, args ...interface{}) {
+func (this *Message) Error() string {
+	return fmt.Sprintf("%v,code:%v", this.Data, this.Code)
+}
+
+func (this *Message) Errorf(code int, format interface{}, args ...interface{}) *Message {
 	if code == 0 {
 		this.Code = DefaultErrorCode
 	} else {
 		this.Code = code
 	}
-	msg, ok := err.(string)
-	if !ok {
-		msg = fmt.Sprintf("%v", err)
+	switch format.(type) {
+	case string:
+		this.Data = fmt.Sprintf(format.(string), args...)
+	default:
+		this.Data = fmt.Sprintf("%v", format)
 	}
-	if len(args) > 0 {
-		msg = fmt.Sprintf(msg, args...)
-	}
-	this.Data = msg
+	return this
 }
 
-func (this *Message) SetData(v interface{}) {
+func (this *Message) SetCode(v int) *Message {
+	this.Code = v
+	return this
+}
+
+func (this *Message) SetData(v interface{}) *Message {
 	this.Data = v
-}
-
-func (this *Message) Parse(v interface{}) {
-	if r, ok := v.(*Message); ok {
-		this.Code = r.Code
-		this.Data = r.Data
-	} else if _, ok2 := v.(error); ok2 {
-		this.SetCode(0, v)
-	} else {
-		this.SetData(v)
-	}
+	return this
 }
