@@ -5,11 +5,16 @@ import (
 	"sync"
 )
 
+func newSetterDefault(id uint64, data interface{}) Interface {
+	return NewSetter(id, data)
+}
+
 func New(cap int) *Cache {
 	return &Cache{
-		seed:   seedDefaultValue,
-		dirty:  newDirty(cap),
-		values: make([]Dataset, cap, cap),
+		seed:      seedDefaultValue,
+		dirty:     newDirty(cap),
+		values:    make([]Interface, cap, cap),
+		NewSetter: newSetterDefault,
 	}
 }
 
@@ -18,8 +23,8 @@ type Cache struct {
 	seed      uint32 //Index 生成种子
 	mutex     sync.Mutex
 	dirty     *dirty
-	values    []Dataset
-	NewSetter NewDataFunc //创建新数据结构
+	values    []Interface
+	NewSetter func(id uint64, val interface{}) Interface //创建新数据结构
 }
 
 //createSocketId 使用index生成ID
@@ -38,19 +43,8 @@ func (this *Cache) parseId(id uint64) int {
 	}
 	return int(id & 0xffffffff)
 }
-func (this *Cache) new(id uint64, val interface{}) (data Dataset) {
-	if this.NewSetter != nil {
-		data = this.NewSetter(id, val)
-	} else {
-		data = NewData()
-	}
-	if data.Id() == 0 {
-		data.Reset(id, data.Get())
-	}
-	return
-}
 
-func (this *Cache) get(id uint64) (Dataset, bool) {
+func (this *Cache) get(id uint64) (Interface, bool) {
 	index := this.parseId(id)
 	if index < 0 || index >= len(this.values) || this.values[index] == nil || this.values[index].Id() != id {
 		return nil, false
@@ -58,7 +52,7 @@ func (this *Cache) get(id uint64) (Dataset, bool) {
 	return this.values[index], true
 }
 
-func (this *Cache) set(index int, val interface{}) uint64 {
+func (this *Cache) set(index int, val interface{}) (setter Interface) {
 	size := len(this.values)
 	if index < 0 || index > size {
 		index = size
@@ -66,16 +60,19 @@ func (this *Cache) set(index int, val interface{}) uint64 {
 	id := this.createId(index)
 
 	if index == size {
-		this.values = append(this.values, this.new(id, val)) //扩容
+		setter = this.NewSetter(id, val)
+		this.values = append(this.values, setter) //扩容
 	} else if this.values[index] == nil {
-		this.values[index] = this.new(id, val)
+		setter = this.NewSetter(id, val)
+		this.values[index] = setter
 	} else {
-		this.values[index].Reset(id, val)
+		setter = this.values[index]
+		setter.Reset(id, val)
 	}
-	return id
+	return
 }
 
-func (this *Cache) remove(id uint64) Dataset {
+func (this *Cache) remove(id uint64) Interface {
 	index := this.parseId(id)
 	if index < 0 || index >= len(this.values) || this.values[index].Id() != id {
 		return nil
@@ -86,28 +83,27 @@ func (this *Cache) remove(id uint64) Dataset {
 	return val
 }
 
-func (this *Cache) Get(id uint64) (Dataset, bool) {
+func (this *Cache) Get(id uint64) (Interface, bool) {
 	return this.get(id)
 }
 
 func (this *Cache) Set(id uint64, v interface{}) bool {
-	updater, ok := this.get(id)
+	setter, ok := this.get(id)
 	if !ok {
 		return ok
 	}
-	updater.Set(v)
+	setter.Set(v)
 	return true
 }
 
 //Push 放入一个新数据
-func (this *Cache) Push(v interface{}) uint64 {
+func (this *Cache) Push(v interface{}) Interface {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 	if index := this.dirty.Acquire(); index >= 0 && index < len(this.values) && (this.values[index] == nil || this.values[index].Id() == 0) {
 		return this.set(index, v)
 	}
-	id := this.set(-1, v)
-	return id
+	return this.set(-1, v)
 }
 
 //Size 当前数量
@@ -116,7 +112,7 @@ func (this *Cache) Size() int {
 }
 
 //Range 遍历
-func (this *Cache) Range(f func(Dataset) bool) {
+func (this *Cache) Range(f func(Interface) bool) {
 	for _, val := range this.values {
 		if val != nil && val.Id() > 0 && !f(val) {
 			break
@@ -135,7 +131,7 @@ func (this *Cache) Remove(ids ...uint64) {
 }
 
 //Delete 删除并返回已删除的数据
-func (this *Cache) Delete(id uint64) Dataset {
+func (this *Cache) Delete(id uint64) Interface {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 	return this.remove(id)
