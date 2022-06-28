@@ -1,4 +1,4 @@
-package cache
+package smap
 
 func newDirty(cap int) *dirty {
 	d := &dirty{

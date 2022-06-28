@@ -1,4 +1,4 @@
-package cache
+package smap
 
 type Interface interface {
 	Id() uint64
