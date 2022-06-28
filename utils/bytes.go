@@ -5,7 +5,7 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"encoding/binary"
-	"github.com/hwcer/cosgo/library/ioutil"
+	"github.com/hwcer/cosgo/ioutil"
 )
 
 func ZlibCompress(data []byte) []byte {

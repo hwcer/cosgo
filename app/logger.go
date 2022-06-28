@@ -1,22 +1,22 @@
 package app
 
 import (
-	"github.com/hwcer/cosgo/library/logger"
+	logger2 "github.com/hwcer/cosgo/logger"
 )
 
 var (
-	loggerFileAdapter     *logger.FileAdapter
-	loggerConsoleAdapter  *logger.ConsoleAdapter
+	loggerFileAdapter     *logger2.FileAdapter
+	loggerConsoleAdapter  *logger2.ConsoleAdapter
 	loggerFileAdapterName string
 )
 
 func init() {
 	loggerFileAdapterName = "cosgoLoggerFileAdapterName"
-	loggerConsoleAdapter, _ = logger.Default.Get(logger.DefaultAdapterName).(*logger.ConsoleAdapter)
+	loggerConsoleAdapter, _ = logger2.Default.Get(logger2.DefaultAdapterName).(*logger2.ConsoleAdapter)
 	if loggerConsoleAdapter != nil {
 		loggerConsoleAdapter.Options.Format = loggerMessageFormat
 	}
-	logger.SetLogPathTrim(workDir)
+	logger2.SetLogPathTrim(workDir)
 }
 
 //setLogger 将日志从控制台转移到日志文件
@@ -26,8 +26,8 @@ func setLogger() {
 	}
 	//设置日志
 	if loggerFileAdapter != nil {
-		if err := logger.Adapter(loggerFileAdapterName, loggerFileAdapter); err == nil {
-			logger.Remove(logger.DefaultAdapterName)
+		if err := logger2.Adapter(loggerFileAdapterName, loggerFileAdapter); err == nil {
+			logger2.Remove(logger2.DefaultAdapterName)
 		}
 	}
 }
