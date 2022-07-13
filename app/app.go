@@ -14,9 +14,9 @@ var modules []Module
 
 func assert(err interface{}, s ...string) {
 	if err != nil {
-		panic(fmt.Sprintf("%v failed: %v\n", s, err))
+		logger.Fatal(err)
 	} else if len(s) > 0 {
-		fmt.Printf("app %v done\n", s[0])
+		logger.Info("app %v done", s[0])
 	}
 }
 
@@ -26,12 +26,20 @@ func Use(mods ...Module) {
 	}
 }
 
+func Modules() (r []string) {
+	for _, m := range modules {
+		r = append(r, m.ID())
+	}
+	return
+}
+
 /**
  * 应用程序启动
  * @param mods 需注册的模块
  */
 func Start(mods ...Module) {
-	fmt.Printf("App Starting:%v\n", time.Now().Format(Options.DataTimeFormat))
+	fmt.Printf("...\n")
+	logger.Info("App Starting")
 	for _, mod := range mods {
 		modules = append(modules, mod)
 	}
@@ -48,9 +56,9 @@ func Start(mods ...Module) {
 	}
 	defer func() {
 		if err = deletePidFile(); err != nil {
-			fmt.Printf("App delete pid file err:%v\n", err)
+			logger.Error("App delete pid file err:%v", err)
 		}
-		fmt.Printf("App Closed:%v\n", time.Now().Format(Options.DataTimeFormat))
+		logger.Info("App Closed")
 	}()
 	//=========================加载模块=============================
 	if err = pprofStart(); err != nil {
@@ -85,14 +93,14 @@ func Close() {
 	if !SCC.Cancel() {
 		return
 	}
-	fmt.Printf("App will stop\n")
+	logger.Warn("App will stop")
 	assert(emit(EventTypCloseBefore))
 	for i := len(modules) - 1; i >= 0; i-- {
 		closeModule(modules[i])
 	}
 	assert(emit(EventTypCloseAfter))
 	if err := SCC.Wait(time.Second * 30); err != nil {
-		fmt.Printf("App Stop Err:%v\n", err)
+		logger.Error("App Stop Err:%v", err)
 	}
 }
 
@@ -108,7 +116,6 @@ func closeModule(m Module) {
 
 func showConfig() {
 	var log []string
-	log = append(log, "")
 	log = append(log, "============================Show App Config============================")
 	log = append(log, fmt.Sprintf(">> appName:%v", Name()))
 	log = append(log, fmt.Sprintf(">> workDir:%v", WorkDir()))

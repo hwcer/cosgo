@@ -1,60 +1,43 @@
 package logger
 
-// 默认日志输出
-const DefTimeFormat = "2006-01-02 15:04:05 -0700" // 日志输出默认格式
-const DefaultAdapterName string = "default"
+import "fmt"
 
-var Default *Logger
+const DefTimeFormat = "2006-01-02 15:04:05 -0700" // 日志输出默认格式
+
+var errorLevelInvalid = fmt.Errorf("无效的日志等级")
+var DefaultLogger *Logger
+var DefaultAdapter Adapter
 
 func init() {
-	Default = New(15)
-	opts := NewConsoleOptions()
-	console, _ := NewConsoleAdapter(opts)
-	Default.Adapter(DefaultAdapterName, console)
+	DefaultLogger = New(3)
+	DefaultAdapter = NewConsoleAdapter()
+	_ = DefaultLogger.Adapter(DefaultAdapter)
 }
 
-func SetLogPathTrim(trimPath string) {
-	Default.SetLogPathTrim(trimPath)
+func Alert(f interface{}, v ...interface{}) {
+	DefaultLogger.Alert(f, v...)
 }
 
-// Panic logs a message at emergency level and panic.
-func Panic(f interface{}, v ...interface{}) {
-	Default.Panic(f, v...)
-}
-
-// Fatal logs a message at emergency level and exit.
 func Fatal(f interface{}, v ...interface{}) {
-	Default.Fatal(f, v...)
+	DefaultLogger.Fatal(f, v...)
 }
 
-// Error logs a message at error level.
 func Error(f interface{}, v ...interface{}) {
-	Default.Error(f, v...)
+	DefaultLogger.Error(f, v...)
 }
 
-// Warn logs a message at warning level.
 func Warn(f interface{}, v ...interface{}) {
-	Default.Warn(f, v...)
+	DefaultLogger.Warn(f, v...)
 }
 
-// Info logs a message at info level.
 func Info(f interface{}, v ...interface{}) {
-	Default.Info(f, v...)
+	DefaultLogger.Info(f, v...)
 }
 
-// Notice logs a message at debug level.
 func Debug(f interface{}, v ...interface{}) {
-	Default.Debug(f, v...)
+	DefaultLogger.Debug(f, v...)
 }
 
-// Trace logs a message at trace level.
 func Trace(f interface{}, v ...interface{}) {
-	Default.Trace(f, v...)
-}
-
-func Adapter(name string, i adapter) error {
-	return Default.Adapter(name, i)
-}
-func Remove(name string) {
-	Default.Remove(name)
+	DefaultLogger.Trace(f, v...)
 }

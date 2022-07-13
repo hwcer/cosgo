@@ -60,9 +60,8 @@ func (this *OAuth) setHeader(req *http.Request) (err error) {
 			return
 		}
 	}
-	signature := this.Signature(req.Method, req.URL.String(), header, string(bodyBytes))
+	signature := this.Signature(req.Method, Address(req), header, string(bodyBytes))
 	header[OAuthSignatureName] = signature
-
 	for k, v := range header {
 		req.Header.Add(k, v)
 	}
@@ -84,7 +83,7 @@ func (this *OAuth) NewOAuthParams() map[string]string {
 //url:protocol://hostname/path
 //body JSON字符串
 func (this *OAuth) Signature(method, address string, oauth map[string]string, body string) string {
-	arr := []string{strings.ToUpper(method), address}
+	arr := []string{method, address}
 	for _, k := range oauthParams {
 		arr = append(arr, k+"="+oauth[k])
 	}
@@ -94,7 +93,7 @@ func (this *OAuth) Signature(method, address string, oauth map[string]string, bo
 }
 
 //Verify http(s)验签
-func (this *OAuth) Verify(req *http.Request, body io.Reader) (err error) {
+func (this *OAuth) Verify(req *http.Request) (err error) {
 	signature := req.Header.Get(OAuthSignatureName)
 	if signature == "" {
 		return errors.New("OAuth Signature empty")
@@ -125,19 +124,18 @@ func (this *OAuth) Verify(req *http.Request, body io.Reader) (err error) {
 		}
 	}
 
-	var strBody string
-	if this.Strict {
-		if body == nil {
-			body = req.Body
-		}
-		buf := &bytes.Buffer{}
-		if _, err = buf.ReadFrom(body); err != nil {
+	var body string
+	if this.Strict && req.Body != nil {
+		var v []byte
+		v, err = io.ReadAll(req.Body)
+		if err != nil {
 			return err
 		}
-		strBody = string(buf.Bytes())
+		req.Body = io.NopCloser(bytes.NewReader(v))
+		body = string(v)
 	}
 
-	if signature != this.Signature(req.Method, Url(req), OAuthMap, strBody) {
+	if signature != this.Signature(req.Method, Address(req), OAuthMap, body) {
 		return errors.New("OAuth signature error")
 	}
 	return nil

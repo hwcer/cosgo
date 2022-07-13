@@ -46,7 +46,6 @@ func (this *Client) Request(method, url string, data interface{}) (reply []byte,
 			err = fmt.Errorf("%v", e)
 		}
 	}()
-
 	var (
 		req *http.Request
 		res *http.Response

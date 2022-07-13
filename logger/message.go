@@ -1,6 +1,9 @@
 package logger
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type Message struct {
 	Path    string
@@ -11,5 +14,16 @@ type Message struct {
 }
 
 func (this *Message) String() string {
-	return this.Time.Format(DefTimeFormat) + " [" + this.Level + "] " + "[" + this.Path + "] " + this.Content
+	b := strings.Builder{}
+	b.WriteString(this.Time.Format(DefTimeFormat))
+	b.WriteString(" [")
+	b.WriteString(this.Level)
+	b.WriteString("] ")
+	if this.Path != "" {
+		b.WriteString("[")
+		b.WriteString(this.Path)
+		b.WriteString("] ")
+	}
+	b.WriteString(this.Content)
+	return b.String()
 }

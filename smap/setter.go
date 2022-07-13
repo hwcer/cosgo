@@ -4,7 +4,7 @@ type Interface interface {
 	Id() uint64
 	Get() interface{}
 	Set(interface{})
-	Reset(id uint64, data interface{})
+	//Reset(id uint64, data interface{})
 }
 
 func NewSetter(id uint64, data interface{}) *Setter {
@@ -26,7 +26,7 @@ func (this *Setter) Set(data interface{}) {
 	this.data = data
 }
 
-func (this *Setter) Reset(id uint64, data interface{}) {
-	this.id = id
-	this.data = data
-}
+//func (this *Setter) Reset(id uint64, data interface{}) {
+//	this.id = id
+//	this.data = data
+//}

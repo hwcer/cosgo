@@ -7,53 +7,45 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strings"
-	"sync"
 	"time"
 )
 
 type Logger struct {
-	lock      sync.Mutex
 	name      string
 	usePath   string
-	outputs   map[string]adapter
+	outputs   []Adapter
 	callDepth int
 }
 
 func New(depth ...int) *Logger {
 	dep := append(depth, 2)[0]
 	l := &Logger{}
-	l.outputs = make(map[string]adapter)
+	//l.outputs = make(map[string]Adapter)
 	l.callDepth = dep
 	return l
 }
 
-func (this *Logger) Get(name string) adapter {
-	return this.outputs[name]
-}
-
-func (this *Logger) Remove(name string) {
-	this.lock.Lock()
-	defer this.lock.Unlock()
-	delete(this.outputs, name)
+func (this *Logger) Remove(i Adapter) {
+	var outputs []Adapter
+	for _, v := range this.outputs {
+		if v != i {
+			outputs = append(outputs, v)
+		}
+	}
+	this.outputs = outputs
+	i.Close()
 }
 
 //Adapter 增加输出接口
-func (this *Logger) Adapter(name string, i adapter) error {
-	if _, ok := this.outputs[name]; ok {
-		return fmt.Errorf("logger adapter name exist:%v", name)
+func (this *Logger) Adapter(i Adapter) error {
+	if err := i.Init(); err != nil {
+		return err
 	}
-	this.lock.Lock()
-	defer this.lock.Unlock()
-	outputs := make(map[string]adapter)
-	outputs[name] = i
-	for k, v := range this.outputs {
-		outputs[k] = v
-	}
-	this.outputs = outputs
+	this.outputs = append(this.outputs, i)
 	return nil
 }
 
-// 设置日志起始路径
+//SetLogPathTrim 设置日志起始路径
 func (this *Logger) SetLogPathTrim(trimPath string) {
 	this.usePath = filepath.ToSlash(trimPath)
 }
@@ -61,7 +53,7 @@ func (this *Logger) SetLogPathTrim(trimPath string) {
 func (this *Logger) writeToLoggers(msg *Message, level int) {
 	for name, l := range this.outputs {
 		if err := l.Write(msg, level); err != nil {
-			fmt.Fprintf(os.Stderr, "unable to WriteMsg to adapter:%v,error:%v\n", name, err)
+			_, _ = fmt.Fprintf(os.Stderr, "unable to WriteMsg to adapter:%v,error:%v\n", name, err)
 		}
 	}
 }
@@ -76,15 +68,15 @@ func (this *Logger) writeMsg(level int, err interface{}, v ...interface{}) strin
 	default:
 		msg = fmt.Sprintf("%v", err)
 	}
-
-	msgSt := new(Message)
-	src := ""
 	if len(v) > 0 {
 		msg = fmt.Sprintf(msg, v...)
 	}
+
+	msgSt := new(Message)
+	src := ""
 	when := time.Now()
 	if this.callDepth > 0 {
-		_, file, lineno, ok := runtime.Caller(this.callDepth)
+		_, file, lineno, ok := runtime.Caller(3)
 		if ok {
 			if this.usePath != "" {
 				file = stringTrim(file, this.usePath)
@@ -109,9 +101,8 @@ func (this *Logger) Fatal(format interface{}, args ...interface{}) {
 	os.Exit(1)
 }
 
-func (this *Logger) Panic(format interface{}, args ...interface{}) {
-	msg := this.writeMsg(LevelPANIC, format, args...)
-	panic(msg)
+func (this *Logger) Alert(format interface{}, args ...interface{}) {
+	this.writeMsg(LevelAlert, format, args...)
 }
 
 // Error Log ERROR level message.

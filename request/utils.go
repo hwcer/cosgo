@@ -4,14 +4,14 @@ import (
 	"net/http"
 )
 
-func Url(req *http.Request) (url string) {
+func Address(req *http.Request) (url string) {
 	scheme := Protocol(req)
 	host := req.URL.Host
 	if host == "" {
 		host = req.Host
 	}
-	url = scheme + "://" + host + req.RequestURI
-	return
+	url = scheme + "://" + host + "?" + req.URL.RawQuery
+	return url
 }
 
 func Protocol(req *http.Request) string {

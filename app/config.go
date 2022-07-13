@@ -1,7 +1,7 @@
 package app
 
 import (
-	logger2 "github.com/hwcer/cosgo/logger"
+	logger "github.com/hwcer/cosgo/logger"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"os"
@@ -64,10 +64,6 @@ func init() {
 	}
 }
 
-func loggerMessageFormat(message *logger2.Message) string {
-	return "[" + message.Level + "] " + message.Content
-}
-
 func initFlag() (err error) {
 	pflag.Parse()
 	Config.BindPFlags(pflag.CommandLine)
@@ -105,16 +101,16 @@ func initFlag() (err error) {
 		}
 		Config.Set(AppConfigNameLogsDir, logsdir)
 		logsFile := filepath.Join(logsdir, appName+".log")
-		opts := logger2.NewFileOptions()
-		opts.Filename = Abs(logsFile)
+		loggerFileAdapter = logger.NewFileAdapter(Abs(logsFile))
 		if Config.GetBool("Debug") {
-			opts.Level = "DEBUG"
+			loggerFileAdapter.Level = logger.LevelDebug
 		} else {
-			opts.Level = "INFO"
+			loggerFileAdapter.Level = logger.LevelInfo
 		}
-		if loggerFileAdapter, err = logger2.NewFileAdapter(opts); err != nil {
-			return
-		}
+
+		//if err = logger.DefaultLogger.Adapter(logFileAdapter); err != nil {
+		//	return
+		//}
 	}
 	return nil
 }

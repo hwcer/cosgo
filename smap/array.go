@@ -58,16 +58,11 @@ func (this *Array) set(index int, val interface{}) (setter Interface) {
 		index = size
 	}
 	id := this.createId(index)
-
+	setter = this.NewSetter(id, val)
 	if index == size {
-		setter = this.NewSetter(id, val)
 		this.values = append(this.values, setter) //扩容
 	} else if this.values[index] == nil {
-		setter = this.NewSetter(id, val)
 		this.values[index] = setter
-	} else {
-		setter = this.values[index]
-		setter.Reset(id, val)
 	}
 	return
 }

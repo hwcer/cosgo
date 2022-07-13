@@ -53,6 +53,10 @@ func (this *DateTime) Time() time.Time {
 		return this.time
 	}
 }
+func (this *DateTime) Parse(value string) (time.Time, error) {
+	return time.Parse(this.layout, value)
+}
+
 func (this *DateTime) TimeZone(zone string) {
 	this.timeZone = zone
 }
@@ -163,4 +167,21 @@ func (this *DateTime) Sign(addDays int) (sign int32, str string) {
 	ret, _ := strconv.ParseUint(str, 10, 32)
 	sign = int32(ret)
 	return
+}
+
+//STime 开始时间 0,1：今天凌晨,2:明天凌晨(第二天)
+func (this *DateTime) STime(v int) time.Time {
+	if v <= 0 {
+		v = 0
+	} else {
+		v -= 1
+	}
+	return this.Daily(v)
+}
+
+//ETime 结束时间 0,1：今天24点,2:明天24点(第二天结束时间)
+func (this *DateTime) ETime(v int) time.Time {
+	t := this.STime(v)
+	t = t.AddDate(0, 0, 1)
+	return t
 }
