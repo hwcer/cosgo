@@ -19,3 +19,11 @@ func (this *Paging) Init(size int) {
 		this.Size = size
 	}
 }
+
+func (this *Paging) Count(r int) {
+	this.Record = r
+	this.Total = r / this.Size
+	if r%this.Size != 0 {
+		this.Total += 1
+	}
+}
