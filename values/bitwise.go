@@ -1,9 +1,11 @@
 package values
 
-const MaxBitwiseUnit = 8
+const MaxBitwiseUnit = 64
 
-type Bitwise uint8
-type BitSet []Bitwise
+//Bitwise
+//bitunit
+type Bitwise uint64
+type BitSetter []Bitwise
 
 //Has bit位是否设置值
 func (m *Bitwise) Has(bit int) (r bool) {
@@ -28,7 +30,7 @@ func (m *Bitwise) Delete(bit int) {
 }
 
 //Has bit位是否设置值
-func (m *BitSet) Has(bit int) bool {
+func (m *BitSetter) Has(bit int) bool {
 	i := bit / MaxBitwiseUnit
 	if i >= len(*m) {
 		return false
@@ -38,13 +40,13 @@ func (m *BitSet) Has(bit int) bool {
 }
 
 //Set bit位设置为1
-func (m *BitSet) Set(bit int) {
+func (m *BitSetter) Set(bit int) {
 	b := *m
 	i := bit / MaxBitwiseUnit
 	j := bit % MaxBitwiseUnit
 	if i >= len(b) {
 		c := i + 1
-		v := make(BitSet, c, c)
+		v := make(BitSetter, c, c)
 		copy(v, b)
 		b = v
 	}
@@ -55,7 +57,7 @@ func (m *BitSet) Set(bit int) {
 }
 
 //Delete bit位设置为0
-func (m *BitSet) Delete(bit int) {
+func (m *BitSetter) Delete(bit int) {
 	i := bit / MaxBitwiseUnit
 	if i >= len(*m) {
 		return
