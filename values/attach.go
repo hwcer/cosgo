@@ -30,5 +30,8 @@ func (a *Attach) Marshal(v interface{}) error {
 
 //Unmarshal 使用i解析Attach
 func (a *Attach) Unmarshal(i interface{}) error {
+	if len(*a) == 0 {
+		return nil
+	}
 	return json.Unmarshal([]byte(*a), i)
 }
