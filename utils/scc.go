@@ -12,16 +12,16 @@ func NewSCC(ctx context.Context) *SCC {
 		ctx = context.Background()
 	}
 	s := &SCC{WaitGroup: sync.WaitGroup{}}
-	s.ctx, s.cancel = context.WithCancel(ctx)
+	s.Context, s.cancel = context.WithCancel(ctx)
 	s.WaitGroup.Add(1)
 	return s
 }
 
 //协程控制器
 type SCC struct {
-	ctx       context.Context
 	stop      int32
 	cancel    context.CancelFunc
+	Context   context.Context
 	WaitGroup sync.WaitGroup
 }
 
@@ -39,7 +39,7 @@ func (s *SCC) CGO(f func(ctx context.Context)) {
 	go func() {
 		s.WaitGroup.Add(1)
 		defer s.WaitGroup.Done()
-		f(s.ctx)
+		f(s.Context)
 	}()
 }
 
@@ -78,13 +78,9 @@ func (s *SCC) Stopped() bool {
 		return true
 	}
 	select {
-	case <-s.ctx.Done():
+	case <-s.Context.Done():
 		return true
 	default:
 		return false
 	}
-}
-
-func (s *SCC) Context() context.Context {
-	return s.ctx
 }

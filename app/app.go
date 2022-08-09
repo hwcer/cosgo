@@ -38,7 +38,7 @@ func Modules() (r []string) {
  * @param mods 需注册的模块
  */
 func Start(mods ...Module) {
-	fmt.Printf("...\n")
+	fmt.Printf("\n")
 	logger.Info("App Starting")
 	for _, mod := range mods {
 		modules = append(modules, mod)

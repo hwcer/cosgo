@@ -5,14 +5,7 @@ import (
 	"github.com/hwcer/cosgo/utils"
 )
 
-var (
-	SCC *utils.SCC
-)
-
-func init() {
-	SCC = utils.NewSCC(nil)
-
-}
+var SCC = utils.NewSCC(nil)
 
 func GO(fn func()) {
 	SCC.GO(fn)
