@@ -1,45 +1,53 @@
 package smap
 
-import "sync"
-
 //基于Array的键值对
 //仅仅 Create Delete 是使用固定的key(uid) 防止重复登录
 //Get Set 仍然希望使用MID达到无锁状态
 
 func NewHash(cap int) *Hash {
-	return &Hash{Array: New(cap), keys: sync.Map{}}
+	return &Hash{Array: *New(cap), keys: make(map[string]MID)}
 }
 
 type Hash struct {
-	*Array
-	keys sync.Map
+	Array
+	keys map[string]MID
 }
 
-func (this *Hash) Load(key string) MID {
-	if mid, ok := this.keys.Load(key); ok {
-		return mid.(MID)
-	}
-	return ""
+func (this *Hash) MID(uuid string) (MID, bool) {
+	this.Array.mutex.Lock()
+	defer this.Array.mutex.Unlock()
+	mid, ok := this.keys[uuid]
+	return mid, ok
 }
 
-func (this *Hash) Create(key string, val interface{}) Setter {
-	if mid, ok := this.keys.Load(key); ok {
-		this.Array.Delete(mid.(MID))
+func (this *Hash) Create(uuid string, val interface{}) Setter {
+	this.Array.mutex.Lock()
+	defer this.Array.mutex.Unlock()
+	if mid, ok := this.keys[uuid]; ok {
+		this.Array.remove(mid)
 	}
-	setter := this.Array.Push(val)
-	this.keys.Store(key, setter.Id())
+	setter := this.Array.push(val)
+	this.keys[uuid] = setter.Id()
 	return setter
 }
 
-func (this *Hash) Delete(key string) (r Setter) {
-	if mid, loaded := this.keys.LoadAndDelete(key); loaded {
-		r = this.Array.Delete(mid.(MID))
+func (this *Hash) Delete(uuid string) (r Setter) {
+	this.Array.mutex.Lock()
+	defer this.Array.mutex.Unlock()
+	if mid, ok := this.keys[uuid]; ok {
+		this.Array.remove(mid)
 	}
+	delete(this.keys, uuid)
 	return
 }
 
-func (this *Hash) Remove(keys ...string) {
-	for _, k := range keys {
-		this.Delete(k)
+func (this *Hash) Remove(uuid ...string) {
+	this.Array.mutex.Lock()
+	defer this.Array.mutex.Unlock()
+	for _, key := range uuid {
+		if mid, ok := this.keys[key]; ok {
+			this.Array.remove(mid)
+		}
+		delete(this.keys, key)
 	}
 }

@@ -80,6 +80,12 @@ func (this *Array) set(index int, val interface{}) (setter Setter) {
 	}
 	return
 }
+func (this *Array) push(v interface{}) Setter {
+	if index := this.dirty.Acquire(); index >= 0 && index < len(this.values) && (this.values[index] == nil || this.values[index].Id() == "") {
+		return this.set(index, v)
+	}
+	return this.set(-1, v)
+}
 
 func (this *Array) remove(id MID) Setter {
 	index := this.parseId(id)
@@ -105,14 +111,11 @@ func (this *Array) Set(id MID, v interface{}) bool {
 	return true
 }
 
-//Push 放入一个新数据
-func (this *Array) Push(v interface{}) Setter {
+//Create 创建一个新数据
+func (this *Array) Create(v interface{}) Setter {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
-	if index := this.dirty.Acquire(); index >= 0 && index < len(this.values) && (this.values[index] == nil || this.values[index].Id() == "") {
-		return this.set(index, v)
-	}
-	return this.set(-1, v)
+	return this.push(v)
 }
 
 //Size 当前数量
