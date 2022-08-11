@@ -1,32 +1,34 @@
 package smap
 
-type Interface interface {
-	Id() uint64
+type MID string
+
+type Setter interface {
+	Id() MID
 	Get() interface{}
 	Set(interface{})
-	//Reset(id uint64, data interface{})
 }
 
-func NewSetter(id uint64, data interface{}) *Setter {
-	return &Setter{id: id, data: data}
+func NewData(id MID, data interface{}) *Data {
+	return &Data{id: id, data: data}
 }
 
-type Setter struct {
-	id   uint64
+func NewSetter(id MID, val interface{}) Setter {
+	return NewData(id, val)
+}
+
+type Data struct {
+	id   MID
 	data interface{}
 }
 
-func (this *Setter) Id() uint64 {
+func (this *Data) Id() MID {
 	return this.id
 }
-func (this *Setter) Get() interface{} {
+
+func (this *Data) Get() interface{} {
 	return this.data
 }
-func (this *Setter) Set(data interface{}) {
+
+func (this *Data) Set(data interface{}) {
 	this.data = data
 }
-
-//func (this *Setter) Reset(id uint64, data interface{}) {
-//	this.id = id
-//	this.data = data
-//}
