@@ -5,11 +5,11 @@ package smap
 //Get Set 仍然希望使用MID达到无锁状态
 
 func NewHash(cap int) *Hash {
-	return &Hash{Array: *New(cap), keys: make(map[string]MID)}
+	return &Hash{Array: New(cap), keys: make(map[string]MID)}
 }
 
 type Hash struct {
-	Array
+	*Array
 	keys map[string]MID
 }
 
