@@ -14,10 +14,21 @@ type Hash struct {
 }
 
 func (this *Hash) MID(uuid string) (MID, bool) {
-	this.Array.mutex.Lock()
-	defer this.Array.mutex.Unlock()
+	this.Array.mutex.RLock()
+	defer this.Array.mutex.RUnlock()
 	mid, ok := this.keys[uuid]
 	return mid, ok
+}
+
+// Reset 重新设置uuid mid关联，返回之前的数据(如果存在)
+func (this *Hash) Reset(uuid string, mid MID) (r Setter) {
+	this.Array.mutex.RLock()
+	defer this.Array.mutex.RUnlock()
+	if k, ok := this.keys[uuid]; ok {
+		r, _ = this.Array.Get(k)
+	}
+	this.keys[uuid] = mid
+	return
 }
 
 func (this *Hash) Create(uuid string, val interface{}) Setter {

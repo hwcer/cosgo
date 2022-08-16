@@ -20,15 +20,15 @@ func New(cap int) *Array {
 
 // Array 一维数组存储器，，读，修改
 type Array struct {
-	seed      uint64     //Index 生成种子
-	mutex     sync.Mutex //仅添加时需要锁
+	seed      uint64       //Index 生成种子
+	mutex     sync.RWMutex //仅添加时需要锁
 	dirty     *dirty
 	values    []Setter
 	prefix    string
 	NewSetter func(id MID, val interface{}) Setter //创建新数据结构
 }
 
-//createSocketId 使用index生成ID
+// createSocketId 使用index生成ID
 func (this *Array) createId(index int) MID {
 	this.seed++
 	if this.seed >= math.MaxUint64 {
@@ -44,7 +44,7 @@ func (this *Array) createId(index int) MID {
 	return MID(b.String())
 }
 
-//parseSocketId 返回idPack中的index
+// parseSocketId 返回idPack中的index
 func (this *Array) parseId(id MID) int {
 	s := string(id)
 	index := strings.Index(s, "x")
@@ -111,19 +111,19 @@ func (this *Array) Set(id MID, v interface{}) bool {
 	return true
 }
 
-//Create 创建一个新数据
+// Create 创建一个新数据
 func (this *Array) Create(v interface{}) Setter {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 	return this.push(v)
 }
 
-//Size 当前数量
+// Size 当前数量
 func (this *Array) Size() int {
 	return len(this.values) - this.dirty.Size()
 }
 
-//Range 遍历
+// Range 遍历
 func (this *Array) Range(f func(Setter) bool) {
 	for _, val := range this.values {
 		if val != nil && val.Id() != "" && !f(val) {
@@ -132,7 +132,7 @@ func (this *Array) Range(f func(Setter) bool) {
 	}
 }
 
-//Remove 批量移除
+// Remove 批量移除
 func (this *Array) Remove(ids ...MID) {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
@@ -142,7 +142,7 @@ func (this *Array) Remove(ids ...MID) {
 	return
 }
 
-//Delete 删除并返回已删除的数据
+// Delete 删除并返回已删除的数据
 func (this *Array) Delete(id MID) Setter {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()

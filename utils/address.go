@@ -29,27 +29,28 @@ func (this *Address) Parse(address string) {
 	}
 	return
 }
+
+// String 转换成string   scheme : tcp  OR   tcp,://
 func (this *Address) String(scheme ...string) string {
-	host := this.Host
-	if host == "" {
-		host = "0.0.0.0"
-	}
-	s := host + ":" + strconv.Itoa(this.Port)
-	if len(scheme) > 0 && scheme[0] != "" {
-		s = scheme[0] + "://" + s
+	b := strings.Builder{}
+	if len(scheme) > 0 {
+		for _, k := range scheme {
+			b.WriteString(k)
+		}
 	} else if this.Scheme != "" {
-		s = this.Scheme + "://" + s
+		b.WriteString(this.Scheme)
+		b.WriteString("://")
 	}
-	return s
+	if this.Host != "" {
+		b.WriteString(this.Host)
+	}
+	b.WriteString(":")
+	b.WriteString(strconv.Itoa(this.Port))
+	return b.String()
 }
 
-func (this *Address) URL(scheme ...string) (*url.URL, error) {
-	address := this.String(scheme...)
-	return url.Parse(address)
-}
-
-func (this *Address) Handle(scheme string, handle func(string) error) (err error) {
-	address := this.String(scheme)
+func (this *Address) Handle(handle func(string) error) (err error) {
+	address := this.String()
 	if err = handle(address); err == nil || !IsOsBindError(err) {
 		return
 	}
@@ -58,10 +59,10 @@ func (this *Address) Handle(scheme string, handle func(string) error) (err error
 	if this.Retry <= 0 {
 		return
 	}
-	return this.Handle(scheme, handle)
+	return this.Handle(handle)
 }
 
-//NewAddress 解析url,scheme:默认协议
+// NewAddress 解析url,scheme:默认协议
 func NewAddress(address ...string) (r *Address) {
 	r = &Address{}
 	if len(address) > 0 {
@@ -105,7 +106,7 @@ func isLocalIpv4(a net.Addr) (string, bool) {
 	return "", false
 }
 
-//Ip2Int Ipv4 转uint32
+// Ip2Int Ipv4 转uint32
 func Ipv4Encode(ip string) uint32 {
 	if i := strings.Index(ip, ":"); i > 0 {
 		ip = ip[0:i]
@@ -155,7 +156,7 @@ func GetIPv4ByInterface(name string) ([]string, error) {
 	return ips, nil
 }
 
-//IsOsBindError 是否端口绑定错误
+// IsOsBindError 是否端口绑定错误
 func IsOsBindError(err error) bool {
 	var ok bool
 	var opErr *net.OpError
