@@ -30,14 +30,10 @@ func (this *Address) Parse(address string) {
 	return
 }
 
-// String 转换成string   scheme : tcp  OR   tcp,://
-func (this *Address) String(scheme ...string) string {
+// String 转换成string
+func (this *Address) String(withScheme ...bool) string {
 	b := strings.Builder{}
-	if len(scheme) > 0 {
-		for _, k := range scheme {
-			b.WriteString(k)
-		}
-	} else if this.Scheme != "" {
+	if len(withScheme) > 0 && withScheme[0] && this.Scheme != "" {
 		b.WriteString(this.Scheme)
 		b.WriteString("://")
 	}
@@ -49,9 +45,9 @@ func (this *Address) String(scheme ...string) string {
 	return b.String()
 }
 
-func (this *Address) Handle(handle func(string) error) (err error) {
-	address := this.String()
-	if err = handle(address); err == nil || !IsOsBindError(err) {
+func (this *Address) Handle(handle func(network, address string) error) (err error) {
+	address := this.String(false)
+	if err = handle(this.Scheme, address); err == nil || !IsOsBindError(err) {
 		return
 	}
 	this.Port += 1
@@ -60,6 +56,20 @@ func (this *Address) Handle(handle func(string) error) (err error) {
 		return
 	}
 	return this.Handle(handle)
+}
+
+// HandleWithNetwork network 写入地址中,tcp://0.0.0.0:80
+func (this *Address) HandleWithNetwork(handle func(address string) error) (err error) {
+	address := this.String(true)
+	if err = handle(address); err == nil || !IsOsBindError(err) {
+		return
+	}
+	this.Port += 1
+	this.Retry -= 1
+	if this.Retry <= 0 {
+		return
+	}
+	return this.HandleWithNetwork(handle)
 }
 
 // NewAddress 解析url,scheme:默认协议

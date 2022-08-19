@@ -12,4 +12,4 @@ const (
 )
 
 // 日志记录等级字段
-var levelPrefix = []string{"TRAC", "DEBG", "INFO", "WARN", "EROR", "ALRT", "FATA"}
+var levelPrefix = []string{"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "ALERT", "FATAL"}
