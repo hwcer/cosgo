@@ -1,7 +1,7 @@
 package app
 
 import (
-	logger "github.com/hwcer/cosgo/logger"
+	logger "github.com/hwcer/logger"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"os"
@@ -10,8 +10,8 @@ import (
 	"strings"
 )
 
-//其他模块可以使用pflag设置额外的参数
-//Config 值读取优先级
+// 其他模块可以使用pflag设置额外的参数
+// Config 值读取优先级
 // 1. overrides  use Config.Set()
 // 2. flags
 // 3. env. variables
@@ -115,7 +115,7 @@ func initFlag() (err error) {
 	return nil
 }
 
-//Abs 获取以工作路径为起点的绝对路径
+// Abs 获取以工作路径为起点的绝对路径
 func Abs(dir ...string) string {
 	path := filepath.Join(dir...)
 	if !filepath.IsAbs(path) {
@@ -128,17 +128,17 @@ func Debug() bool {
 	return debug
 }
 
-//Dir APP主程序所在目录
+// Dir APP主程序所在目录
 func Dir() string {
 	return appDir
 }
 
-//Name 项目内部获取appName
+// Name 项目内部获取appName
 func Name() string {
 	return appName
 }
 
-//WorkDir 程序工作目录
+// WorkDir 程序工作目录
 func WorkDir() string {
 	return workDir
 }

@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/coreos/etcd v3.3.13+incompatible
 	github.com/go-redis/redis/v8 v8.11.4
+	github.com/hwcer/logger v0.0.0-20220823102841-a48fa936c4f4
 	github.com/shirou/gopsutil v2.20.8+incompatible
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1

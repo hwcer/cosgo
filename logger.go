@@ -1,7 +1,7 @@
 package app
 
 import (
-	logger "github.com/hwcer/cosgo/logger"
+	logger "github.com/hwcer/logger"
 	"strings"
 )
 
@@ -27,7 +27,7 @@ func loggerMessageFormat(msg *logger.Message) string {
 	return b.String()
 }
 
-//setLogger 将日志从控制台转移到日志文件
+// setLogger 将日志从控制台转移到日志文件
 func setLogger() {
 	if loggerFileAdapter != nil {
 		//loggerFileAdapter.Format = loggerMessageFormat
