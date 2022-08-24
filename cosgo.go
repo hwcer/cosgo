@@ -45,7 +45,7 @@ func Start(mods ...module) {
 	}
 	rand.Seed(time.Now().UnixNano())
 	var err error
-	if err = initFlag(); err != nil {
+	if err = Config.init(); err != nil {
 		panic(err)
 	}
 	if err = initBuild(); err != nil {
@@ -64,10 +64,12 @@ func Start(mods ...module) {
 	if err = pprofStart(); err != nil {
 		panic(err)
 	}
-	defer pprofClose()
+	defer func() {
+		_ = pprofClose()
+	}()
 	assert(emit(EventTypInitBefore))
 	for _, v := range modules {
-		assert(v.Init(), fmt.Sprintf("mod [%v] init", v.ID()))
+		assert(v.Init(), fmt.Sprintf("mod[%v] init", v.ID()))
 	}
 	assert(emit(EventTypInitAfter))
 	//自定义进程
@@ -80,7 +82,7 @@ func Start(mods ...module) {
 	assert(emit(EventTypStartBefore))
 	for _, v := range modules {
 		SCC.WaitGroup.Add(1)
-		assert(v.Start(), fmt.Sprintf("mod [%v] start", v.ID()))
+		assert(v.Start(), fmt.Sprintf("mod[%v] start", v.ID()))
 	}
 	assert(emit(EventTypStartAfter))
 	Options.Banner()

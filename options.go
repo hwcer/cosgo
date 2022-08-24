@@ -11,7 +11,7 @@ var Options = &struct {
 	DataTimeFormat: "2006-01-02 15:04:05 -0700",
 }
 
-// 设置默认启动界面，启动完所有MOD后执行
+// SetBanner 设置默认启动界面，启动完所有MOD后执行
 func SetBanner(f func()) {
 	Options.Banner = f
 }

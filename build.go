@@ -13,8 +13,8 @@ var (
 )
 
 func init() {
-	pflag.BoolP("help", "h", false, "Show App helps")
-	pflag.BoolP("version", "v", false, "Show build Version")
+	Config.Flags("help", "h", false, "Show App helps")
+	Config.Flags("version", "v", false, "Show build Version")
 }
 
 func initBuild() error {

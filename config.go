@@ -1,13 +1,11 @@
 package cosgo
 
 import (
-	logger "github.com/hwcer/logger"
+	"github.com/hwcer/logger"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
 )
 
 // 其他模块可以使用pflag设置额外的参数
@@ -18,68 +16,65 @@ import (
 // 4. config file
 // 5. key/value store
 // 6. defaults
-var (
-	debug   bool
-	appDir  string
-	appName string
-	workDir string
-)
-var Config *viper.Viper
 
-const (
-	AppConfigNamePidFile    string = "pidfile"
-	AppConfigNameLogsDir    string = "logsdir"
-	AppConfigNameConfigFile string = "config"
-)
+var Config = &config{Viper: viper.New()}
 
-func init() {
-	Config = viper.New()
-	pflag.String(AppConfigNamePidFile, "", "app pid file")
-	pflag.String(AppConfigNameLogsDir, "", "app logs dir")
-	pflag.String("name", "", "app name")
-	pflag.String("pprof", "", "pprof server address")
-	pflag.Bool("debug", false, "developer model")
-	pflag.StringP("config", "c", "", "use config file")
-
-	var (
-		tmpDir     string
-		appBinFile string
-	)
-	workDir, _ = os.Getwd()
-	appBinFile, _ = exec.LookPath(os.Args[0])
-	tmpDir, appName = filepath.Split(appBinFile)
-
-	if filepath.IsAbs(appBinFile) {
-		appDir = filepath.Dir(tmpDir)
-		workDir = filepath.Dir(appDir)
-	} else {
-		appDir = filepath.Join(workDir, filepath.Dir(appBinFile))
-		workDir, _ = filepath.Split(appDir)
-		workDir = filepath.Dir(workDir)
-	}
-
-	ext := filepath.Ext(appBinFile)
-	if ext != "" {
-		appName = strings.TrimSuffix(appName, ext)
-	}
+type config struct {
+	*viper.Viper
 }
 
-func initFlag() (err error) {
+func (this *config) Flags(name, shorthand string, value interface{}, usage string) interface{} {
+	switch v := value.(type) {
+	case string:
+		return pflag.StringP(name, shorthand, v, usage)
+	case bool:
+		return pflag.BoolP(name, shorthand, v, usage)
+	case int:
+		return pflag.IntP(name, shorthand, v, usage)
+	case int8:
+		return pflag.Int8P(name, shorthand, v, usage)
+	case int16:
+		return pflag.Int16P(name, shorthand, v, usage)
+	case int32:
+		return pflag.Int32P(name, shorthand, v, usage)
+	case int64:
+		return pflag.Int64P(name, shorthand, v, usage)
+	case uint:
+		return pflag.UintP(name, shorthand, v, usage)
+	case uint8:
+		return pflag.Uint8P(name, shorthand, v, usage)
+	case uint16:
+		return pflag.Uint16P(name, shorthand, v, usage)
+	case uint32:
+		return pflag.Uint32P(name, shorthand, v, usage)
+	case uint64:
+		return pflag.Uint64P(name, shorthand, v, usage)
+	case float32:
+		return pflag.Float32P(name, shorthand, v, usage)
+	case float64:
+		return pflag.Float64P(name, shorthand, v, usage)
+	default:
+		logger.Fatal("unknown type")
+	}
+	return nil
+}
+
+func (this *config) init() (err error) {
 	pflag.Parse()
-	Config.BindPFlags(pflag.CommandLine)
+	if err = this.BindPFlags(pflag.CommandLine); err != nil {
+		return err
+	}
 	//通过配置读取
-	if configFile := Config.GetString(AppConfigNameConfigFile); configFile != "" {
+	if configFile := this.GetString(AppConfigNameConfigFile); configFile != "" {
 		f := Abs(configFile)
-		//Config.AddConfigPath(f)
-		Config.SetConfigFile(f)
-		err = Config.ReadInConfig()
-		if err != nil {
+		this.SetConfigFile(f)
+		if err = this.ReadInConfig(); err != nil {
 			return err
 		}
 	}
-	debug = Config.GetBool("debug")
+	debug = this.GetBool("debug")
 	//设置pidfile
-	if pidfile := Config.GetString(AppConfigNamePidFile); pidfile != "" {
+	if pidfile := this.GetString(AppConfigNamePidFile); pidfile != "" {
 		file := Abs(pidfile)
 		stat, osErr := os.Stat(file)
 		if osErr != nil && !os.IsExist(osErr) {
@@ -88,10 +83,10 @@ func initFlag() (err error) {
 		if stat.IsDir() {
 			file = filepath.Join(file, appName+".pid")
 		}
-		Config.Set(AppConfigNamePidFile, file)
+		this.Set(AppConfigNamePidFile, file)
 	}
 	//设置日志
-	if logsdir := Config.GetString(AppConfigNameLogsDir); logsdir != "" {
+	if logsdir := this.GetString(AppConfigNameLogsDir); logsdir != "" {
 		logsdir = Abs(logsdir)
 		_, osErr := os.Stat(logsdir)
 		if osErr != nil && !os.IsExist(osErr) {
@@ -99,46 +94,14 @@ func initFlag() (err error) {
 				return
 			}
 		}
-		Config.Set(AppConfigNameLogsDir, logsdir)
+		this.Set(AppConfigNameLogsDir, logsdir)
 		logsFile := filepath.Join(logsdir, appName+".log")
 		loggerFileAdapter = logger.NewFileAdapter(Abs(logsFile))
-		if Config.GetBool("Debug") {
+		if this.GetBool("Debug") {
 			loggerFileAdapter.Level = logger.LevelDebug
 		} else {
 			loggerFileAdapter.Level = logger.LevelInfo
 		}
-
-		//if err = logger.DefaultLogger.Adapter(logFileAdapter); err != nil {
-		//	return
-		//}
 	}
 	return nil
-}
-
-// Abs 获取以工作路径为起点的绝对路径
-func Abs(dir ...string) string {
-	path := filepath.Join(dir...)
-	if !filepath.IsAbs(path) {
-		path = filepath.Join(workDir, path)
-	}
-	return path
-}
-
-func Debug() bool {
-	return debug
-}
-
-// Dir APP主程序所在目录
-func Dir() string {
-	return appDir
-}
-
-// Name 项目内部获取appName
-func Name() string {
-	return appName
-}
-
-// WorkDir 程序工作目录
-func WorkDir() string {
-	return workDir
 }
