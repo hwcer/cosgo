@@ -1,4 +1,4 @@
-package app
+package cosgo
 
 import (
 	"fmt"
@@ -20,15 +20,16 @@ import (
 // The handled paths all begin with /debug/pprof/.
 //
 // To use pprof, link this package into your program:
+//
 //	import _ "net/http/pprof"
 //
 // If your application is not already running an http server, you
 // need to start one. Keys "net/http" and "log" to your imports and
 // the following code to your main function:
 //
-// 	go func() {
-// 		log.Println(http.ListenAndServe("localhost:6060", nil))
-// 	}()
+//	go func() {
+//		log.Println(http.ListenAndServe("localhost:6060", nil))
+//	}()
 //
 // If you are not using DefaultServeMux, you will have to register handlers
 // with the mux you are using.
@@ -63,7 +64,6 @@ import (
 // For a study of the facility in action, visit
 //
 //	https://blog.golang.org/2011/06/profiling-go-programs.html
-//
 var pprofServer *http.Server
 
 func pprofStart() error {

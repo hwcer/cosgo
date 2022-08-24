@@ -1,4 +1,4 @@
-package app
+package cosgo
 
 import (
 	"fmt"
@@ -134,7 +134,7 @@ func showConfig() {
 	}
 	log = append(log, fmt.Sprintf(">> pidFile:%v", pidfile))
 
-	log = append(log, fmt.Sprintf(">> BUIND GO:%v VER:%v  TIME:%v", BUIND_GO, BUIND_VER, BUIND_TIME))
+	//log = append(log, fmt.Sprintf(">> BUIND GO:%v VER:%v  TIME:%v", BUIND_GO, BUIND_VER, BUIND_TIME))
 	log = append(log, fmt.Sprintf(">> RUNTIME GO:%v  CPU:%v  Pid:%v", runtime.Version(), runtime.NumCPU(), os.Getpid()))
 	log = append(log, "========================================================================")
 	log = append(log, "")

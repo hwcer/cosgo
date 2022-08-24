@@ -1,4 +1,4 @@
-package app
+package cosgo
 
 import (
 	logger "github.com/hwcer/logger"

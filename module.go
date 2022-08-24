@@ -1,4 +1,4 @@
-package app
+package cosgo
 
 type Module interface {
 	ID() string
@@ -7,22 +7,22 @@ type Module interface {
 	Close() error
 }
 
-type ModuleDefault struct {
-	Id string
-}
-
-func (m *ModuleDefault) ID() string {
-	return m.Id
-}
-
-func (m *ModuleDefault) Init() error {
-	return nil
-}
-
-func (m *ModuleDefault) Start() error {
-	return nil
-}
-
-func (m *ModuleDefault) Close() error {
-	return nil
-}
+//type Module struct {
+//	Id string
+//}
+//
+//func (m *Module) ID() string {
+//	return m.Id
+//}
+//
+//func (m *Module) Init() error {
+//	return nil
+//}
+//
+//func (m *Module) Start() error {
+//	return nil
+//}
+//
+//func (m *Module) Close() error {
+//	return nil
+//}

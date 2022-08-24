@@ -1,4 +1,4 @@
-package app
+package cosgo
 
 type EventType int32
 type EventFunc func() error

@@ -1,4 +1,4 @@
-package app
+package cosgo
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 
 //系统信号监控
 
-//报告性能摘要时间间隔
+// 报告性能摘要时间间隔
 var gcSummaryTime time.Duration = time.Second * 300
 
 func SetGCSummaryTime(second int) {
