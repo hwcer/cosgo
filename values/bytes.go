@@ -17,7 +17,6 @@ func (b *Bytes) UnmarshalJSON(v []byte) error {
 	return nil
 }
 
-// Marshal 将一个对象放入Attach
 func (b *Bytes) Marshal(v interface{}) error {
 	if v == nil {
 		return nil
@@ -29,7 +28,6 @@ func (b *Bytes) Marshal(v interface{}) error {
 	return err
 }
 
-// Unmarshal 使用i解析Attach
 func (b *Bytes) Unmarshal(i interface{}) error {
 	if len(*b) == 0 {
 		return nil
