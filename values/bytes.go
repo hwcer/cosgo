@@ -1,14 +1,14 @@
 package values
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 type Bytes []byte
 
-var bytesNoneBytes = []byte("\"\"")
-
 func (b *Bytes) MarshalJSON() ([]byte, error) {
 	if b == nil || len(*b) == 0 {
-		return bytesNoneBytes, nil
+		return []byte("\"\""), nil
 	}
 	return *b, nil
 }
@@ -19,9 +19,12 @@ func (b *Bytes) UnmarshalJSON(v []byte) error {
 
 // Marshal 将一个对象放入Attach
 func (b *Bytes) Marshal(v interface{}) error {
+	if v == nil {
+		return nil
+	}
 	d, err := json.Marshal(v)
 	if err == nil {
-		*b = d
+		*b = Bytes(d)
 	}
 	return err
 }
