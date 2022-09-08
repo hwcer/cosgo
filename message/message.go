@@ -12,9 +12,9 @@ type Message struct {
 	Data values.Bytes `json:"data"`
 }
 
-func (this *Message) Parse(v interface{}) (*Message, error) {
+func (this *Message) Parse(v interface{}) *Message {
 	if r, ok := v.(*Message); ok {
-		return r, nil
+		return r
 	}
 	var err error
 	if _, ok := v.(error); ok {
@@ -22,7 +22,10 @@ func (this *Message) Parse(v interface{}) (*Message, error) {
 	} else {
 		err = this.SetData(v)
 	}
-	return this, err
+	if err != nil {
+		_ = this.SetError(0, err.Error())
+	}
+	return this
 }
 
 func (this *Message) Error() string {

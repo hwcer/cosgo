@@ -1,22 +1,19 @@
 package message
 
-import "fmt"
-
-func New(v interface{}) *Message {
-	if r, ok := v.(*Message); ok {
-		return r
-	}
-	var err error
-	r := &Message{}
-	r, err = r.Parse(v)
-	if err != nil {
-		fmt.Printf("%v\n", err)
-	}
-	return r
+func New() *Message {
+	return &Message{}
 }
 
 func Parse(v interface{}) *Message {
-	return New(v)
+	if v == nil {
+		return &Message{}
+	}
+	if r, ok := v.(*Message); ok {
+		return r
+	}
+	r := &Message{}
+	r = r.Parse(v)
+	return r
 }
 
 func Error(err interface{}) (r *Message) {
