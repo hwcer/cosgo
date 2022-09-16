@@ -18,12 +18,12 @@ func Parse(v interface{}) *Message {
 
 func Error(err interface{}) (r *Message) {
 	r = &Message{}
-	_ = r.SetError(0, err)
+	_ = r.Errorf(0, err)
 	return
 }
 
 func Errorf(code int, err interface{}, args ...interface{}) (r *Message) {
 	r = &Message{}
-	_ = r.SetError(code, err, args...)
+	_ = r.Errorf(code, err, args...)
 	return
 }

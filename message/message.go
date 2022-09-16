@@ -18,12 +18,12 @@ func (this *Message) Parse(v interface{}) *Message {
 	}
 	var err error
 	if _, ok := v.(error); ok {
-		err = this.SetError(0, v)
+		err = this.Errorf(0, v)
 	} else {
-		err = this.SetData(v)
+		err = this.Marshal(v)
 	}
 	if err != nil {
-		_ = this.SetError(0, err.Error())
+		_ = this.Errorf(0, err.Error())
 	}
 	return this
 }
@@ -32,14 +32,8 @@ func (this *Message) Error() string {
 	return fmt.Sprintf("%v,code:%v", this.Data, this.Code)
 }
 
-func (this *Message) SetCode(v int) {
-	this.Code = v
-}
-func (this *Message) SetData(v interface{}) error {
-	return this.Data.Marshal(v)
-}
-
-func (this *Message) SetError(code int, format interface{}, args ...interface{}) (err error) {
+// Errorf 格式化一个错误
+func (this *Message) Errorf(code int, format interface{}, args ...interface{}) (err error) {
 	if code == 0 {
 		this.Code = DefaultErrorCode
 	} else {

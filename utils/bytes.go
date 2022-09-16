@@ -5,7 +5,7 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"encoding/binary"
-	"github.com/hwcer/cosgo/ioutil"
+	"io"
 )
 
 func ZlibCompress(data []byte) []byte {
@@ -20,7 +20,7 @@ func ZlibUnCompress(data []byte) ([]byte, error) {
 	b := bytes.NewReader(data)
 	r, _ := zlib.NewReader(b)
 	defer r.Close()
-	undatas, err := ioutil.ReadAll(r)
+	undatas, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func GZipUnCompress(data []byte) ([]byte, error) {
 	b := bytes.NewReader(data)
 	r, _ := gzip.NewReader(b)
 	defer r.Close()
-	undatas, err := ioutil.ReadAll(r)
+	undatas, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}

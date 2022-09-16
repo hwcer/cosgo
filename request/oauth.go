@@ -27,12 +27,7 @@ const (
 )
 
 func NewOAuth(key, secret string) *OAuth {
-	oauth := &OAuth{
-		key:     key,
-		secret:  secret,
-		Strict:  false,
-		Timeout: 0,
-	}
+	oauth := &OAuth{key: key, secret: secret, Strict: false, Timeout: 0}
 	oauth.Client = New()
 	oauth.Client.Use(oauth.setHeader)
 	return oauth
@@ -78,10 +73,11 @@ func (this *OAuth) NewOAuthParams() map[string]string {
 	return args
 }
 
-//签名Signature
-//method GET POST
+// 签名Signature
+// method GET POST
+// body JSON字符串
+//
 //url:protocol://hostname/path
-//body JSON字符串
 func (this *OAuth) Signature(method, address string, oauth map[string]string, body string) string {
 	arr := []string{method, address}
 	for _, k := range oauthParams {
@@ -92,7 +88,7 @@ func (this *OAuth) Signature(method, address string, oauth map[string]string, bo
 	return HMACSHA1(this.secret, str)
 }
 
-//Verify http(s)验签
+// Verify http(s)验签
 func (this *OAuth) Verify(req *http.Request) (err error) {
 	signature := req.Header.Get(OAuthSignatureName)
 	if signature == "" {

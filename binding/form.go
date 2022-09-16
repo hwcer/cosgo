@@ -6,8 +6,8 @@ package binding
 
 import (
 	"fmt"
+	"github.com/hwcer/cosgo/schema"
 	"github.com/hwcer/cosgo/values"
-	"github.com/hwcer/cosmo/schema"
 	"io"
 	"net/url"
 	"reflect"
@@ -17,7 +17,7 @@ var formBindingSchema = schema.New()
 
 func init() {
 	j := &formBinding{}
-	Register(MIMEPOSTForm, j)
+	_ = Register(MIMEPOSTForm, j)
 }
 
 type formBinding struct{}
