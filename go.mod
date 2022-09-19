@@ -10,6 +10,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	go.mongodb.org/mongo-driver v1.8.3
+	google.golang.org/protobuf v1.28.1 // indirect
 )
 
 require (
@@ -25,7 +26,7 @@ require (
 	github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d // indirect
 	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	google.golang.org/protobuf v1.26.0 // indirect
+
 )
 
 require (
