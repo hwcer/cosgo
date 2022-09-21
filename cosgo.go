@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-var modules []module
+var modules []IModule
 
 func assert(err interface{}, s ...string) {
 	if err != nil {
@@ -20,7 +20,7 @@ func assert(err interface{}, s ...string) {
 	}
 }
 
-func Use(mods ...module) {
+func Use(mods ...IModule) {
 	for _, mod := range mods {
 		modules = append(modules, mod)
 	}
@@ -37,7 +37,7 @@ func Modules() (r []string) {
  * 应用程序启动
  * @param mods 需注册的模块
  */
-func Start(mods ...module) {
+func Start(mods ...IModule) {
 	fmt.Printf("\n")
 	logger.Info("App Starting")
 	for _, mod := range mods {
@@ -106,7 +106,7 @@ func Close() {
 	}
 }
 
-func closeModule(m module) {
+func closeModule(m IModule) {
 	defer SCC.WaitGroup.Done()
 	defer func() {
 		if err := recover(); err != nil {

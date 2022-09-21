@@ -1,6 +1,6 @@
 package cosgo
 
-type module interface {
+type IModule interface {
 	ID() string
 	Init() error
 	Start() error
