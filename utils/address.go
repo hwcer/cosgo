@@ -116,14 +116,14 @@ func isLocalIpv4(a net.Addr) (string, bool) {
 	return "", false
 }
 
-// Ip2Int Ipv4 转uint32
+// Ipv4Encode  Ip2Int Ipv4 转uint64
 func Ipv4Encode(address string) uint64 {
 	var ip string
 	var port string
 	i := strings.Index(address, ":")
 	if i > 0 {
-		ip = ip[0:i]
-		port = ip[i:]
+		ip = address[0:i]
+		port = address[i:]
 	} else {
 		ip = address
 	}
