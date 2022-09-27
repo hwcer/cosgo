@@ -117,30 +117,49 @@ func isLocalIpv4(a net.Addr) (string, bool) {
 }
 
 // Ip2Int Ipv4 转uint32
-func Ipv4Encode(ip string) uint32 {
-	if i := strings.Index(ip, ":"); i > 0 {
+func Ipv4Encode(address string) uint64 {
+	var ip string
+	var port string
+	i := strings.Index(address, ":")
+	if i > 0 {
 		ip = ip[0:i]
+		port = ip[i:]
+	} else {
+		ip = address
 	}
+
 	ip = strings.TrimSpace(ip)
 	ips := strings.Split(ip, ".")
-	var ipCode int = 0
+	var ipCode uint64 = 0
 	var pos uint = 24
 	for _, ipSeg := range ips {
 		tempInt, _ := strconv.Atoi(ipSeg)
 		tempInt = tempInt << pos
-		ipCode = ipCode | tempInt
+		ipCode = ipCode | uint64(tempInt)
 		pos -= 8
 	}
-	return uint32(ipCode)
+	r := ipCode << 32
+	if port != "" {
+		p, _ := strconv.Atoi(port)
+		r += uint64(p)
+	}
+	return r
 }
 
-func Ipv4Decode(ipCode uint32) string {
+func Ipv4Decode(code uint64) string {
+	ip := uint32(code >> 32)
 	ips := make([]string, 4)
-	ips[0] = fmt.Sprintf("%v", ipCode>>24)
-	ips[1] = fmt.Sprintf("%v", (ipCode&0x00ff0000)>>16)
-	ips[2] = fmt.Sprintf("%v", (ipCode&0x0000ff00)>>8)
-	ips[3] = fmt.Sprintf("%v", ipCode&0x000000ff)
-	return strings.Join(ips, ".")
+	ips[0] = fmt.Sprintf("%v", ip>>24)
+	ips[1] = fmt.Sprintf("%v", (ip&0x00ff0000)>>16)
+	ips[2] = fmt.Sprintf("%v", (ip&0x0000ff00)>>8)
+	ips[3] = fmt.Sprintf("%v", ip&0x000000ff)
+	var arr []string
+	arr = append(arr, strings.Join(ips, "."))
+	port := code & 0xffffffff
+	if port > 0 {
+		arr = append(arr, strconv.Itoa(int(port)))
+	}
+	return strings.Join(arr, ":")
 }
 
 // GetIPv4ByInterface return IPv4 address from a specific interface IPv4 addresses

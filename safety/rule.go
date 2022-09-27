@@ -5,17 +5,17 @@ import (
 	"strings"
 )
 
-//Rule IP匹配规则
+// Rule IP匹配规则
 type Rule struct {
 	local    bool      // 是否内网地址
 	status   Status    //状态
-	matching [2]uint32 //匹配范围
+	matching [2]uint64 //匹配范围
 }
 
 func (this *Rule) Parse(rule string, status Status, local bool) {
 	this.local = local
 	this.status = status
-	this.matching = [2]uint32{0, 0}
+	this.matching = [2]uint64{0, 0}
 	arr := strings.Split(rule, "~")
 	this.matching[0] = utils.Ipv4Encode(arr[0])
 	if len(arr) > 1 {
@@ -23,7 +23,7 @@ func (this *Rule) Parse(rule string, status Status, local bool) {
 	}
 }
 
-func (this *Rule) Match(ips uint32, useLocalAddress bool) bool {
+func (this *Rule) Match(ips uint64, useLocalAddress bool) bool {
 	if this.local && !useLocalAddress {
 		return false
 	}
