@@ -3,7 +3,6 @@ package schema
 import (
 	"database/sql/driver"
 	"fmt"
-	"github.com/hwcer/logger"
 	"reflect"
 	"strconv"
 )
@@ -118,16 +117,15 @@ func (field *Field) setupValuerAndSetter() {
 		}
 	default:
 		field.ReflectValueOf = func(value reflect.Value) reflect.Value {
-
 			v := reflect.Indirect(value)
-			logger.Debug("ReflectValueOf:%+v", v.Interface())
+			//logger.Debug("ReflectValueOf:%+v", v.Interface())
 			for idx, fieldIdx := range field.StructField.Index {
 				if fieldIdx >= 0 {
 					v = v.Field(fieldIdx)
 				} else {
 					v = v.Field(-fieldIdx - 1)
 				}
-				logger.Debug("ReflectValueOf:%+v", v.Interface())
+				//logger.Debug("ReflectValueOf:%+v", v.Interface())
 				if v.Kind() == reflect.Ptr {
 					if v.Type().Elem().Kind() == reflect.Struct {
 						if v.IsNil() {
