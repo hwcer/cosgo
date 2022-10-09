@@ -6,10 +6,11 @@ import (
 )
 
 type player struct {
-	Id   string
-	Name string
-	Lv   int32
-	Info Info
+	Id    string
+	Name  string
+	Lv    int32
+	Info  Info
+	Items []int32
 }
 
 type Info struct {
@@ -19,36 +20,40 @@ type Info struct {
 
 func TestBson(t *testing.T) {
 	p := &player{
-		Id:   "1",
-		Name: "hwc",
-		Lv:   100,
+		Id:    "1",
+		Name:  "hwc",
+		Lv:    100,
+		Items: []int32{1, 2},
 	}
-	doc, _ := Marshal(p)
-
+	doc, err := Marshal(p)
+	if err != nil {
+		logger.Debug(" err: %v", err)
+		return
+	}
 	//var err error
 	for _, k := range doc.Keys() {
 		ele := doc.Element(k)
-		logger.Debug(" ele, %v", ele.String())
+		logger.Debug("ele: %v", ele.String())
 	}
 
-	logger.Debug("GetString --- name:%v", doc.GetString("name"))
+	logger.Debug("Get top String:%v", doc.GetString("name"))
 
-	_ = doc.Set("info", Info{
-		Vip:  10,
-		Desc: "GOOD",
-	})
-
-	info := &Info{}
-	_ = doc.Element("info").Unmarshal(info)
-	logger.Debug("info:%+v", info)
-	logger.Debug("Getint32 --- vip:%v", doc.GetInt32("info.vip"))
-	//if err := doc.Set("info.vip", 100); err != nil {
-	//	logger.Debug("error:%v", err)
-	//}
-
-	if err := doc.Set("name", "yyds"); err != nil {
+	_ = doc.Set("info", Info{Vip: 10})
+	_ = doc.Set("items", []int32{1, 2, 3, 4})
+	if err = doc.Set("info.vip", 100); err != nil {
 		logger.Debug("error:%v", err)
 	}
+	logger.Debug("Get Struct int32:%v", doc.GetInt32("info.vip"))
+
+	if err = doc.Set("name", "yyds"); err != nil {
+		logger.Debug("error:%v", err)
+	}
+
+	if err = doc.Set("items.2", 200); err != nil {
+		logger.Debug("error:%v", err)
+	}
+
+	logger.Debug("Get Array int32:%v", doc.GetInt32("items.2"))
 
 	logger.Debug("new Document:%v", doc.String())
 
