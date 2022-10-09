@@ -2,7 +2,7 @@ package smap
 
 //基于Array的键值对
 //仅仅 Create delete 是使用固定的key(uid) 防止重复登录
-//Get Set 仍然希望使用MID达到无锁状态
+//Value Set 仍然希望使用MID达到无锁状态
 
 func NewHash(cap int) *Hash {
 	return &Hash{Array: New(cap), keys: make(map[string]MID)}

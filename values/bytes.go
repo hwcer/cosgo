@@ -17,6 +17,17 @@ func (b *Bytes) UnmarshalJSON(v []byte) error {
 	return nil
 }
 
+func (b *Bytes) MarshalBSON() ([]byte, error) {
+	if b == nil || len(*b) == 0 {
+		return []byte("\"\""), nil
+	}
+	return *b, nil
+}
+func (b *Bytes) UnmarshalBSON(v []byte) error {
+	*b = v
+	return nil
+}
+
 func (b *Bytes) Marshal(v interface{}) error {
 	if v == nil {
 		return nil
