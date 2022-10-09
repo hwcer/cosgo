@@ -1,8 +1,8 @@
 package bson
 
 import (
-	"github.com/hwcer/logger"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 	"strings"
 )
 
@@ -18,13 +18,12 @@ func NewArray(raw []byte) (arr *Array, err error) {
 	return
 }
 
-func NewElement(raw []byte) (ele *Element, err error) {
-	ele = &Element{raw: raw}
+func NewElement(key string, val bsoncore.Value) (ele *Element, err error) {
+	ele = &Element{raw: val, key: key}
 	if err = ele.raw.Validate(); err != nil {
 		return
 	}
-	logger.Debug("NewElement %v:%v", ele.raw.Value().Type, ele.raw.String())
-	err = ele.Parse()
+	err = ele.ParseElement()
 	return
 }
 

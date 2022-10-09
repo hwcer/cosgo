@@ -8,124 +8,116 @@ import (
 )
 
 type Element struct {
-	raw bsoncore.Element
+	key string
+	raw bsoncore.Value
+	arr *Array    //仅当type == bsontype.Array 时有效
 	doc *Document //仅当type == bsontype.EmbeddedDocument 时有效
 }
 
+func (this *Element) ParseElement() (err error) {
+	if this.Type() == bsontype.Array {
+		this.arr, err = NewArray(this.raw.Data)
+	} else if this.Type() == bsontype.EmbeddedDocument {
+		this.doc, err = New(this.raw.Data)
+	}
+	return
+}
+
 func (this *Element) Key() string {
-	return this.raw.Key()
+	return this.key
 }
 
 func (this *Element) Type() bsontype.Type {
-	return this.raw.Value().Type
+	return this.raw.Type
 }
 
 // Value 仅当Element为EmbeddedDocument时才可以使用 key
 func (this *Element) Value() bsoncore.Value {
-	_ = this.Build()
-	return this.raw.Value()
+	return this.build()
 }
 
 func (this *Element) String() string {
-	if this.Type() == bsontype.EmbeddedDocument {
-		return this.doc.String()
-	} else {
-		return bsoncore.Element(this.Build()).String()
-	}
+	raw := this.Build()
+	return bsoncore.Element(raw).String()
 }
 
 func (this *Element) Build() []byte {
-	if this.Type() == bsontype.EmbeddedDocument && this.doc.dirty {
-		val := this.doc.Build()
-		this.raw = bsoncore.AppendDocumentElement([]byte{}, this.Key(), val)
-	}
-	return this.raw
+	k := this.Key()
+	v := this.build()
+	b := make([]byte, 0, len(v.Data)+len(k)+2)
+	return bsoncore.AppendValueElement(b, k, v)
 }
+
 func (this *Element) Element(key string) *Element {
 	if IsTop(key) {
 		return this
 	}
-	if this.Type() != bsontype.EmbeddedDocument {
-		return nil
-	} else {
+	if this.Type() == bsontype.Array {
+		return this.arr.Element(key)
+	} else if this.Type() == bsontype.EmbeddedDocument {
 		return this.doc.Element(key)
-	}
-}
-
-func (this *Element) Parse() (err error) {
-	value := this.raw.Value()
-	if value.Type == bsontype.Array {
-		return this.parseEmbeddedArray(value)
-	} else if value.Type == bsontype.EmbeddedDocument {
-		return this.parseEmbeddedDocument(value)
 	} else {
 		return nil
 	}
-}
-
-func (this *Element) parseEmbeddedArray(value bsoncore.Value) (err error) {
-	_, ok := value.ArrayOK()
-	if !ok {
-		return bsoncore.ElementTypeError{Method: "bsoncore.Value.Document", Type: value.Type}
-	}
-
-	//this.doc, err = New(arr)
-	return
-}
-func (this *Element) parseEmbeddedDocument(value bsoncore.Value) (err error) {
-	doc, ok := value.DocumentOK()
-	if !ok {
-		return bsoncore.ElementTypeError{Method: "bsoncore.Value.Document", Type: value.Type}
-	}
-	this.doc, err = New(doc)
-	return
 }
 
 func (this *Element) Marshal(key string, i interface{}) (r int, err error) {
 	if IsTop(key) {
 		return this.marshal(i)
+	} else if this.Type() == bsontype.Array {
+		return this.arr.Marshal(key, i)
+	} else if this.Type() == bsontype.EmbeddedDocument {
+		return this.doc.Marshal(key, i)
+	} else {
+		return 0, fmt.Errorf("element type error:%v", key)
 	}
-	if this.Type() != bsontype.EmbeddedDocument {
-		return 0, fmt.Errorf("Element type not EmbeddedDocument :%v", key)
-	}
-	return this.doc.Marshal(key, i)
 }
 
 func (this *Element) Unmarshal(key string, i interface{}) error {
-	if this.Type() == bsontype.EmbeddedDocument {
-		return this.doc.Unmarshal(key, i)
-	} else if IsTop(key) {
+	if IsTop(key) {
 		return this.unmarshal(i)
+	} else if this.Type() == bsontype.Array {
+		return this.arr.Unmarshal(key, i)
+	} else if this.Type() == bsontype.EmbeddedDocument {
+		return this.doc.Unmarshal(key, i)
 	} else {
-		return nil //TODO 报错？
+		return nil
 	}
+}
+
+func (this *Element) build() bsoncore.Value {
+	if this.Type() == bsontype.Array && this.arr.dirty {
+		this.raw.Data = this.arr.Build()
+	} else if this.Type() == bsontype.EmbeddedDocument && this.doc.dirty {
+		this.raw.Data = this.doc.Build()
+	}
+	return this.raw
 }
 
 // marshal  r字节变化量
 func (this *Element) marshal(i interface{}) (r int, err error) {
-	if this.Type() == bsontype.EmbeddedDocument {
+	if this.Type() == bsontype.Array {
+		return this.arr.marshal(i)
+	} else if this.Type() == bsontype.EmbeddedDocument {
 		return this.doc.marshal(i)
 	}
 	t, b, err := bson.MarshalValue(i)
 	if err != nil {
 		return
 	}
-	//if t != this.Type() {
-	//	return 0, errors.New("type error")
-	//}
-	k := this.Key()
-	r = len(b) - len(this.raw.Value().Data)
-	v := bsoncore.Value{Type: t, Data: b}
+	r = len(b) - len(this.raw.Data)
+	if t != this.Type() {
+		r = -1
+	}
 	if r == 0 {
-		this.raw = bsoncore.AppendValueElement(this.raw[0:0], k, v)
+		this.raw.Data = append(this.raw.Data[0:0], b...)
 	} else {
-		this.raw = bsoncore.AppendValueElement(make([]byte, 0, len(b)+len(k)+2), k, v)
+		this.raw = bsoncore.Value{Type: t, Data: b}
 	}
 	return
 }
 
 func (this *Element) unmarshal(i interface{}) error {
-	val := this.raw.Value()
-	raw := bson.RawValue{Value: val.Data, Type: val.Type}
+	raw := bson.RawValue{Value: this.raw.Data, Type: this.raw.Type}
 	return raw.Unmarshal(i)
 }

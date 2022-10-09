@@ -5,7 +5,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/bsontype"
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
-	"strings"
 )
 
 type Document struct {
@@ -25,7 +24,7 @@ func (this *Document) ParseElement() error {
 	dict := make(map[string]*Element, len(arr))
 	for _, ele := range arr {
 		k := ele.Key()
-		if dict[k], err = NewElement(ele); err != nil {
+		if dict[k], err = NewElement(k, ele.Value()); err != nil {
 			return err
 		}
 	}
@@ -108,36 +107,26 @@ func (this *Document) String() string {
 }
 
 // Element 获取子对象
-func (this *Document) Element(key string) *Element {
-	idx := strings.Index(key, ".")
-	if idx < 0 {
-		return this.dict[key]
+func (this *Document) Element(key string) (r *Element) {
+	k1, k2 := Split(key)
+	if k1 != "" {
+		r = this.dict[k1]
 	}
-	ele := this.dict[key[0:idx]]
-	if ele != nil && ele.Type() == bsontype.EmbeddedDocument {
-		return ele.Element(key[idx+1:])
-	} else {
-		return ele
+	if r != nil && k2 != "" {
+		r = r.Element(k2)
 	}
+	return
 }
 func (this *Document) Marshal(key string, val interface{}) (n int, err error) {
 	k1, k2 := Split(key)
 	if k1 == "" {
-		n, err = this.marshal(val)
-	} else if k2 == "" {
-		ele := this.dict[k1]
-		if ele == nil {
-			err = bsoncore.ErrElementNotFound //TODO自动创建？
-		} else {
-			n, err = ele.Marshal("", val)
-		}
+		return this.marshal(val)
+	}
+	ele := this.dict[k1]
+	if ele == nil {
+		err = bsoncore.ErrElementNotFound //TODO自动创建？
 	} else {
-		ele := this.dict[k1]
-		if ele == nil {
-			err = bsoncore.ErrElementNotFound //TODO自动创建？
-		} else {
-			n, err = ele.Marshal(k2, val)
-		}
+		n, err = ele.Marshal(k2, val)
 	}
 	if err == nil && n != 0 {
 		this.dirty = true
