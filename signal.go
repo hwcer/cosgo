@@ -1,7 +1,7 @@
 package cosgo
 
 import (
-	"fmt"
+	"github.com/hwcer/logger"
 	"os"
 	"os/signal"
 	"runtime"
@@ -9,9 +9,10 @@ import (
 	"time"
 )
 
-//系统信号监控
+// ReloadSignal 重新加载系统信号 kill -10 pid
+var ReloadSignal syscall.Signal = 10
 
-// 报告性能摘要时间间隔
+// gcSummaryTime 报告性能摘要时间间隔
 var gcSummaryTime time.Duration = time.Second * 300
 
 func SetGCSummaryTime(second int) {
@@ -22,7 +23,7 @@ func WaitForSystemExit() {
 	ch := make(chan os.Signal, 1)
 	timer := time.NewTimer(gcSummaryTime)
 	defer timer.Stop()
-	signal.Notify(ch, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
+	signal.Notify(ch, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM, ReloadSignal)
 	for {
 		select {
 		case sig := <-ch:
@@ -36,20 +37,20 @@ func WaitForSystemExit() {
 	}
 }
 
+// 系统信号监控
 func signalNotify(sig os.Signal) {
 	switch sig {
-	case syscall.SIGHUP: // reload Config  1
-		fmt.Printf("SIGHUP reload Config\n")
-	case syscall.SIGINT, syscall.SIGTERM: // app close   2
-		fmt.Printf("SIGINT Stop App:%v\n", sig)
+	case ReloadSignal:
+		Reload()
+	case syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM:
+		logger.Info("SIGINT Stop App:%v\n", sig)
 		Close()
 	default:
-		fmt.Printf("SIG inv signal:%v\n", sig)
+		logger.Info("SIG inv signal:%v\n", sig)
 	}
 }
 
 func gcSummaryLogger() {
 	runtime.GC()
-	fmt.Printf("GOROUTINE:%v\n", runtime.NumGoroutine())
-	//logger.Info("GC Summory \n%v", debug.GCSummary())
+	logger.Info("GOROUTINE:%v\n", runtime.NumGoroutine())
 }

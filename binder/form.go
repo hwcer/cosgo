@@ -1,11 +1,7 @@
-// Copyright 2014 Manu Martinez-Almeida.  All rights reserved.
-// Use of this source code is governed by a MIT style
-// license that can be found in the LICENSE file.
-
-package binding
+package binder
 
 import (
-	"fmt"
+	"errors"
 	"github.com/hwcer/cosgo/schema"
 	"github.com/hwcer/cosgo/values"
 	"io"
@@ -17,13 +13,30 @@ var formBindingSchema = schema.New()
 
 func init() {
 	j := &formBinding{}
-	_ = Register(MIMEPOSTForm, j)
+	_ = Register(EncodingTypeUrlEncoded, j)
 }
 
 type formBinding struct{}
 
-func (f *formBinding) Name() string {
+func (f *formBinding) String() string {
 	return "form"
+}
+
+func (this *formBinding) Encode(w io.Writer, i interface{}) error {
+	return errors.New("url encoded not Encode")
+}
+
+func (this *formBinding) Marshal(i interface{}) ([]byte, error) {
+	return nil, errors.New("url encoded not Marshal")
+}
+
+func (f *formBinding) Decode(r io.Reader, i interface{}) (err error) {
+	var b []byte
+	b, err = io.ReadAll(r)
+	if err != nil {
+		return
+	}
+	return f.Unmarshal(b, i)
 }
 
 func (f *formBinding) Unmarshal(b []byte, i interface{}) (err error) {
@@ -73,15 +86,4 @@ func (f *formBinding) Unmarshal(b []byte, i interface{}) (err error) {
 		}
 	}
 	return nil
-}
-func (f *formBinding) Bind(body io.Reader, i interface{}) (err error) {
-	if body == nil {
-		return fmt.Errorf("invalid request")
-	}
-	var b []byte
-	b, err = io.ReadAll(body)
-	if err != nil {
-		return
-	}
-	return f.Unmarshal(b, i)
 }

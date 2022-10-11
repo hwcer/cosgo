@@ -5,6 +5,7 @@ type IModule interface {
 	Init() error
 	Start() error
 	Close() error
+	Reload() error
 }
 
 func NewModule(id string) *Module {
@@ -28,5 +29,9 @@ func (m *Module) Start() error {
 }
 
 func (m *Module) Close() error {
+	return nil
+}
+
+func (m *Module) Reload() error {
 	return nil
 }
