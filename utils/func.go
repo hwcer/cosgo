@@ -31,4 +31,16 @@ func Timeout(d time.Duration, fn func() error) error {
 	}
 }
 
-
+func Sprintf(format interface{}, args ...interface{}) (r string) {
+	switch v := format.(type) {
+	case string:
+		if len(args) > 0 {
+			r = fmt.Sprintf(v, args...)
+		} else {
+			r = v
+		}
+	default:
+		r = fmt.Sprintf("%v", format)
+	}
+	return
+}

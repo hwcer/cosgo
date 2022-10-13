@@ -8,7 +8,7 @@ import (
 	"io"
 )
 
-type EncodingType int32
+type EncodingType uint8
 
 const (
 	EncodingTypeXml EncodingType = iota + 1
