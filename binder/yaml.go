@@ -7,13 +7,13 @@ import (
 
 func init() {
 	b := yamlBinding{}
-	_ = Register(EncodingTypeYaml, b)
+	_ = Register(MIMEYAML, b)
 }
 
 type yamlBinding struct{}
 
 func (yamlBinding) String() string {
-	return "yaml"
+	return MIMEYAML
 }
 func (yamlBinding) Encode(w io.Writer, i interface{}) error {
 	return yaml.NewEncoder(w).Encode(i)

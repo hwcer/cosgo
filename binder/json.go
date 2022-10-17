@@ -8,13 +8,13 @@ import (
 var Json = jsonBinding{}
 
 func init() {
-	_ = Register(EncodingTypeJson, Json)
+	_ = Register(MIMEJSON, Json)
 }
 
 type jsonBinding struct{}
 
 func (jsonBinding) String() string {
-	return "json"
+	return MIMEJSON
 }
 func (jsonBinding) Encode(w io.Writer, i interface{}) error {
 	return json.NewEncoder(w).Encode(i)

@@ -13,13 +13,13 @@ var formBindingSchema = schema.New()
 
 func init() {
 	j := &formBinding{}
-	_ = Register(EncodingTypeUrlEncoded, j)
+	_ = Register(MIMEPOSTForm, j)
 }
 
 type formBinding struct{}
 
-func (f *formBinding) String() string {
-	return "form"
+func (*formBinding) String() string {
+	return MIMEPOSTForm
 }
 
 func (this *formBinding) Encode(w io.Writer, i interface{}) error {

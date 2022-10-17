@@ -8,17 +8,7 @@ import (
 	"io"
 )
 
-type EncodingType uint8
-
-const (
-	EncodingTypeXml EncodingType = iota + 1
-	EncodingTypeJson
-	EncodingTypeYaml
-	EncodingTypeProtoBuf
-	EncodingTypeUrlEncoded
-)
-
-var binderMap = make(map[EncodingType]Interface)
+var binderMap = make(map[string]Interface)
 
 type Interface interface {
 	String() string
@@ -28,19 +18,20 @@ type Interface interface {
 	Unmarshal([]byte, interface{}) error
 }
 
-func New(t EncodingType) (b *Binder) {
+func New(t string) (b *Binder) {
 	h := Handle(t)
 	if h != nil {
-		b = &Binder{handle: h}
+		b = &Binder{handle: h, mime: t}
 	}
+
 	return
 }
 
-func Handle(t EncodingType) (h Interface) {
+func Handle(t string) (h Interface) {
 	return binderMap[t]
 }
 
-func Register(t EncodingType, handle Interface) error {
+func Register(t string, handle Interface) error {
 	if _, ok := binderMap[t]; ok {
 		return fmt.Errorf("handle exist:%v", t)
 	}
@@ -48,7 +39,7 @@ func Register(t EncodingType, handle Interface) error {
 	return nil
 }
 
-func Encode(w io.Writer, i interface{}, t EncodingType) error {
+func Encode(w io.Writer, i interface{}, t string) error {
 	handle := Handle(t)
 	if handle == nil {
 		return errors.New("name not exist")
@@ -56,7 +47,7 @@ func Encode(w io.Writer, i interface{}, t EncodingType) error {
 	return handle.Encode(w, i)
 }
 
-func Decode(r io.Reader, i interface{}, t EncodingType) error {
+func Decode(r io.Reader, i interface{}, t string) error {
 	handle := Handle(t)
 	if handle == nil {
 		return errors.New("name not exist")
@@ -64,14 +55,14 @@ func Decode(r io.Reader, i interface{}, t EncodingType) error {
 	return handle.Decode(r, i)
 }
 
-func Marshal(i interface{}, t EncodingType) ([]byte, error) {
+func Marshal(i interface{}, t string) ([]byte, error) {
 	handle := Handle(t)
 	if handle == nil {
 		return nil, errors.New("type not exist")
 	}
 	return handle.Marshal(i)
 }
-func Unmarshal(b []byte, i interface{}, t EncodingType) error {
+func Unmarshal(b []byte, i interface{}, t string) error {
 	handle := Handle(t)
 	if handle == nil {
 		return errors.New("type not exist")
@@ -80,11 +71,12 @@ func Unmarshal(b []byte, i interface{}, t EncodingType) error {
 }
 
 type Binder struct {
+	mime   string
 	handle Interface
 }
 
-func (*Binder) String() string {
-	return "Binder"
+func (this *Binder) String() string {
+	return this.mime
 }
 
 func (this *Binder) Encode(w io.Writer, i interface{}) (err error) {

@@ -8,15 +8,14 @@ import (
 
 func init() {
 	b := &protobufBinding{}
-	_ = Register(EncodingTypeProtoBuf, b)
+	_ = Register(MIMEPROTOBUF, b)
 }
 
 type protobufBinding struct{}
 
 func (*protobufBinding) String() string {
-	return "protobuf"
+	return MIMEPROTOBUF
 }
-
 func (this *protobufBinding) Encode(w io.Writer, i interface{}) error {
 	b, err := this.Marshal(i)
 	if err != nil {

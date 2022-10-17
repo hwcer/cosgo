@@ -7,15 +7,15 @@ import (
 
 func init() {
 	b := xmlBinding{}
-	_ = Register(EncodingTypeXml, b)
+	_ = Register(MIMEXML, b)
+	_ = Register(MIMEXML2, b)
 }
 
 type xmlBinding struct{}
 
 func (xmlBinding) String() string {
-	return "xml"
+	return MIMEXML
 }
-
 func (xmlBinding) Encode(w io.Writer, i interface{}) error {
 	return xml.NewEncoder(w).Encode(i)
 }
