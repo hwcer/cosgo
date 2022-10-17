@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 )
 
 var binderMap = make(map[string]Interface)
@@ -23,12 +24,15 @@ func New(t string) (b *Binder) {
 	if h != nil {
 		b = &Binder{handle: h, mime: t}
 	}
-
 	return
 }
 
 func Handle(t string) (h Interface) {
-	return binderMap[t]
+	ct, _, err := mime.ParseMediaType(t)
+	if err == nil {
+		h = binderMap[ct]
+	}
+	return
 }
 
 func Register(t string, handle Interface) error {
