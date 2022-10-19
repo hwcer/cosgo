@@ -2,7 +2,10 @@ package request
 
 import (
 	"net/http"
+	"strings"
 )
+
+const Charset = "UTF-8"
 
 func Address(req *http.Request) (url string) {
 	scheme := Protocol(req)
@@ -31,4 +34,17 @@ func Protocol(req *http.Request) string {
 		return scheme
 	}
 	return "http"
+}
+
+func FormatContentTypeAndCharset(contentType string, charset ...string) string {
+	b := strings.Builder{}
+	b.WriteString(contentType)
+	b.WriteString("; charset=")
+	if len(charset) > 0 {
+		b.WriteString(charset[0])
+	} else {
+		b.WriteString(Charset)
+	}
+
+	return b.String()
 }

@@ -4,40 +4,26 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/hwcer/cosgo/binder"
 	"io"
 	"net/http"
 )
 
 func New() *Client {
 	r := &Client{}
-	r.Packer = &PackerJson{}
+	r.Binder = binder.New(binder.MIMEJSON)
 	return r
 }
 
 type middleware func(req *http.Request) error
 
 type Client struct {
-	Packer     Packer
+	Binder     binder.Interface
 	middleware []middleware
 }
 
 func (c *Client) Use(m middleware) {
 	c.middleware = append(c.middleware, m)
-}
-
-func (this *Client) reader(i interface{}) (rd []byte, err error) {
-	if i == nil {
-		return nil, err
-	}
-	switch i.(type) {
-	case string:
-		rd = []byte(i.(string))
-	case []byte:
-		rd = i.([]byte)
-	default:
-		rd, err = this.Packer.Encode(i)
-	}
-	return
 }
 
 func (this *Client) Request(method, url string, data interface{}) (reply []byte, err error) {
@@ -51,7 +37,7 @@ func (this *Client) Request(method, url string, data interface{}) (reply []byte,
 		res *http.Response
 	)
 	var buf []byte
-	if buf, err = this.reader(data); err != nil {
+	if buf, err = this.Binder.Marshal(data); err != nil {
 		return
 	}
 
@@ -63,8 +49,8 @@ func (this *Client) Request(method, url string, data interface{}) (reply []byte,
 		defer req.Body.Close()
 	}
 
-	if contentType := this.Packer.ContentType(); contentType != "" {
-		req.Header.Add("Content-Type", contentType)
+	if contentType := this.Binder.String(); contentType != "" {
+		req.Header.Add("Content-Type", FormatContentTypeAndCharset(contentType))
 	}
 	for _, m := range this.middleware {
 		if err = m(req); err != nil {
@@ -89,7 +75,7 @@ func (this *Client) Get(url string, reply interface{}) (err error) {
 	if err != nil {
 		return
 	}
-	err = this.Packer.Decode(body, reply)
+	err = this.Binder.Unmarshal(body, reply)
 	return
 }
 
@@ -99,6 +85,6 @@ func (this *Client) Post(url string, data interface{}, reply interface{}) (err e
 	if err != nil {
 		return
 	}
-	err = this.Packer.Decode(body, reply)
+	err = this.Binder.Unmarshal(body, reply)
 	return
 }
