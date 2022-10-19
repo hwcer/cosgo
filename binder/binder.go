@@ -116,6 +116,9 @@ func (this *Binder) Decode(r io.Reader, i interface{}) (err error) {
 
 // Marshal 将一个对象放入Message.data
 func (this *Binder) Marshal(i interface{}) (b []byte, err error) {
+	if i == nil {
+		return
+	}
 	switch v := i.(type) {
 	case []byte:
 		b = v
@@ -134,6 +137,9 @@ func (this *Binder) Marshal(i interface{}) (b []byte, err error) {
 
 // Unmarshal 解析Message body
 func (this *Binder) Unmarshal(b []byte, i interface{}) (err error) {
+	if len(b) == 0 {
+		return
+	}
 	switch v := i.(type) {
 	case *string:
 		*v = string(b)
