@@ -11,12 +11,13 @@ type data struct {
 }
 
 func TestBytes(t *testing.T) {
-	i := &data{}
-
+	i := &data{Id: 111, Msg: nil}
+	//_ = i.Msg.Marshal("null")
 	b, err := json.Marshal(i)
 	if err != nil {
 		t.Logf("ERROR:%v", err)
 	} else {
+		t.Logf("BYTES:%v", b)
 		t.Logf("SUCCESS:%v", string(b))
 	}
 
@@ -25,7 +26,7 @@ func TestBytes(t *testing.T) {
 	if err != nil {
 		t.Logf("ERROR:%v", err)
 	} else {
-		t.Logf("SUCCESS:%+v", j)
+		t.Logf("SUCCESS:%+v   MSG:%v", j, len(j.Msg))
 	}
 
 }

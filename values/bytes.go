@@ -7,27 +7,35 @@ import (
 type Bytes []byte
 
 // TODO nil
+
+const BytesEmpty = "null"
+
+//func (b *Bytes) IsNil() bool {
+//	return len(*b) == 0 || string(*b) == BytesEmpty
+//}
+
 func (b *Bytes) MarshalJSON() ([]byte, error) {
 	if b == nil || len(*b) == 0 {
-		return []byte("\"\""), nil
+		return []byte(BytesEmpty), nil
 	}
 	return *b, nil
 }
+
 func (b *Bytes) UnmarshalJSON(v []byte) error {
-	*b = v
+	if string(v) != BytesEmpty {
+		*b = v
+	}
 	return nil
 }
 
-func (b *Bytes) MarshalBSON() ([]byte, error) {
-	if b == nil || len(*b) == 0 {
-		return []byte("\"\""), nil
-	}
-	return *b, nil
-}
-func (b *Bytes) UnmarshalBSON(v []byte) error {
-	*b = v
-	return nil
-}
+//func (b *Bytes) MarshalBSON() ([]byte, error) {
+//	return b.MarshalJSON()
+//}
+
+//func (b *Bytes) UnmarshalBSON(v []byte) error {
+//	*b = v
+//	return nil
+//}
 
 func (b *Bytes) Marshal(v interface{}) error {
 	if v == nil {
