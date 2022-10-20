@@ -9,8 +9,7 @@ type Bytes []byte
 // TODO nil
 func (b *Bytes) MarshalJSON() ([]byte, error) {
 	if b == nil || len(*b) == 0 {
-		//return []byte("\"\""), nil
-		return nil, nil
+		return []byte("\"\""), nil
 	}
 	return *b, nil
 }
