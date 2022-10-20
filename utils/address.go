@@ -123,7 +123,7 @@ func Ipv4Encode(address string) uint64 {
 	i := strings.Index(address, ":")
 	if i > 0 {
 		ip = address[0:i]
-		port = address[i:]
+		port = address[i+1:]
 	} else {
 		ip = address
 	}
