@@ -35,6 +35,10 @@ func Marshal(v interface{}) (*Document, error) {
 	return New(raw)
 }
 
+func Unmarshal(doc *Document, v interface{}) error {
+	return bson.Unmarshal(doc.raw, v)
+}
+
 func IsTop(k string) bool {
 	if k == "" || k == "." {
 		return true

@@ -6,36 +6,23 @@ import (
 
 type Bytes []byte
 
-// TODO nil
-
-const BytesEmpty = "null"
-
-//func (b *Bytes) IsNil() bool {
-//	return len(*b) == 0 || string(*b) == BytesEmpty
-//}
+const (
+	BytesEmptyJson = "null"
+)
 
 func (b *Bytes) MarshalJSON() ([]byte, error) {
 	if b == nil || len(*b) == 0 {
-		return []byte(BytesEmpty), nil
+		return []byte(BytesEmptyJson), nil
 	}
 	return *b, nil
 }
 
 func (b *Bytes) UnmarshalJSON(v []byte) error {
-	if string(v) != BytesEmpty {
+	if len(*b) != len(BytesEmptyJson) && string(v) != BytesEmptyJson {
 		*b = v
 	}
 	return nil
 }
-
-//func (b *Bytes) MarshalBSON() ([]byte, error) {
-//	return b.MarshalJSON()
-//}
-
-//func (b *Bytes) UnmarshalBSON(v []byte) error {
-//	*b = v
-//	return nil
-//}
 
 func (b *Bytes) Marshal(v interface{}) error {
 	if v == nil {
@@ -43,7 +30,7 @@ func (b *Bytes) Marshal(v interface{}) error {
 	}
 	d, err := json.Marshal(v)
 	if err == nil {
-		*b = Bytes(d)
+		*b = d
 	}
 	return err
 }
