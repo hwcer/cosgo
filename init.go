@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	AppConfigNamePidFile    string = "pid"    //pid file dir
-	AppConfigNameLogsDir    string = "logs"   //logs dir
-	AppConfigNameConfigFile string = "config" //config file
+	AppConfigNamePidFile        string = "pid"           //pid file dir
+	AppConfigNameLogsDir        string = "logs"          //logs dir
+	AppConfigNameConfigFileExt  string = "ConfigFileExt" //config file default ext name
+	AppConfigNameConfigFileName string = "config"        //config file
 )
 
 var (
@@ -27,6 +28,8 @@ func init() {
 	Config.Flags("pprof", "", "", "pprof server address")
 	Config.Flags("debug", "", false, "developer model")
 	Config.Flags("config", "c", "", "use config file")
+
+	Config.SetDefault(AppConfigNameConfigFileExt, "toml")
 
 	var (
 		tmpDir     string

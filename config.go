@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // 其他模块可以使用pflag设置额外的参数
@@ -64,11 +65,22 @@ func (this *config) init() (err error) {
 	if err = this.BindPFlags(pflag.CommandLine); err != nil {
 		return err
 	}
-	//通过配置读取
-	if configFile := this.GetString(AppConfigNameConfigFile); configFile != "" {
+	ext := Config.GetString(AppConfigNameConfigFileExt)
+	//通过基础配置读取  config.toml
+	if configFile := this.GetString(AppConfigNameConfigFileName); configFile != "" {
+		if s := filepath.Ext(configFile); s == "" {
+			configFile = strings.Join([]string{configFile, ext}, ".")
+		}
 		f := Abs(configFile)
 		this.SetConfigFile(f)
 		if err = this.ReadInConfig(); err != nil {
+			return err
+		}
+	}
+	//通过程序名称读取 app.toml
+	if f, exist := fileExist(appName, ext); exist {
+		this.SetConfigFile(f)
+		if err = this.MergeInConfig(); err != nil {
 			return err
 		}
 	}
@@ -104,4 +116,13 @@ func (this *config) init() (err error) {
 		}
 	}
 	return nil
+}
+
+func fileExist(name, ext string) (f string, exist bool) {
+	f = Abs(strings.Join([]string{appName, ext}, "."))
+	stat, err := os.Stat(f)
+	if err == nil && !stat.IsDir() {
+		exist = true
+	}
+	return
 }
