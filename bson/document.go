@@ -39,6 +39,17 @@ func (this *Document) Keys() (r []string) {
 	return
 }
 
+// Get Element别名
+func (this *Document) Get(key string) *Element {
+	return this.Element(key)
+}
+
+// Set Marshal别名
+func (this *Document) Set(key string, val interface{}) error {
+	_, err := this.Marshal(key, val)
+	return err
+}
+
 func (this *Document) Value(key string) bsoncore.Value {
 	if IsTop(key) {
 		return bsoncore.Value{Data: this.raw, Type: bsontype.EmbeddedDocument}
@@ -49,42 +60,41 @@ func (this *Document) Value(key string) bsoncore.Value {
 	}
 	return bsoncore.Value{}
 }
-
+func (this *Document) GetBool(key string) (r bool) {
+	if ele := this.Element(key); ele != nil {
+		r = ele.GetBool()
+	}
+	return
+}
 func (this *Document) GetInt32(key string) (r int32) {
-	v := this.Value(key)
-	r, _ = v.Int32OK()
+	if ele := this.Element(key); ele != nil {
+		r = ele.GetInt32()
+	}
 	return
 }
 
 func (this *Document) GetInt64(key string) (r int64) {
-	v := this.Value(key)
-	r, _ = v.Int64OK()
+	if ele := this.Element(key); ele != nil {
+		r = ele.GetInt64()
+	}
 	return
 }
 
 func (this *Document) GetFloat(key string) (r float64) {
-	v := this.Value(key)
-	r, _ = v.AsFloat64OK()
-	return
-}
-func (this *Document) GetBool(key string) (r bool) {
-	v := this.Value(key)
-	r, _ = v.BooleanOK()
+	if ele := this.Element(key); ele != nil {
+		r = ele.GetFloat()
+	}
 	return
 }
 
 func (this *Document) GetString(key string) (r string) {
-	v := this.Value(key)
-	r, _ = v.StringValueOK()
+	if ele := this.Element(key); ele != nil {
+		r = ele.GetString()
+	}
 	return
 }
 
-func (this *Document) Set(key string, val interface{}) error {
-	_, err := this.Marshal(key, val)
-	return err
-}
-
-func (this *Document) Build() []byte {
+func (this *Document) Bytes() []byte {
 	if !this.dirty {
 		return this.raw
 	}
@@ -102,7 +112,7 @@ func (this *Document) Build() []byte {
 }
 
 func (this *Document) String() string {
-	raw := this.Build()
+	raw := this.Bytes()
 	return bsoncore.Document(raw).String()
 }
 
@@ -177,6 +187,6 @@ func (this *Document) marshal(i interface{}) (r int, err error) {
 }
 
 func (this *Document) unmarshal(i interface{}) error {
-	raw := this.Build()
+	raw := this.Bytes()
 	return bson.Unmarshal(raw, i)
 }

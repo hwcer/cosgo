@@ -35,6 +35,35 @@ func (this *Element) Type() bsontype.Type {
 func (this *Element) Value() bsoncore.Value {
 	return this.build()
 }
+func (this *Element) GetBool() (r bool) {
+	v := this.Value()
+	r, _ = v.BooleanOK()
+	return
+}
+
+func (this *Element) GetInt32() (r int32) {
+	v := this.Value()
+	r, _ = v.AsInt32OK()
+	return
+}
+
+func (this *Element) GetInt64() (r int64) {
+	v := this.Value()
+	r, _ = v.AsInt64OK()
+	return
+}
+
+func (this *Element) GetFloat() (r float64) {
+	v := this.Value()
+	r, _ = v.AsFloat64OK()
+	return
+}
+
+func (this *Element) GetString() (r string) {
+	v := this.Value()
+	r, _ = v.StringValueOK()
+	return
+}
 
 func (this *Element) String() string {
 	raw := this.Build()
@@ -89,7 +118,7 @@ func (this *Element) build() bsoncore.Value {
 	if this.Type() == bsontype.Array && this.arr.dirty {
 		this.raw.Data = this.arr.Build()
 	} else if this.Type() == bsontype.EmbeddedDocument && this.doc.dirty {
-		this.raw.Data = this.doc.Build()
+		this.raw.Data = this.doc.Bytes()
 	}
 	return this.raw
 }

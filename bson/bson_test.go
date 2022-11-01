@@ -57,4 +57,11 @@ func TestBson(t *testing.T) {
 
 	logger.Debug("new Document:%v", doc.String())
 
+	b := []byte("abc")
+	if v, e := Marshal(b); e != nil {
+		logger.Debug("error:%v", e)
+	} else {
+		logger.Debug("success:%v", v)
+	}
+
 }

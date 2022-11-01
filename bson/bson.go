@@ -6,6 +6,10 @@ import (
 	"strings"
 )
 
+func NewCollection() *Collection {
+	return &Collection{dict: map[string]*Document{}}
+}
+
 func New(raw []byte) (doc *Document, err error) {
 	doc = &Document{raw: raw}
 	err = doc.ParseElement()
@@ -27,10 +31,16 @@ func NewElement(key string, val bsoncore.Value) (ele *Element, err error) {
 	return
 }
 
-func Marshal(v interface{}) (*Document, error) {
-	raw, err := bson.Marshal(v)
+func Marshal(i interface{}) (r *Document, err error) {
+	var raw []byte
+	switch v := i.(type) {
+	case []byte:
+		raw = v
+	default:
+		raw, err = bson.Marshal(v)
+	}
 	if err != nil {
-		return nil, err
+		return
 	}
 	return New(raw)
 }
