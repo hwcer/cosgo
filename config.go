@@ -77,7 +77,7 @@ func (this *config) init() (err error) {
 			return err
 		}
 	}
-	//通过程序名称读取 app.toml
+	//通过程序名称读取 ${appName}.toml
 	if f, exist := fileExist(appName, ext); exist {
 		this.SetConfigFile(f)
 		if err = this.MergeInConfig(); err != nil {
@@ -119,7 +119,13 @@ func (this *config) init() (err error) {
 }
 
 func fileExist(name, ext string) (f string, exist bool) {
-	f = Abs(strings.Join([]string{appName, ext}, "."))
+	var file string
+	if strings.Contains(name, ".") {
+		file = name
+	} else {
+		file = strings.Join([]string{appName, ext}, ".")
+	}
+	f = Abs(file)
 	stat, err := os.Stat(f)
 	if err == nil && !stat.IsDir() {
 		exist = true

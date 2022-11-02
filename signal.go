@@ -9,10 +9,6 @@ import (
 	"time"
 )
 
-func init() {
-	Config.Flags("nohup", "", false, "use nohup start app")
-}
-
 // SignalReload 重新加载系统信号 kill -10 pid
 var SignalReload syscall.Signal = 10
 
@@ -28,7 +24,7 @@ func WaitForSystemExit() {
 	timer := time.NewTimer(gcSummaryTime)
 	defer timer.Stop()
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM, SignalReload)
-	if Config.GetBool("nohup") {
+	if Config.GetBool(AppConfigNameDaemonize) {
 		signal.Notify(ch, syscall.SIGHUP)
 	}
 	for {
