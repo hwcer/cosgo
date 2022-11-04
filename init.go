@@ -25,6 +25,8 @@ var (
 var SCC = utils.NewSCC(nil)
 
 func init() {
+	Config.Flags(AppConfigNamePidFile, "", "", "pid file")
+	Config.Flags(AppConfigNameLogsDir, "", "", "logs dir")
 	Config.Flags("name", "", "", "app name")
 	Config.Flags("pprof", "", "", "pprof server address")
 	Config.Flags("debug", "", false, "developer model")
