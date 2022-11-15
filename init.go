@@ -9,11 +9,13 @@ import (
 )
 
 const (
+	AppConfigDebug              string = "debug"
 	AppConfigNamePidFile        string = "pid"           //pid file dir
 	AppConfigNameLogsDir        string = "logs"          //logs dir
 	AppConfigNameDaemonize      string = "daemonize"     //后台运行
 	AppConfigNameConfigFileExt  string = "ConfigFileExt" //config file default ext name,只能在程序中设置
 	AppConfigNameConfigFileName string = "config"        //config file
+
 )
 
 var (
@@ -29,7 +31,7 @@ func init() {
 	Config.Flags(AppConfigNameLogsDir, "", "", "logs dir")
 	Config.Flags("name", "", "", "app name")
 	Config.Flags("pprof", "", "", "pprof server address")
-	Config.Flags("debug", "", false, "developer model")
+	Config.Flags(AppConfigDebug, "", false, "developer model")
 	Config.Flags(AppConfigNameDaemonize, "", false, "后台运行和使用nohup一个效果")
 	Config.Flags(AppConfigNameConfigFileName, "c", "", "use config file")
 	Config.SetDefault(AppConfigNameConfigFileExt, "toml")

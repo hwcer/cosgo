@@ -84,7 +84,7 @@ func (this *config) init() (err error) {
 			return err
 		}
 	}
-	debug = this.GetBool("debug")
+	debug = this.GetBool(AppConfigDebug)
 	//设置pidfile
 	if pidfile := this.GetString(AppConfigNamePidFile); pidfile != "" {
 		file := Abs(pidfile)
@@ -109,7 +109,7 @@ func (this *config) init() (err error) {
 		this.Set(AppConfigNameLogsDir, logsdir)
 		logsFile := filepath.Join(logsdir, appName+".log")
 		loggerFileAdapter = logger.NewFileAdapter(Abs(logsFile))
-		if this.GetBool("Debug") {
+		if debug {
 			loggerFileAdapter.Level = logger.LevelDebug
 		} else {
 			loggerFileAdapter.Level = logger.LevelInfo
