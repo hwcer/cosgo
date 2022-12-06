@@ -5,10 +5,6 @@ import (
 	"strings"
 )
 
-var (
-	loggerFileAdapter *logger.FileAdapter
-)
-
 func init() {
 	logger.DefaultLogger.SetCallDepth(0)
 	if v, ok := logger.DefaultAdapter.(*logger.ConsoleAdapter); ok {
@@ -27,15 +23,7 @@ func loggerMessageFormat(msg *logger.Message) string {
 	return b.String()
 }
 
-// setLogger 将日志从控制台转移到日志文件
-func setLogger() {
-	if loggerFileAdapter != nil {
-		//loggerFileAdapter.Format = loggerMessageFormat
-		if err := logger.DefaultLogger.Adapter(loggerFileAdapter); err != nil {
-			logger.Error(err)
-		} else {
-			logger.DefaultLogger.Remove(logger.DefaultAdapter)
-		}
-	}
-
+// removeDefaultLogger 移除默认控制台日志输出
+func removeConsoleLogger() {
+	logger.DefaultLogger.Remove(logger.DefaultAdapter)
 }

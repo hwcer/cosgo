@@ -108,11 +108,14 @@ func (this *config) init() (err error) {
 		}
 		this.Set(AppConfigNameLogsDir, logsdir)
 		logsFile := filepath.Join(logsdir, appName+".log")
-		loggerFileAdapter = logger.NewFileAdapter(Abs(logsFile))
+		loggerFileAdapter := logger.NewFileAdapter(Abs(logsFile))
 		if debug {
 			loggerFileAdapter.Level = logger.LevelDebug
 		} else {
 			loggerFileAdapter.Level = logger.LevelInfo
+		}
+		if err = logger.DefaultLogger.Adapter(loggerFileAdapter); err != nil {
+			return
 		}
 	}
 	return nil

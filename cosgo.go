@@ -38,8 +38,6 @@ func Modules() (r []string) {
  * @param mods 需注册的模块
  */
 func Start(mods ...IModule) {
-	fmt.Printf("\n")
-	logger.Info("App Starting")
 	for _, mod := range mods {
 		modules = append(modules, mod)
 	}
@@ -54,6 +52,8 @@ func Start(mods ...IModule) {
 	if err = writePidFile(); err != nil {
 		panic(err)
 	}
+	fmt.Print("\n")
+	logger.Info("App Starting")
 	defer func() {
 		if err = deletePidFile(); err != nil {
 			logger.Error("App delete pid file err:%v", err)
@@ -86,7 +86,7 @@ func Start(mods ...IModule) {
 	}
 	assert(emit(EventTypStartAfter))
 	Options.Banner()
-	setLogger()
+	removeConsoleLogger()
 	WaitForSystemExit()
 	//fmt.Printf("App Wait Done\n")
 }
