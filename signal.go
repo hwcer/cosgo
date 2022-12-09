@@ -1,7 +1,7 @@
 package cosgo
 
 import (
-	"github.com/hwcer/logger"
+	"github.com/hwcer/cosgo/logger"
 	"os"
 	"os/signal"
 	"runtime"
@@ -48,7 +48,10 @@ func signalNotify(sig os.Signal) {
 	case SignalReload:
 		Reload()
 	case syscall.SIGHUP:
-		ONSIGHUP()
+		if !Config.GetBool(AppConfigNameDaemonize) {
+			logger.Info("signal stop:%v\n", syscall.SIGHUP)
+			Close()
+		}
 	case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM:
 		logger.Info("signal stop:%v\n", sig)
 		Close()
@@ -60,12 +63,4 @@ func signalNotify(sig os.Signal) {
 func gcSummaryLogger() {
 	runtime.GC()
 	logger.Info("GOROUTINE:%v\n", runtime.NumGoroutine())
-}
-
-// ONSIGHUP 控制台关闭,部分控制台关闭时不会发送SIGHUP信号
-func ONSIGHUP() {
-	if !Config.GetBool(AppConfigNameDaemonize) {
-		logger.Info("signal stop:%v\n", syscall.SIGHUP)
-		Close()
-	}
 }

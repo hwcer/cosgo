@@ -1,16 +1,17 @@
 package cosgo
 
 import (
-	"github.com/hwcer/logger"
+	"github.com/hwcer/cosgo/logger"
 )
 
 func Reload() {
-	_ = logger.DefaultLogger.Adapter(logger.DefaultAdapter)
+	console := logger.NewConsoleAdapter()
+	_ = logger.SetAdapter(console)
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error(err)
 		}
-		logger.DefaultLogger.Remove(logger.DefaultAdapter)
+		logger.DelAdapter(console)
 	}()
 	logger.Info("SIGHUP reload Config")
 	for _, m := range modules {

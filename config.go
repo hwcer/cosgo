@@ -1,7 +1,7 @@
 package cosgo
 
 import (
-	"github.com/hwcer/logger"
+	"github.com/hwcer/cosgo/logger"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"os"
@@ -85,6 +85,11 @@ func (this *config) init() (err error) {
 		}
 	}
 	debug = this.GetBool(AppConfigDebug)
+	if debug {
+		logger.SetLogLevel(logger.LevelDebug)
+	} else {
+		logger.SetLogLevel(logger.LevelInfo)
+	}
 	//设置pidfile
 	if pidfile := this.GetString(AppConfigNamePidFile); pidfile != "" {
 		file := Abs(pidfile)
@@ -109,12 +114,7 @@ func (this *config) init() (err error) {
 		this.Set(AppConfigNameLogsDir, logsdir)
 		logsFile := filepath.Join(logsdir, appName+".log")
 		loggerFileAdapter := logger.NewFileAdapter(Abs(logsFile))
-		if debug {
-			loggerFileAdapter.Level = logger.LevelDebug
-		} else {
-			loggerFileAdapter.Level = logger.LevelInfo
-		}
-		if err = logger.DefaultLogger.Adapter(loggerFileAdapter); err != nil {
+		if err = logger.SetAdapter(loggerFileAdapter); err != nil {
 			return
 		}
 	}

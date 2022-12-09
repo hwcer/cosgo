@@ -19,7 +19,7 @@ func (a *Attach) MarshalJSON() ([]byte, error) {
 	return r, nil
 }
 
-//Marshal 将一个对象放入Attach
+// Marshal 将一个对象放入Attach TODO len(*a) == 0
 func (a *Attach) Marshal(v interface{}) error {
 	d, err := json.Marshal(v)
 	if err == nil {
@@ -28,7 +28,7 @@ func (a *Attach) Marshal(v interface{}) error {
 	return err
 }
 
-//Unmarshal 使用i解析Attach
+// Unmarshal 使用i解析Attach
 func (a *Attach) Unmarshal(i interface{}) error {
 	if len(*a) == 0 {
 		return nil
