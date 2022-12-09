@@ -1,7 +1,7 @@
 package cosgo
 
 import (
-	logger "github.com/hwcer/logger"
+	"github.com/hwcer/cosgo/logger"
 	"strings"
 )
 
