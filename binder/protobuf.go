@@ -2,7 +2,7 @@ package binder
 
 import (
 	"errors"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 	"io"
 )
 
