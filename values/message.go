@@ -25,10 +25,19 @@ func (this *Message) Parse(v interface{}) *Message {
 	return this
 }
 func (this *Message) String() string {
-	return string(this.Data)
+	if this.Code == 0 {
+		return string(this.Data)
+	}
+	var r string
+	if err := this.Data.Unmarshal(&r); err == nil {
+		return r
+	} else {
+		return err.Error()
+	}
 }
+
 func (this *Message) Error() string {
-	return fmt.Sprintf("[%v]%v", this.Code, string(this.Data))
+	return fmt.Sprintf("[%v]%v", this.Code, this.String())
 }
 
 // Errorf 格式化一个错误,必定产生错误码
@@ -49,7 +58,7 @@ func (this *Message) Errorf(code int, format interface{}, args ...interface{}) {
 	default:
 		data = fmt.Sprintf("%v", format)
 	}
-	this.Data = Bytes(data)
+	_ = this.Data.Marshal(data)
 }
 
 func (this *Message) Marshal(v interface{}) error {
