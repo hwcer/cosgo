@@ -1,0 +1,83 @@
+package values
+
+import (
+	"fmt"
+)
+
+const MessageErrorCodeDefault int = 9999
+
+type Message struct {
+	Code int   `json:"code"`
+	Data Bytes `json:"data"`
+}
+
+func (this *Message) Parse(v interface{}) *Message {
+	if r, ok := v.(*Message); ok {
+		return r
+	}
+	if _, ok := v.(error); ok {
+		this.Errorf(0, v)
+	} else {
+		if err := this.Marshal(v); err != nil {
+			this.Errorf(0, err)
+		}
+	}
+	return this
+}
+func (this *Message) String() string {
+	return string(this.Data)
+}
+func (this *Message) Error() string {
+	return fmt.Sprintf("[%v]%v", this.Code, string(this.Data))
+}
+
+// Errorf 格式化一个错误,必定产生错误码
+func (this *Message) Errorf(code int, format interface{}, args ...interface{}) {
+	if code == 0 {
+		this.Code = MessageErrorCodeDefault
+	} else {
+		this.Code = code
+	}
+	var data string
+	switch v := format.(type) {
+	case string:
+		if len(args) > 0 {
+			data = fmt.Sprintf(v, args...)
+		} else {
+			data = v
+		}
+	default:
+		data = fmt.Sprintf("%v", format)
+	}
+	this.Data = Bytes(data)
+}
+
+func (this *Message) Marshal(v interface{}) error {
+	return this.Data.Marshal(v)
+}
+
+// Unmarshal 如果是一个错误信息 应当单独处理
+func (this *Message) Unmarshal(i interface{}) error {
+	if this.Code != 0 {
+		return this
+	}
+	return this.Data.Unmarshal(i)
+}
+
+func NewError(code int, err interface{}, args ...interface{}) (r *Message) {
+	r = &Message{}
+	r.Errorf(code, err, args...)
+	return
+}
+
+func NewMessage(v interface{}) *Message {
+	if v == nil {
+		return &Message{}
+	}
+	if r, ok := v.(*Message); ok {
+		return r
+	}
+	r := &Message{}
+	r = r.Parse(v)
+	return r
+}

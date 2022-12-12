@@ -75,7 +75,9 @@ func (this *Client) Get(url string, reply interface{}) (err error) {
 	if err != nil {
 		return
 	}
-	err = this.Binder.Unmarshal(body, reply)
+	if reply != nil {
+		err = this.Binder.Unmarshal(body, reply)
+	}
 	return
 }
 
@@ -85,6 +87,8 @@ func (this *Client) Post(url string, data interface{}, reply interface{}) (err e
 	if err != nil {
 		return
 	}
-	err = this.Binder.Unmarshal(body, reply)
+	if reply != nil {
+		err = this.Binder.Unmarshal(body, reply)
+	}
 	return
 }

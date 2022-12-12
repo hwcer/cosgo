@@ -8,8 +8,9 @@ import (
 var DefaultErrorCode int = 9999
 
 type Message struct {
-	Code int          `json:"code"`
-	Data values.Bytes `json:"data"`
+	Code  int          `json:"code"`
+	Data  values.Bytes `json:"data"`
+	Stack string       `json:"stack"`
 }
 
 func (this *Message) Parse(v interface{}) *Message {
