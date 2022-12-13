@@ -73,13 +73,7 @@ func (this *Message) Unmarshal(i interface{}) error {
 	return this.Data.Unmarshal(i)
 }
 
-func NewError(code int, err interface{}, args ...interface{}) (r *Message) {
-	r = &Message{}
-	r.Errorf(code, err, args...)
-	return
-}
-
-func NewMessage(v interface{}) *Message {
+func Parse(v interface{}) *Message {
 	if v == nil {
 		return &Message{}
 	}
@@ -89,4 +83,18 @@ func NewMessage(v interface{}) *Message {
 	r := &Message{}
 	r = r.Parse(v)
 	return r
+}
+
+func Errorf(code int, err interface{}, args ...interface{}) (r *Message) {
+	r = &Message{}
+	r.Errorf(code, err, args...)
+	return
+}
+
+func NewError(code int, err interface{}, args ...interface{}) (r *Message) {
+	return Errorf(code, err, args...)
+}
+
+func NewMessage(v interface{}) *Message {
+	return Parse(v)
 }
