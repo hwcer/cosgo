@@ -48,15 +48,21 @@ func signalNotify(sig os.Signal) {
 	case SignalReload:
 		Reload()
 	case syscall.SIGHUP:
-		if !Config.GetBool(AppConfigNameDaemonize) {
-			logger.Info("signal stop:%v\n", syscall.SIGHUP)
-			Close()
-		}
+		SIGHUP()
 	case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM:
 		logger.Info("signal stop:%v\n", sig)
 		Close()
 	default:
 		logger.Info("receive signal:%v\n", sig)
+	}
+}
+
+func SIGHUP() {
+	if !Config.GetBool(AppConfigNameDaemonize) {
+		logger.Info("signal stop:%v\n", syscall.SIGHUP)
+		Close()
+	} else {
+		logger.DelDefaultAdapter()
 	}
 }
 

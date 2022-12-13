@@ -86,9 +86,7 @@ func Start(mods ...IModule) {
 	}
 	assert(emit(EventTypStartAfter))
 	Options.Banner()
-	logger.DelDefaultAdapter()
 	WaitForSystemExit()
-	//fmt.Printf("App Wait Done\n")
 }
 
 func Close() {
