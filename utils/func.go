@@ -2,16 +2,19 @@ package utils
 
 import (
 	"fmt"
+	"runtime/debug"
 	"time"
 )
 
-func Try(f func(), handler ...func(interface{})) {
+type TryHandle func(any)
+
+func Try(f func(), handle ...TryHandle) {
 	defer func() {
 		if err := recover(); err != nil {
-			if len(handler) == 0 {
-				fmt.Printf("%v", err)
+			if len(handle) == 0 {
+				fmt.Printf("%v\n%v", err, string(debug.Stack()))
 			} else {
-				handler[0](err)
+				handle[0](err)
 			}
 		}
 	}()

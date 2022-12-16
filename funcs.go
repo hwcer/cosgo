@@ -15,10 +15,8 @@ func CGO(fn func(ctx context.Context)) {
 }
 
 // SGO 带崩溃保护
-func SGO(fn func(context.Context), handles ...func(interface{})) {
-	utils.Try(func() {
-		SCC.CGO(fn)
-	}, handles...)
+func SGO(fn func(context.Context), handles ...utils.TryHandle) {
+	SCC.SGO(fn, handles...)
 }
 
 // Abs 获取以工作路径为起点的绝对路径

@@ -2,6 +2,8 @@ package utils
 
 import (
 	"context"
+	"fmt"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -43,6 +45,23 @@ func (s *SCC) CGO(f func(ctx context.Context)) {
 	}()
 }
 
+func (s *SCC) SGO(f func(ctx context.Context), handles ...TryHandle) {
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				if len(handles) == 0 {
+					fmt.Printf("%v\n%v", err, string(debug.Stack()))
+				} else {
+					handles[0](err)
+				}
+			}
+		}()
+		s.WaitGroup.Add(1)
+		defer s.WaitGroup.Done()
+		f(s.Context)
+	}()
+}
+
 func (s *SCC) Add(delta int) {
 	s.WaitGroup.Add(delta)
 }
@@ -72,15 +91,7 @@ func (s *SCC) Cancel() bool {
 	return true
 }
 
-// 判断是否已经关闭
+// Stopped 判断是否已经关闭
 func (s *SCC) Stopped() bool {
-	if s.stop > 0 {
-		return true
-	}
-	select {
-	case <-s.Context.Done():
-		return true
-	default:
-		return false
-	}
+	return s.stop != 0
 }
