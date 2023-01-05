@@ -1,14 +1,24 @@
 package schema
 
 import (
-	"github.com/hwcer/cosgo/logger"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"reflect"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/hwcer/cosgo/logger"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+const (
+	IndexTag      = "index"
+	IndexName     = "NAME"
+	IndexSort     = "SORT"
+	IndexUnique   = "UNIQUE"
+	IndexSparse   = "SPARSE"
+	IndexPriority = "PRIORITY"
 )
 
 type Index struct {
@@ -25,7 +35,7 @@ type IndexField struct {
 	DBName   []string // a.b.c
 	Unique   bool     //唯一
 	Sparse   bool     //稀疏索引
-	Priority int      //排序字段之间的排序
+	Priority int      //排序字段之间的排序ASC
 }
 
 func (this *IndexField) GetDBName() string {
@@ -109,7 +119,7 @@ func (schema *Schema) parseFieldIndexes(field *Field, table string) (indexes []*
 	if table == "" {
 		table = schema.Table
 	}
-	for _, value := range strings.Split(field.StructField.Tag.Get("index"), ";") {
+	for _, value := range strings.Split(field.StructField.Tag.Get(IndexTag), ";") {
 		if value == "" {
 			continue
 		}
@@ -121,7 +131,7 @@ func (schema *Schema) parseFieldIndexes(field *Field, table string) (indexes []*
 			//length, _ = strconv.Atoi(settings["LENGTH"])
 		)
 
-		name = settings["NAME"]
+		name = settings[IndexName]
 		if name == "" {
 			name = strings.Join([]string{"", "idx", table, field.DBName}, "_")
 		}
@@ -133,18 +143,18 @@ func (schema *Schema) parseFieldIndexes(field *Field, table string) (indexes []*
 		//	settings["CLASS"] = "UNIQUE"
 		//}
 
-		priority, err := strconv.Atoi(settings["PRIORITY"])
+		priority, err := strconv.Atoi(settings[IndexPriority])
 		if err != nil {
 			priority = 10
 		}
 		indexField := &IndexField{Name: name, Priority: priority}
-		indexField.Sort = settings["SORT"]
+		indexField.Sort = settings[IndexSort]
 		indexField.DBName = []string{field.DBName}
 
-		if _, ok := settings["UNIQUE"]; ok {
+		if _, ok := settings[IndexUnique]; ok {
 			indexField.Unique = true
 		}
-		if _, ok := settings["SPARSE"]; ok {
+		if _, ok := settings[IndexSparse]; ok {
 			indexField.Sparse = true
 		}
 		indexes = append(indexes, indexField)
