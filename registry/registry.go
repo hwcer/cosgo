@@ -31,15 +31,16 @@ func (this *Registry) Has(name string) (ok bool) {
 }
 
 func (this *Registry) Merge(r *Registry) (err error) {
-	for _, s := range r.Services() {
+	this.Range(func(s *Service) bool {
 		prefix := s.prefix
 		if _, ok := this.dict[prefix]; !ok {
 			this.dict[prefix] = NewService(prefix, this.router)
 		}
 		if err = this.dict[prefix].Merge(s); err != nil {
-			return
+			return false
 		}
-	}
+		return true
+	})
 	return
 }
 
@@ -70,18 +71,27 @@ func (this *Registry) Service(name string) *Service {
 }
 
 // Services 获取所有ServicePath
-func (this *Registry) Services() (r []*Service) {
-	for _, s := range this.dict {
-		r = append(r, s)
+//func (this *Registry) Services() (r []*Service) {
+//	for _, s := range this.dict {
+//		r = append(r, s)
+//	}
+//	return
+//}
+
+// Range 遍历所有服务
+func (this *Registry) Range(f func(service *Service) bool) {
+	for _, srv := range this.dict {
+		if !f(srv) {
+			return
+		}
 	}
-	return
 }
 
-// Range 遍历所有节点
-func (this *Registry) Range(f func(service *Service, node *Node) bool) {
-	for _, srv := range this.dict {
-		for _, node := range srv.nodes {
-			if !f(srv, node) {
+// Nodes 遍历所有节点
+func (this *Registry) Nodes(f func(node *Node) bool) {
+	for _, service := range this.dict {
+		for _, node := range service.nodes {
+			if !f(node) {
 				return
 			}
 		}

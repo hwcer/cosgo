@@ -6,7 +6,7 @@ type Node struct {
 	name    string
 	value   reflect.Value
 	binder  reflect.Value //绑定的对象，作为对象的方法时才有值
-	service *Service
+	Service *Service
 }
 
 func (this *Node) Call(args ...interface{}) (r []reflect.Value) {
@@ -25,7 +25,7 @@ func (this *Node) Name() string {
 }
 
 func (this *Node) Route() string {
-	return Join(this.service.prefix, this.name)
+	return Join(this.Service.prefix, this.name)
 }
 
 func (this *Node) Value() reflect.Value {
@@ -43,13 +43,13 @@ func (this *Node) Method() (fun interface{}) {
 	return this.value.Interface()
 }
 
-func (this *Node) Service() *Service {
-	return this.service
-}
-
-func (this *Node) Handler() interface{} {
-	return this.service.Handler
-}
+//func (this *Node) Service() *Service {
+//	return this.service
+//}
+//
+//func (this *Node) Handler() interface{} {
+//	return this.service.Handler
+//}
 
 // IsFunc 判断是func
 func (this *Node) IsFunc() bool {

@@ -1,36 +1,36 @@
 package values
 
-const MaxBitwiseUnit = 64
+const MaxBitwiseUnit = 8
 
 //Bitwise
-//bitunit
-type Bitwise uint64
-type BitSetter []Bitwise
 
-//Has bit位是否设置值
-func (m *Bitwise) Has(bit int) (r bool) {
+type Byte byte
+type Bitwise []Byte
+
+// Has bit位是否设置值
+func (m *Byte) Has(bit int) (r bool) {
 	if bit < MaxBitwiseUnit {
 		r = *m&(1<<bit) > 0
 	}
 	return
 }
 
-//Set bit位设置为1
-func (m *Bitwise) Set(bit int) {
+// Set bit位设置为1
+func (m *Byte) Set(bit int) {
 	if bit < MaxBitwiseUnit {
 		*m |= 1 << bit
 	}
 }
 
-//Delete bit位设置为0
-func (m *Bitwise) Delete(bit int) {
+// Delete bit位设置为0
+func (m *Byte) Delete(bit int) {
 	if m.Has(bit) {
 		*m -= 1 << bit
 	}
 }
 
-//Has bit位是否设置值
-func (m *BitSetter) Has(bit int) bool {
+// Has bit位是否设置值
+func (m *Bitwise) Has(bit int) bool {
 	i := bit / MaxBitwiseUnit
 	if i >= len(*m) {
 		return false
@@ -39,14 +39,14 @@ func (m *BitSetter) Has(bit int) bool {
 	return (*m)[i].Has(j)
 }
 
-//Set bit位设置为1
-func (m *BitSetter) Set(bit int) {
+// Set bit位设置为1
+func (m *Bitwise) Set(bit int) {
 	b := *m
 	i := bit / MaxBitwiseUnit
 	j := bit % MaxBitwiseUnit
 	if i >= len(b) {
 		c := i + 1
-		v := make(BitSetter, c, c)
+		v := make(Bitwise, c, c)
 		copy(v, b)
 		b = v
 	}
@@ -56,8 +56,8 @@ func (m *BitSetter) Set(bit int) {
 	*m = b
 }
 
-//Delete bit位设置为0
-func (m *BitSetter) Delete(bit int) {
+// Delete bit位设置为0
+func (m *Bitwise) Delete(bit int) {
 	i := bit / MaxBitwiseUnit
 	if i >= len(*m) {
 		return
