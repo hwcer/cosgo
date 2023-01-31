@@ -18,9 +18,9 @@ const (
 	StringZero  = ""
 )
 
-func IsEmpty(data interface{}) bool {
+func Empty(data interface{}) bool {
 	if data == nil {
-		return false
+		return true
 	}
 	switch v := data.(type) {
 	case bool:
@@ -80,12 +80,12 @@ func IsEmpty(data interface{}) bool {
 	case *string:
 		return v == nil || *v == StringZero
 	default:
-		return IsEmptyReflect(data)
+		return EmptyReflect(data)
 	}
 }
 
-// IsEmptyReflect 通过反射判断复杂类型是否为空,一般确定参数不为基础类型时才直接使用，否则应该使用 IsEmpty
-func IsEmptyReflect(object interface{}) bool {
+// EmptyReflect 通过反射判断复杂类型是否为空,一般确定参数不为基础类型时才直接使用，否则应该使用 IsEmpty
+func EmptyReflect(object interface{}) bool {
 	// get nil case out of the way
 	if object == nil {
 		return true
@@ -101,7 +101,7 @@ func IsEmptyReflect(object interface{}) bool {
 			return true
 		}
 		deref := objValue.Elem().Interface()
-		return IsEmptyReflect(deref)
+		return EmptyReflect(deref)
 		// for all other types, compare against the zero value
 	default:
 		zero := reflect.Zero(objValue.Type())
