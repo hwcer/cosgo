@@ -37,22 +37,18 @@ func (this *DateTime) New(t time.Time) *DateTime {
 }
 
 func (this *DateTime) Now() time.Time {
-	return this.Time()
-}
-
-func (this *DateTime) Unix(sec int64, nsec int64) *DateTime {
-	t := time.Unix(sec, nsec)
-	return this.New(t)
-}
-
-//Time 获取dateTime中的当前时间，默认TIME 未设置当前时间则返回系统当前时间
-func (this *DateTime) Time() time.Time {
 	if this.time.IsZero() {
 		return time.Now()
 	} else {
 		return this.time
 	}
 }
+
+func (this *DateTime) Unix() int64 {
+	return this.Now().Unix()
+}
+
+
 func (this *DateTime) Parse(value string) (time.Time, error) {
 	return time.Parse(this.layout, value)
 }
