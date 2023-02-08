@@ -1,11 +1,24 @@
 package values
 
-const MaxBitwiseUnit = 8
+const MaxBitwiseUnit = 32
 
 //Bitwise
 
-type Byte byte
+type Byte uint32
 type Bitwise []Byte
+
+//func (b *Byte) UnmarshalJSON(b2 []byte) error {
+//	*b = b2
+//	return nil
+//}
+//
+//func (b *Bitwise) MarshalJSON() ([]byte, error) {
+//	if b == nil || len(*b) == 0 {
+//		return nil, nil
+//	}
+//	v := fmt.Sprintf("%v", *b)
+//	return []byte(v), nil
+//}
 
 // Has bit位是否设置值
 func (m *Byte) Has(bit int) (r bool) {
