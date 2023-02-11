@@ -84,7 +84,11 @@ func Parse(v interface{}) *Message {
 	r = r.Parse(v)
 	return r
 }
-
+func Error(err interface{}) (r *Message) {
+	r = &Message{}
+	r.Errorf(0, err)
+	return
+}
 func Errorf(code int, err interface{}, args ...interface{}) (r *Message) {
 	r = &Message{}
 	r.Errorf(code, err, args...)
