@@ -48,7 +48,6 @@ func (this *DateTime) Unix() int64 {
 	return this.Now().Unix()
 }
 
-
 func (this *DateTime) Parse(value string) (time.Time, error) {
 	return time.Parse(this.layout, value)
 }
@@ -69,13 +68,17 @@ func (this *DateTime) Layout(layout string) *DateTime {
 	return this
 }
 
-func (this *DateTime) Format() string {
-	return this.Now().Format(this.layout)
+func (this *DateTime) Format(layout ...string) string {
+	format := this.layout
+	if len(layout) > 0 {
+		format = layout[0]
+	}
+	return this.Now().Format(format)
 }
 
-//Daily 获取一天的开始时间
-//addDays：天偏移，0：今天凌晨,1:明天凌晨
-//args :时,分,秒,毫秒
+// Daily 获取一天的开始时间
+// addDays：天偏移，0：今天凌晨,1:明天凌晨
+// args :时,分,秒,毫秒
 func (this *DateTime) Daily(addDays int) time.Time {
 	t := this.Now()
 	r := time.Date(t.Year(), t.Month(), t.Day(), this.timeReset[0], this.timeReset[1], this.timeReset[2], this.timeReset[3], t.Location())
@@ -85,8 +88,8 @@ func (this *DateTime) Daily(addDays int) time.Time {
 	return r
 }
 
-//Weekly 获取本周开始时间
-//addWeeks：周偏移，0：本周,1:下周 -1:上周
+// Weekly 获取本周开始时间
+// addWeeks：周偏移，0：本周,1:下周 -1:上周
 func (this *DateTime) Weekly(addWeeks int) time.Time {
 	var addDay int
 	t := this.Now()
@@ -107,8 +110,8 @@ func (this *DateTime) Weekly(addWeeks int) time.Time {
 	return r
 }
 
-//Monthly 获取本月开始时间
-//addMonth：月偏移，0：本月,1:下月 -1:上月
+// Monthly 获取本月开始时间
+// addMonth：月偏移，0：本月,1:下月 -1:上月
 func (this *DateTime) Monthly(addMonth int) time.Time {
 	t := this.Now()
 	r := time.Date(t.Year(), t.Month(), 1, this.timeReset[0], this.timeReset[1], this.timeReset[2], this.timeReset[3], t.Location())
@@ -165,7 +168,7 @@ func (this *DateTime) Sign(addDays int) (sign int32, str string) {
 	return
 }
 
-//STime 开始时间 0,1：今天凌晨,2:明天凌晨(第二天)
+// STime 开始时间 0,1：今天凌晨,2:明天凌晨(第二天)
 func (this *DateTime) STime(v int) time.Time {
 	if v <= 0 {
 		v = 0
@@ -175,7 +178,7 @@ func (this *DateTime) STime(v int) time.Time {
 	return this.Daily(v)
 }
 
-//ETime 结束时间 0,1：今天24点,2:明天24点(第二天结束时间)
+// ETime 结束时间 0,1：今天24点,2:明天24点(第二天结束时间)
 func (this *DateTime) ETime(v int) time.Time {
 	t := this.STime(v)
 	t = t.AddDate(0, 0, 1)
