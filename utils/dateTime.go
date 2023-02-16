@@ -43,13 +43,34 @@ func (this *DateTime) Now() time.Time {
 		return this.time
 	}
 }
+func (this *DateTime) Add(d time.Duration) *DateTime {
+	t := this.Now()
+	t.Add(d)
+	return this.New(t)
+}
+
+func (this *DateTime) AddDate(years int, months int, days int) *DateTime {
+	t := this.Now()
+	t.AddDate(years, months, days)
+	return this.New(t)
+}
 
 func (this *DateTime) Unix() int64 {
 	return this.Now().Unix()
 }
 
-func (this *DateTime) Parse(value string) (time.Time, error) {
-	return time.Parse(this.layout, value)
+func (this *DateTime) Parse(value string, layout ...string) (*DateTime, error) {
+	var lay string
+	if len(layout) > 0 {
+		lay = layout[0]
+	} else {
+		lay = this.layout
+	}
+	t, err := time.Parse(lay, value)
+	if err != nil {
+		return nil, err
+	}
+	return this.New(t), nil
 }
 
 func (this *DateTime) TimeZone(zone string) {
@@ -63,10 +84,10 @@ func (this *DateTime) TimeReset(args ...int) {
 	this.timeReset = args
 }
 
-func (this *DateTime) Layout(layout string) *DateTime {
-	this.layout = layout
-	return this
-}
+//func (this *DateTime) Layout(layout string) *DateTime {
+//	this.layout = layout
+//	return this
+//}
 
 func (this *DateTime) Format(layout ...string) string {
 	format := this.layout
@@ -79,18 +100,18 @@ func (this *DateTime) Format(layout ...string) string {
 // Daily 获取一天的开始时间
 // addDays：天偏移，0：今天凌晨,1:明天凌晨
 // args :时,分,秒,毫秒
-func (this *DateTime) Daily(addDays int) time.Time {
+func (this *DateTime) Daily(addDays int) *DateTime {
 	t := this.Now()
 	r := time.Date(t.Year(), t.Month(), t.Day(), this.timeReset[0], this.timeReset[1], this.timeReset[2], this.timeReset[3], t.Location())
 	if addDays != 0 {
 		r = r.AddDate(0, 0, addDays)
 	}
-	return r
+	return this.New(r)
 }
 
 // Weekly 获取本周开始时间
 // addWeeks：周偏移，0：本周,1:下周 -1:上周
-func (this *DateTime) Weekly(addWeeks int) time.Time {
+func (this *DateTime) Weekly(addWeeks int) *DateTime {
 	var addDay int
 	t := this.Now()
 	week := int(t.Weekday())
@@ -107,18 +128,18 @@ func (this *DateTime) Weekly(addWeeks int) time.Time {
 	if addWeeks != 0 {
 		r = r.AddDate(0, 0, addWeeks*7)
 	}
-	return r
+	return this.New(r)
 }
 
 // Monthly 获取本月开始时间
 // addMonth：月偏移，0：本月,1:下月 -1:上月
-func (this *DateTime) Monthly(addMonth int) time.Time {
+func (this *DateTime) Monthly(addMonth int) *DateTime {
 	t := this.Now()
 	r := time.Date(t.Year(), t.Month(), 1, this.timeReset[0], this.timeReset[1], this.timeReset[2], this.timeReset[3], t.Location())
 	if addMonth > 0 {
 		r = r.AddDate(0, addMonth, 0)
 	}
-	return r
+	return this.New(r)
 }
 
 /*
@@ -141,7 +162,7 @@ const (
 	DateTimeExpireCustomize     = 5
 )
 
-func (this *DateTime) Expire(t, v int) (ttl time.Time, err error) {
+func (this *DateTime) Expire(t, v int) (ttl *DateTime, err error) {
 	switch t {
 	case DateTimeExpireDaily:
 		ttl = this.Daily(v)
@@ -152,9 +173,9 @@ func (this *DateTime) Expire(t, v int) (ttl time.Time, err error) {
 	case DateTimeExpireSecond:
 		ttl = this.Daily(0).Add(time.Second * time.Duration(v))
 	case DateTimeExpireCustomize:
-		ttl, err = time.Parse("2006010215-0700", fmt.Sprintf("%v%v", v, this.timeZone))
+		ttl, err = this.Parse(fmt.Sprintf("%v%v", v, this.timeZone), "2006010215-0700")
 	default:
-		ttl = time.Unix(0, 0)
+		ttl = this.New(time.Unix(0, 0))
 	}
 	return
 }
@@ -169,7 +190,7 @@ func (this *DateTime) Sign(addDays int) (sign int32, str string) {
 }
 
 // STime 开始时间 0,1：今天凌晨,2:明天凌晨(第二天)
-func (this *DateTime) STime(v int) time.Time {
+func (this *DateTime) STime(v int) *DateTime {
 	if v <= 0 {
 		v = 0
 	} else {
@@ -179,8 +200,13 @@ func (this *DateTime) STime(v int) time.Time {
 }
 
 // ETime 结束时间 0,1：今天24点,2:明天24点(第二天结束时间)
-func (this *DateTime) ETime(v int) time.Time {
+func (this *DateTime) ETime(v int) *DateTime {
 	t := this.STime(v)
 	t = t.AddDate(0, 0, 1)
 	return t
+}
+
+func (this *DateTime) Timestamp(v int64) *DateTime {
+	t := time.Unix(v, 0)
+	return this.New(t)
 }
