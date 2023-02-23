@@ -45,13 +45,13 @@ func (this *DateTime) Now() time.Time {
 }
 func (this *DateTime) Add(d time.Duration) *DateTime {
 	t := this.Now()
-	t.Add(d)
+	t = t.Add(d)
 	return this.New(t)
 }
 
 func (this *DateTime) AddDate(years int, months int, days int) *DateTime {
 	t := this.Now()
-	t.AddDate(years, months, days)
+	t = t.AddDate(years, months, days)
 	return this.New(t)
 }
 
