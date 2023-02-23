@@ -51,7 +51,7 @@ func (this *Array) parseId(id MID) int {
 	if index < 0 {
 		return -1
 	}
-	i, err := strconv.ParseInt(s[0:index], datasetKeyBitSize, 10)
+	i, err := strconv.ParseInt(s[0:index], datasetKeyBitSize, 32)
 	if err != nil {
 		return -1
 	}

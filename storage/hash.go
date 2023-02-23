@@ -45,7 +45,7 @@ func (this *Hash) Load(uuid string) (r Setter) {
 }
 
 func (this *Hash) Create(uuid string, val interface{}) Setter {
-	setter := this.Array.push(val)
+	setter := this.Array.Create(val)
 	_ = this.Reset(uuid, setter.Id())
 	return setter
 }
