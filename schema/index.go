@@ -112,6 +112,34 @@ func (schema *Schema) ParseIndexes() map[string]*Index {
 	return indexes
 }
 
+func (schema *Schema) parseTagIndex(table, field, value string) *IndexField {
+	var (
+		name     string
+		settings = ParseTagSetting(value, ",")
+	)
+
+	name = settings[IndexName]
+	if name == "" {
+		name = strings.Join([]string{"", "idx", table, field}, "_")
+	}
+
+	priority, err := strconv.Atoi(settings[IndexPriority])
+	if err != nil {
+		priority = 10
+	}
+	indexField := &IndexField{Name: name, Priority: priority}
+	indexField.Sort = settings[IndexSort]
+	indexField.DBName = []string{field}
+
+	if _, ok := settings[IndexUnique]; ok {
+		indexField.Unique = true
+	}
+	if _, ok := settings[IndexSparse]; ok {
+		indexField.Sparse = true
+	}
+	return indexField
+}
+
 func (schema *Schema) parseFieldIndexes(field *Field, table string) (indexes []*IndexField) {
 	if field.DBName == "" || field.DBName == "-" {
 		return
@@ -119,45 +147,18 @@ func (schema *Schema) parseFieldIndexes(field *Field, table string) (indexes []*
 	if table == "" {
 		table = schema.Table
 	}
-	for _, value := range strings.Split(field.StructField.Tag.Get(IndexTag), ";") {
-		if value == "" {
-			continue
+	indexTag, ok := field.StructField.Tag.Lookup(IndexTag)
+	if !ok {
+		return
+	}
+	if !strings.Contains(indexTag, ";") {
+		indexes = append(indexes, schema.parseTagIndex(table, field.DBName, indexTag))
+	} else {
+		for _, value := range strings.Split(indexTag, ";") {
+			if value != "" {
+				indexes = append(indexes, schema.parseTagIndex(table, field.DBName, value))
+			}
 		}
-		var (
-			name string
-			//tag      = strings.Join(v[1:], ":")
-			//idx      = strings.Index(tag, ",")
-			settings = ParseTagSetting(value, ",")
-			//length, _ = strconv.Atoi(settings["LENGTH"])
-		)
-
-		name = settings[IndexName]
-		if name == "" {
-			name = strings.Join([]string{"", "idx", table, field.DBName}, "_")
-		}
-
-		//if (k == "UNIQUEINDEX") || settings["UNIQUE"] != "" {
-		//	settings["CLASS"] = "UNIQUE"
-		//}
-		//if settings["Sparse"] != "" {
-		//	settings["CLASS"] = "UNIQUE"
-		//}
-
-		priority, err := strconv.Atoi(settings[IndexPriority])
-		if err != nil {
-			priority = 10
-		}
-		indexField := &IndexField{Name: name, Priority: priority}
-		indexField.Sort = settings[IndexSort]
-		indexField.DBName = []string{field.DBName}
-
-		if _, ok := settings[IndexUnique]; ok {
-			indexField.Unique = true
-		}
-		if _, ok := settings[IndexSparse]; ok {
-			indexField.Sparse = true
-		}
-		indexes = append(indexes, indexField)
 	}
 	//递归子对象
 	if field.IndirectFieldType.Kind() != reflect.Struct {

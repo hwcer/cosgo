@@ -37,7 +37,7 @@ func (this *random) String(l int) string {
 	return string(result)
 }
 
-//Probability 独立概率，args单位，默认万分比，，，百分比传入100
+// Probability 独立概率，args单位，默认万分比，，，百分比传入100
 func (this *random) Probability(per int, args ...int) bool {
 	if per <= 0 {
 		return false
@@ -52,8 +52,16 @@ func (this *random) Probability(per int, args ...int) bool {
 	return per >= this.Roll(1, unit)
 }
 
-//Relative 相对概率，权重
+// Relative 相对概率，权重
 func (this *random) Relative(items map[int32]int32) int32 {
+	l := len(items)
+	if l == 0 {
+		return -1
+	} else if l == 1 {
+		for k, _ := range items {
+			return k
+		}
+	}
 	var total int32 = 0
 	for _, v := range items {
 		if v > 0 {
@@ -76,7 +84,7 @@ func (this *random) Relative(items map[int32]int32) int32 {
 	return -1
 }
 
-//RelativeMulti 相对概率，权重 返回多个,repeat 是否可以重复
+// RelativeMulti 相对概率，权重 返回多个,repeat 是否可以重复
 func (this *random) RelativeMulti(items map[int32]int32, num int, repeat ...bool) []int32 {
 	var total int32 = 0
 	for _, v := range items {
