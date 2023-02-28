@@ -9,7 +9,9 @@ import (
 var Time *DateTime
 
 const (
-	DaySecond int64 = 24 * 60 * 60
+	signLayout       = "20060102"
+	DaySecond  int64 = 24 * 60 * 60
+	WeekSecond int64 = DaySecond * 7
 )
 
 func init() {
@@ -84,17 +86,16 @@ func (this *DateTime) TimeReset(args ...int) {
 	this.timeReset = args
 }
 
-//func (this *DateTime) Layout(layout string) *DateTime {
-//	this.layout = layout
-//	return this
-//}
-
 func (this *DateTime) Format(layout ...string) string {
 	format := this.layout
 	if len(layout) > 0 {
 		format = layout[0]
 	}
 	return this.Now().Format(format)
+}
+
+func (this *DateTime) String() string {
+	return this.Format()
 }
 
 // Daily 获取一天的开始时间
@@ -150,7 +151,7 @@ Expire 有效期
 3 月刷新  刷新礼包时间可配置具体几月
 4 按当天0点时间   刷新礼包时间配置秒数
 5 具体到期时间 2021010123  //年月日时,精确到小时
-v = 1 :当天，周，月晚上24点
+v = 1 :当天，周，月 23:59:59
 */
 
 const (
@@ -165,11 +166,11 @@ const (
 func (this *DateTime) Expire(t, v int) (ttl *DateTime, err error) {
 	switch t {
 	case DateTimeExpireDaily:
-		ttl = this.Daily(v)
+		ttl = this.Daily(v).Add(-1)
 	case DateTimeExpireWeekly:
-		ttl = this.Weekly(v)
+		ttl = this.Weekly(v).Add(-1)
 	case DateTimeExpireMonthly:
-		ttl = this.Monthly(v)
+		ttl = this.Monthly(v).Add(-1)
 	case DateTimeExpireSecond:
 		ttl = this.Daily(0).Add(time.Second * time.Duration(v))
 	case DateTimeExpireCustomize:
@@ -181,30 +182,32 @@ func (this *DateTime) Expire(t, v int) (ttl *DateTime, err error) {
 }
 
 func (this *DateTime) Sign(addDays int) (sign int32, str string) {
-	t := this.Daily(addDays)
-	format := "20060102"
-	str = t.Format(format)
+	t := this.Now()
+	if addDays > 0 {
+		t = t.AddDate(0, 0, addDays)
+	}
+	str = t.Format(signLayout)
 	ret, _ := strconv.ParseUint(str, 10, 32)
 	sign = int32(ret)
 	return
 }
 
-// STime 开始时间 0,1：今天凌晨,2:明天凌晨(第二天)
-func (this *DateTime) STime(v int) *DateTime {
-	if v <= 0 {
-		v = 0
-	} else {
-		v -= 1
-	}
-	return this.Daily(v)
-}
-
-// ETime 结束时间 0,1：今天24点,2:明天24点(第二天结束时间)
-func (this *DateTime) ETime(v int) *DateTime {
-	t := this.STime(v)
-	t = t.AddDate(0, 0, 1)
-	return t
-}
+//// STime 开始时间 0,1：今天凌晨,2:明天凌晨(第二天)
+//func (this *DateTime) STime(v int) *DateTime {
+//	if v <= 0 {
+//		v = 0
+//	} else {
+//		v -= 1
+//	}
+//	return this.Daily(v)
+//}
+//
+//// ETime 结束时间 0,1：今天24点,2:明天24点(第二天结束时间)
+//func (this *DateTime) ETime(v int) *DateTime {
+//	t := this.STime(v)
+//	t = t.AddDate(0, 0, 1)
+//	return t
+//}
 
 func (this *DateTime) Timestamp(v int64) *DateTime {
 	t := time.Unix(v, 0)
