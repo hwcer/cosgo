@@ -2,7 +2,7 @@ package logger
 
 import "path/filepath"
 
-const DefTimeFormat = "2006-01-02 15:04:05 -0700" // 日志输出默认格式
+const DefTimeFormat = "2006-01-02 15:04:05-0700" // 日志输出默认格式
 const defaultConsoleAdapterName = "_defaultConsoleAdapter"
 
 var defaultLogger *Logger

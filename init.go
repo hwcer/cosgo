@@ -52,8 +52,7 @@ func init() {
 		workDir = filepath.Dir(workDir)
 	}
 
-	ext := filepath.Ext(appBinFile)
-	if ext != "" {
+	if ext := filepath.Ext(appName); ext != "" {
 		appName = strings.TrimSuffix(appName, ext)
 	}
 }
