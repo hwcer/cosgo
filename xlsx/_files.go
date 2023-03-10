@@ -39,7 +39,7 @@ func generateFiles() (err error) {
 }
 
 //
-//func genGendata2(gamedata []GameSheet) {
+//func genGendata2(gamedata []Message) {
 //
 //	for _, sheet := range gamedata {
 //
@@ -83,7 +83,7 @@ func generateFiles() (err error) {
 //	}
 //}
 //
-//func genJsonData(gameSheets []GameSheet) {
+//func genJsonData(gameSheets []Message) {
 //	var arr []map[string]interface{}
 //	for _, sheet := range gameSheets {
 //		// sheet.SheetName + ".json"

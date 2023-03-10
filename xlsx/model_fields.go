@@ -46,6 +46,7 @@ type Field struct {
 	Name         string
 	Index        []int
 	Dummy        []*Dummy
+	ProtoDesc    string //备注信息
 	ProtoName    string //数据集表格中自定义的子对象名字
 	ProtoType    string
 	ProtoIndex   int
@@ -110,7 +111,7 @@ func (this *Field) ending(cell *xlsx.Cell, index int, suffix, protoType string) 
 	//开始子属性
 	id := strings.Join(k, "")
 	dummy := this.Dummy[len(this.Dummy)-1]
-	if err := dummy.AddField(id, protoType, index); err != nil {
+	if err := dummy.Add(id, protoType, index); err != nil {
 		logger.Fatal(err)
 	}
 	//fmt.Printf("发现子属性:%v %v\n", this.Name, strings.Join(k, ""))
@@ -179,4 +180,45 @@ func (this *Field) Parse(cell *xlsx.Cell, index int, protoType string) (end bool
 	//}
 	//fmt.Printf("发现ID:%v", suffix)
 	//return false
+}
+
+// Value 根据一行表格获取值
+func (this *Field) Value(row *xlsx.Row) (ret any, err error) {
+	switch this.ProtoRequire {
+	case FieldTypeArray:
+		var r []any
+		var v any
+		for _, i := range this.Index {
+			if v, err = FormatValue(row, i, this.ProtoType); err == nil {
+				r = append(r, v)
+			} else {
+				break
+			}
+		}
+		if err == nil {
+			ret = r
+		}
+	case FieldTypeObject:
+		ret, err = this.Dummy[0].Value(row)
+	case FieldTypeArrObj:
+		var r []any
+		var v any
+		for _, dummy := range this.Dummy {
+			if v, err = dummy.Value(row); err == nil {
+				r = append(r, v)
+			} else {
+				break
+			}
+		}
+		if err == nil {
+			ret = r
+		}
+	default:
+		ret, err = FormatValue(row, this.Index[0], this.ProtoType)
+	}
+
+	if err != nil {
+		err = fmt.Errorf("字段名:%v,错误信息:%v", this.Name, err)
+	}
+	return
 }

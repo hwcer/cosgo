@@ -1,6 +1,7 @@
 package xlsx
 
 import (
+	"fmt"
 	"github.com/hwcer/cosgo/logger"
 	"strings"
 	"text/template"
@@ -9,33 +10,53 @@ import (
 var tpl *template.Template
 
 const TemplateTitle = `syntax = "proto3";
-option go_package = "./;{{.Package}}";
+option go_package = "./;<% .Package %>";
 `
 
-const TemplateDummy = `message {{.Name}}{ {{range .Fields}}
-	{{ProtoType .Type}} {{.Name}} = {{.Index}};{{end}}
+const TemplateDummy = `message <%.Name%>{ <%range .Fields%>
+	<%.Type%> <%.Name%> = <%.ProtoIndex%>;<%end%>
 }
 `
 
-const TemplateMessage = `{{range .}} message {{.ProtoName}}{ {{range .SheetFields}}
-	{{ProtoRequire .ProtoRequire}}{{ProtoType .ProtoType}} {{.Name}} = {{.ProtoIndex}};{{end}}
+const TemplateMessage = `
+<%-  $suffix:=.Suffix %>
+<%- range .Sheets%>
+message <%.ProtoName%><%$suffix%>{
+	<%- range .Fields %>
+	<%ProtoRequire .ProtoRequire%><%.ProtoType%> <%.Name%> = <%.ProtoIndex%>; //<% .ProtoDesc%><%end%>
 }
-{{end}}
+<%- if IsArray .ExportType %>
+message <%.ProtoName%><%$suffix%>Array{
+	repeated <%.ProtoName%><%$suffix%> Coll = 1;
+}
+<%- end%>
+<%- end%>
 `
 
-func TPLProtoType(t string) string {
-	switch t {
-	case "int", "int32":
-		return "int32"
-	case "int64":
-		return "int64"
-	case "str", "string", "text":
-		return "string"
-	}
-	return t
+// TemplateSummary 输出一个总表
+const TemplateSummary = `
+message <%.Name%>{
+<%- range .Sheets%>
+	<%SummaryType .%> <%.ProtoName%>=<%.ProtoIndex%>;
+<%- end %>
+}
+`
+
+func init() {
+	tpl = template.New("")
+	tpl.Funcs(template.FuncMap{
+		"IsArray":      TemplateIsArray,
+		"SummaryType":  TemplateSummaryType,
+		"ProtoRequire": TemplateProtoRequire,
+	})
+	tpl.Delims("<%", "%>")
 }
 
-func TPLProtoRequire(t ProtoRequire) string {
+func TemplateIsArray(t ExportType) bool {
+	return t == ExportTypeARR
+}
+
+func TemplateProtoRequire(t ProtoRequire) string {
 	switch t {
 	case FieldTypeArray, FieldTypeArrObj:
 		return "repeated "
@@ -44,12 +65,19 @@ func TPLProtoRequire(t ProtoRequire) string {
 	}
 }
 
-func init() {
-	tpl = template.New("")
-	tpl.Funcs(template.FuncMap{
-		"ProtoType":    TPLProtoType,
-		"ProtoRequire": TPLProtoRequire,
-	})
+func TemplateSummaryType(sheet *Message) string {
+	primary := sheet.Fields[0]
+	var t string
+	switch sheet.ExportType {
+	case ExportTypeKVS:
+		value := sheet.Fields[1]
+		t = value.ProtoType
+	case ExportTypeARR:
+		t = fmt.Sprintf("%v%vArray", sheet.ProtoName, Config.Suffix)
+	default:
+		t = fmt.Sprintf("%v%v", sheet.ProtoName, Config.Suffix)
+	}
+	return fmt.Sprintf("map<%v,%v>", primary.ProtoType, t)
 }
 
 func ProtoTitle(builder *strings.Builder) {
@@ -60,7 +88,7 @@ func ProtoTitle(builder *strings.Builder) {
 	data := &struct {
 		Package string
 	}{
-		Package: "gameData",
+		Package: Config.Package,
 	}
 	err = t.Execute(builder, data)
 	if err != nil {
@@ -80,20 +108,40 @@ func ProtoDummy(dummy *Dummy, builder *strings.Builder) {
 	return
 }
 
-func ProtoMessage(sheets []*GameSheet, builder *strings.Builder) {
+func ProtoMessage(sheets []*Message, builder *strings.Builder) {
 	t, err := tpl.Parse(TemplateMessage)
 	if err != nil {
 		logger.Fatal(err)
 	}
+	data := &struct {
+		Suffix string
+		Sheets []*Message
+	}{
+		Suffix: Config.Suffix,
+		Sheets: sheets,
+	}
 
-	//data := &struct {
-	//	Sheets []*GameSheet
-	//}{
-	//	Sheets: sheets,
-	//}
-	err = t.Execute(builder, sheets)
+	err = t.Execute(builder, data)
 	if err != nil {
 		logger.Fatal(err)
 	}
+
+	t, err = tpl.Parse(TemplateSummary)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	//输出总表
+	data2 := &struct {
+		Name   string
+		Sheets []*Message
+	}{
+		Name:   Config.Summary,
+		Sheets: sheets,
+	}
+	err = t.Execute(builder, data2)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
 	return
 }

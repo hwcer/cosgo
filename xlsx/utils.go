@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -64,14 +65,14 @@ func preparePath() {
 	// excel文件必须存在
 	logger.Info("====================开始检查EXCEL路径====================")
 	root := cosgo.Dir()
-	in := path.Join(root, cosgo.Config.GetString(FlagsNameIn))
+	in := filepath.Join(root, cosgo.Config.GetString(FlagsNameIn))
 	if excelStat, err := os.Stat(in); err != nil || !excelStat.IsDir() {
 		logger.Fatal("excel路径必须存在且为目录: %v ", in)
 	}
 	cosgo.Config.Set(FlagsNameIn, in)
 
-	logger.Info("====================开始检查pb输出路径====================")
-	out := path.Join(root, cosgo.Config.GetString(FlagsNameOut))
+	logger.Info("====================开始检查输出路径====================")
+	out := filepath.Join(root, cosgo.Config.GetString(FlagsNameOut))
 	if excelStat, err := os.Stat(out); err != nil || !excelStat.IsDir() {
 		logger.Fatal("静态数据目录错误: %v ", out)
 	}
@@ -81,7 +82,7 @@ func preparePath() {
 		if strings.HasSuffix(filename.Name(), ".proto") ||
 			strings.HasSuffix(filename.Name(), ".pb") ||
 			strings.HasSuffix(filename.Name(), ".json") {
-			err := os.Remove(path.Join(out, filename.Name()))
+			err := os.Remove(filepath.Join(out, filename.Name()))
 			if err != nil {
 				logger.Fatal(err)
 			}
@@ -91,21 +92,21 @@ func preparePath() {
 
 	logger.Info("====================开始检查GO输出路径====================")
 	if p := cosgo.Config.GetString(FlagsNameGo); p != "" {
-		goOutPath := path.Join(root, p)
+		goOutPath := filepath.Join(root, p)
 		if excelStat, err := os.Stat(goOutPath); err != nil || !excelStat.IsDir() {
 			logger.Fatal("GO文件输出目录错误: %v ", goOutPath)
 		}
-		fs, _ := os.ReadDir(out)
+		fs, _ := os.ReadDir(goOutPath)
 		logger.Info("删除输出路径中的文件")
 		for _, filename := range fs {
 			if strings.HasSuffix(filename.Name(), ".go") {
-				err := os.Remove(path.Join(out, filename.Name()))
+				err := os.Remove(filepath.Join(goOutPath, filename.Name()))
 				if err != nil {
 					logger.Fatal(err)
 				}
 			}
 		}
-		cosgo.Config.Set(FlagsNameOut, out)
+		cosgo.Config.Set(FlagsNameGo, goOutPath)
 	}
 
 	logger.Info("====================开始检查忽略文件列表====================")
@@ -117,4 +118,41 @@ func preparePath() {
 		}
 	}
 
+}
+
+func FormatType(t string) string {
+	switch t {
+	case "int", "int32":
+		return "int32"
+	case "int64":
+		return "int64"
+	case "str", "string", "text":
+		return "string"
+	}
+	return t
+}
+
+func FormatValue(row *xlsx.Row, i int, t string) (r any, err error) {
+	var v string
+	if c := row.GetCell(i); c != nil {
+		v = strings.TrimSpace(c.Value)
+	}
+	switch t {
+	case "int", "int32":
+		if v == "" {
+			return int32(0), nil
+		}
+		var n int
+		if n, err = strconv.Atoi(v); err == nil {
+			r = int32(n)
+		}
+	case "int64":
+		if v == "" {
+			return int64(0), nil
+		}
+		r, err = strconv.ParseInt(v, 10, 64)
+	case "str", "string", "text":
+		r = v
+	}
+	return
 }
