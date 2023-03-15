@@ -8,6 +8,7 @@ import (
 )
 
 func LoadExcel(dir string) {
+	logger.Info("====================开始解析静态数据====================")
 	filter := map[string]*Message{}
 	sheets := []*Message{}
 	files := GetFiles(dir, Ignore)

@@ -128,7 +128,7 @@ func (this *Message) GlobalObjectsProtoName() {
 			if k, ok := globalObjects.Search(dummy); ok {
 				field.ProtoType = k
 				if name != k {
-					logger.Info("冗余的对象名称%v,建议修改成%v;Sheet:%v---->%v", name, k, this.SheetName, this.FileName)
+					logger.Info("冗余的对象名称%v.%v,建议修改成%v", this.ProtoName, name, k)
 				}
 			} else {
 				field.ProtoType = name

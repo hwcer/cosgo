@@ -5,7 +5,6 @@ import (
 	"github.com/hwcer/cosgo/logger"
 	"github.com/tealeg/xlsx/v3"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -50,9 +49,9 @@ func GetFiles(dir string, filter func(string) bool) (r []string) {
 	}
 	for _, info := range files {
 		if info.IsDir() {
-			r = append(r, GetFiles(path.Join(dir, info.Name()), filter)...)
+			r = append(r, GetFiles(filepath.Join(dir, info.Name()), filter)...)
 		} else {
-			f := path.Join(dir, info.Name())
+			f := filepath.Join(dir, info.Name())
 			if filter(f) {
 				r = append(r, f)
 			}
@@ -135,8 +134,11 @@ func preparePath() {
 	if s := cosgo.Config.GetString(FlagsNameIgnore); s != "" {
 		for _, v := range strings.Split(s, ",") {
 			if v != "" {
-				ignoreFiles = append(ignoreFiles, path.Join(in, v))
+				f := filepath.Join(in, v)
+				ignoreFiles = append(ignoreFiles, f)
+				logger.Info("忽略路径:%v", f)
 			}
+
 		}
 	}
 
