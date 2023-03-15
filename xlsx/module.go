@@ -16,10 +16,10 @@ const (
 var mod *module
 
 func init() {
-	cosgo.Config.Flags(FlagsNameIn, "", "./", "需要解析的excel目录")
-	cosgo.Config.Flags(FlagsNameOut, "", "./", "静态数据文件目录,包括data.pb data.json") // message data.pb   data.json
-	cosgo.Config.Flags(FlagsNameJson, "", true, "是否导json格式")
-	cosgo.Config.Flags(FlagsNameGo, "", "./", "生成的GO文件")
+	cosgo.Config.Flags(FlagsNameIn, "", "in", "需要解析的excel目录")
+	cosgo.Config.Flags(FlagsNameOut, "", "out", "输出文件目录")
+	cosgo.Config.Flags(FlagsNameGo, "", "out", "生成的GO文件")
+	cosgo.Config.Flags(FlagsNameJson, "", "out", "是否导json格式")
 	cosgo.Config.Flags(FlagsNameIgnore, "", "", "忽略的文件或者文件夹逗号分割多个")
 }
 
@@ -36,41 +36,8 @@ type module struct {
 }
 
 func (this *module) Start() error {
-	//CdProgramDir()
-	//Init()
 	preparePath()
 	LoadExcel(cosgo.Config.GetString(FlagsNameIn))
 	logger.Info("\n========================恭喜大表哥导表成功========================\n")
 	return nil
-	//
-	//if flagWatch {
-	//	watcher, err := fsnotify.NewWatcher()
-	//	if err != nil {
-	//		color.Red.Println("NewWatcher failed: ", err)
-	//		return
-	//	}
-	//	defer watcher.Close()
-	//	err = recursiveWatch(watcher, flagExcelPath)
-	//	if err != nil {
-	//		color.Red.Println("AddExcel Path failed: ", err)
-	//		return
-	//	}
-	//	go func() {
-	//		fn := NewDebouncer(time.Second)
-	//		for value := range watcher.Events {
-	//			fmt.Println(value.String())
-	//			if !strings.HasSuffix(value.Name, ".xlsx") {
-	//				continue
-	//			}
-	//			fn(func() {
-	//				err := generateFiles()
-	//				if err != nil {
-	//					color.Red.Println(err)
-	//					beeep.Notify("excel解析出错!", err.Error(), "assets/warning.png")
-	//				}
-	//			})
-	//		}
-	//	}()
-	//	select {}
-	//}
 }

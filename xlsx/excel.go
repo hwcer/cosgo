@@ -1,6 +1,7 @@
 package xlsx
 
 import (
+	"github.com/hwcer/cosgo"
 	"github.com/hwcer/cosgo/logger"
 	"github.com/tealeg/xlsx/v3"
 	"strings"
@@ -31,9 +32,15 @@ func LoadExcel(dir string) {
 			}
 		}
 	}
+	writeExcelIndex(sheets)
 	writeProtoMessage(sheets)
-	writeValueJson(sheets)
-	ProtoGo()
+	if cosgo.Config.GetString(FlagsNameJson) != "" {
+		writeValueJson(sheets)
+	}
+	if cosgo.Config.GetString(FlagsNameGo) != "" {
+		ProtoGo()
+	}
+
 }
 
 func CreateSheet(sheet *xlsx.Sheet) (row *Message) {
@@ -89,7 +96,6 @@ func CreateSheet(sheet *xlsx.Sheet) (row *Message) {
 					row.SheetDesc[j] = c.Value
 				}
 			}
-		} else {
 			break
 		}
 	}

@@ -9,18 +9,26 @@ import (
 	"strings"
 )
 
-func writeProtoMessage(sheets []*Message) {
-	logger.Info("======================开始生成PROTO MESSAGE======================")
-	//生成proto
-	b := &strings.Builder{}
-	ProtoTitle(b)
+func writeExcelIndex(sheets []*Message) {
+	logger.Info("======================开始生成配置索引======================")
 	//输出所有标签
-	b.WriteString("\n//配置索引......\n")
+	b := &strings.Builder{}
+	//t.WriteString("\n//配置索引......\n")
 	in := cosgo.Config.GetString(FlagsNameIn) + "/"
 	for _, s := range sheets {
 		b.WriteString(fmt.Sprintf("//[%v]%v:%v\n", s.ProtoName, s.SheetName, strings.TrimPrefix(s.FileName, in)))
 	}
+	f := filepath.Join(cosgo.Config.GetString(FlagsNameOut), "配置索引.txt")
+	if err := os.WriteFile(f, []byte(b.String()), os.ModePerm); err != nil {
+		logger.Fatal(err)
+	}
+}
 
+func writeProtoMessage(sheets []*Message) {
+	logger.Info("======================开始生成PROTO MESSAGE======================")
+	//输出配置
+	b := &strings.Builder{}
+	ProtoTitle(b)
 	b.WriteString("\n//全局对象......\n")
 	buildGlobalObjects(b, sheets)
 	b.WriteString("\n//数据对象......\n")

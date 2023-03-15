@@ -32,7 +32,7 @@ func writeValueJson(sheets []*Message) {
 		logger.Fatal(err)
 	}
 
-	file := filepath.Join(cosgo.Config.GetString(FlagsNameOut), "data.json")
+	file := filepath.Join(cosgo.Config.GetString(FlagsNameJson), "data.json")
 	if err = os.WriteFile(file, b, os.ModePerm); err != nil {
 		logger.Fatal(err)
 	}

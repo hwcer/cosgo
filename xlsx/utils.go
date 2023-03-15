@@ -70,6 +70,7 @@ func preparePath() {
 		logger.Fatal("excel路径必须存在且为目录: %v ", in)
 	}
 	cosgo.Config.Set(FlagsNameIn, in)
+	logger.Info("输入目录:%v", in)
 
 	logger.Info("====================开始检查输出路径====================")
 	out := filepath.Join(root, cosgo.Config.GetString(FlagsNameOut))
@@ -80,8 +81,7 @@ func preparePath() {
 	logger.Info("删除输出路径中的文件")
 	for _, filename := range files {
 		if strings.HasSuffix(filename.Name(), ".proto") ||
-			strings.HasSuffix(filename.Name(), ".pb") ||
-			strings.HasSuffix(filename.Name(), ".json") {
+			strings.HasSuffix(filename.Name(), ".txt") {
 			err := os.Remove(filepath.Join(out, filename.Name()))
 			if err != nil {
 				logger.Fatal(err)
@@ -89,6 +89,7 @@ func preparePath() {
 		}
 	}
 	cosgo.Config.Set(FlagsNameOut, out)
+	logger.Info("输出目录:%v", out)
 
 	logger.Info("====================开始检查GO输出路径====================")
 	if p := cosgo.Config.GetString(FlagsNameGo); p != "" {
@@ -97,7 +98,7 @@ func preparePath() {
 			logger.Fatal("GO文件输出目录错误: %v ", goOutPath)
 		}
 		fs, _ := os.ReadDir(goOutPath)
-		logger.Info("删除输出路径中的文件")
+		logger.Info("删除GO输出径中的文件")
 		for _, filename := range fs {
 			if strings.HasSuffix(filename.Name(), ".go") {
 				err := os.Remove(filepath.Join(goOutPath, filename.Name()))
@@ -107,6 +108,27 @@ func preparePath() {
 			}
 		}
 		cosgo.Config.Set(FlagsNameGo, goOutPath)
+		logger.Info("GO输出目录:%v", goOutPath)
+	}
+
+	logger.Info("====================开始检查JSON输出路径====================")
+	if p := cosgo.Config.GetString(FlagsNameJson); p != "" {
+		jsonPath := filepath.Join(root, p)
+		if excelStat, err := os.Stat(jsonPath); err != nil || !excelStat.IsDir() {
+			logger.Fatal("JSON输出目录错误: %v ", jsonPath)
+		}
+		fs, _ := os.ReadDir(jsonPath)
+		logger.Info("删除JSON文件")
+		for _, filename := range fs {
+			if strings.HasSuffix(filename.Name(), ".json") {
+				err := os.Remove(filepath.Join(jsonPath, filename.Name()))
+				if err != nil {
+					logger.Fatal(err)
+				}
+			}
+		}
+		cosgo.Config.Set(FlagsNameJson, jsonPath)
+		logger.Info("JSON输出目录:%v", jsonPath)
 	}
 
 	logger.Info("====================开始检查忽略文件列表====================")
