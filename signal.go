@@ -12,16 +12,12 @@ import (
 // SignalReload 重新加载系统信号 kill -10 pid
 var SignalReload syscall.Signal = 10
 
-// gcSummaryTime 报告性能摘要时间间隔
-var gcSummaryTime time.Duration = time.Second * 300
-
-func SetGCSummaryTime(second int) {
-	gcSummaryTime = time.Second * time.Duration(second)
-}
+// GCSummaryTime 报告性能摘要时间间隔
+var GCSummaryTime time.Duration = time.Second * 300
 
 func WaitForSystemExit() {
 	ch := make(chan os.Signal, 1)
-	timer := time.NewTimer(gcSummaryTime)
+	timer := time.NewTimer(GCSummaryTime)
 	defer timer.Stop()
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM, SignalReload)
 	for {
@@ -29,8 +25,8 @@ func WaitForSystemExit() {
 		case sig := <-ch:
 			signalNotify(sig)
 		case <-timer.C:
-			timer.Reset(gcSummaryTime)
-			gcSummaryLogger()
+			gcSummaryLogs()
+			timer.Reset(GCSummaryTime)
 		case <-SCC.Context.Done():
 			return
 		}
@@ -57,16 +53,17 @@ func signalNotify(sig os.Signal) {
 	}
 }
 
+// SIGHUP 关闭控制台
 func SIGHUP() {
-	if !Config.GetBool(AppConfigNameDaemonize) {
-		logger.Info("signal stop:%v\n", syscall.SIGHUP)
-		Close()
-	} else {
-		logger.DelDefaultAdapter()
-	}
+	//if !Config.GetBool(AppConfigNameDaemonize) {
+	//	logger.Info("signal stop:%v\n", syscall.SIGHUP)
+	//	Close()
+	//} else {
+	//	logger.DelDefaultAdapter()
+	//}
 }
 
-func gcSummaryLogger() {
+func gcSummaryLogs() {
 	runtime.GC()
 	logger.Info("GOROUTINE:%v\n", runtime.NumGoroutine())
 }

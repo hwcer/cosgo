@@ -5,15 +5,13 @@ import (
 )
 
 func Reload() {
-	console := logger.NewConsoleAdapter()
-	_ = logger.SetAdapter(console)
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Error(err)
 		}
-		logger.DelAdapter(console)
+		logger.Info("Reload Config Finish")
 	}()
-	logger.Info("SIGHUP reload Config")
+	logger.Info("Start reload Config")
 	for _, m := range modules {
 		if err := m.Reload(); err != nil {
 			logger.Warn("[%v]reload error:%v", m.ID(), err)

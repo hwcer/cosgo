@@ -51,7 +51,6 @@ func (c *NetAdapter) Write(msg *Message) (err error) {
 			c.illNetFlag = true
 		}
 	}
-
 	return
 }
 
