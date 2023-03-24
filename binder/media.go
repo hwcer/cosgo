@@ -1,5 +1,7 @@
 package binder
 
+const ContentType = "Content-Type"
+
 // Content-Type MIME of the most common data formats.
 const (
 	MIMEJSON              string = "application/json"

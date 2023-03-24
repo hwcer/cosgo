@@ -21,26 +21,26 @@ type Schema struct {
 	FieldsByDBName map[string]*Field
 }
 
-func (schema Schema) String() string {
+func (schema *Schema) String() string {
 	if schema.ModelType.Name() == "" {
 		return fmt.Sprintf("%s(%s)", schema.Name, schema.Table)
 	}
 	return fmt.Sprintf("%s.%s", schema.ModelType.PkgPath(), schema.ModelType.Name())
 }
 
-func (schema Schema) New() reflect.Value {
+func (schema *Schema) New() reflect.Value {
 	results := reflect.New(schema.ModelType)
 	return results
 }
 
-func (schema Schema) MakeSlice() reflect.Value {
+func (schema *Schema) MakeSlice() reflect.Value {
 	slice := reflect.MakeSlice(reflect.SliceOf(reflect.PtrTo(schema.ModelType)), 0, 20)
 	results := reflect.New(slice.Type())
 	results.Elem().Set(slice)
 	return results
 }
 
-func (schema Schema) LookUpField(name string) *Field {
+func (schema *Schema) LookUpField(name string) *Field {
 	if field, ok := schema.FieldsByDBName[name]; ok {
 		return field
 	}
@@ -51,14 +51,14 @@ func (schema Schema) LookUpField(name string) *Field {
 }
 
 // FieldDBName 查询对象字段对应的DBName
-func (schema Schema) FieldDBName(name string) string {
+func (schema *Schema) FieldDBName(name string) string {
 	if field := schema.LookUpField(name); field != nil {
 		return field.DBName
 	}
 	return ""
 }
 
-func (schema Schema) GetValue(i interface{}, key string) interface{} {
+func (schema *Schema) GetValue(i interface{}, key string) interface{} {
 	field := schema.LookUpField(key)
 	if field == nil {
 		return nil
@@ -70,4 +70,13 @@ func (schema Schema) GetValue(i interface{}, key string) interface{} {
 		return val.Interface()
 	}
 	return nil
+}
+
+func (schema *Schema) SetValue(i interface{}, key string, val any) error {
+	field := schema.LookUpField(key)
+	if field == nil {
+		return fmt.Errorf("field not exist:%v", key)
+	}
+	reflectValue := reflect.ValueOf(i)
+	return field.Set(reflectValue, val)
 }
