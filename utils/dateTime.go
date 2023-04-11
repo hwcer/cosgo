@@ -137,7 +137,7 @@ func (this *DateTime) Weekly(addWeeks int) *DateTime {
 func (this *DateTime) Monthly(addMonth int) *DateTime {
 	t := this.Now()
 	r := time.Date(t.Year(), t.Month(), 1, this.timeReset[0], this.timeReset[1], this.timeReset[2], this.timeReset[3], t.Location())
-	if addMonth > 0 {
+	if addMonth != 0 {
 		r = r.AddDate(0, addMonth, 0)
 	}
 	return this.New(r)
