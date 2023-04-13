@@ -1,7 +1,8 @@
 package cosgo
 
 import (
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/cosgo/scc"
+	"github.com/hwcer/logger"
 	"os"
 	"os/signal"
 	"runtime"
@@ -27,7 +28,7 @@ func WaitForSystemExit() {
 		case <-timer.C:
 			gcSummaryLogs()
 			timer.Reset(GCSummaryTime)
-		case <-SCC.Context.Done():
+		case <-scc.Context().Done():
 			return
 		}
 	}
@@ -46,10 +47,10 @@ func signalNotify(sig os.Signal) {
 	case syscall.SIGHUP:
 		SIGHUP()
 	case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM:
-		logger.Info("signal stop:%v\n", sig)
+		logger.Trace("signal stop:%v\n", sig)
 		Close()
 	default:
-		logger.Info("receive signal:%v\n", sig)
+		logger.Trace("receive signal:%v\n", sig)
 	}
 }
 
@@ -65,5 +66,5 @@ func SIGHUP() {
 
 func gcSummaryLogs() {
 	runtime.GC()
-	logger.Info("GOROUTINE:%v\n", runtime.NumGoroutine())
+	logger.Trace("GOROUTINE:%v\n", runtime.NumGoroutine())
 }

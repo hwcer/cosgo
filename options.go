@@ -1,5 +1,7 @@
 package cosgo
 
+import "github.com/hwcer/logger"
+
 var Options = &struct {
 	Banner  func()
 	Process func() bool //设置启动进程，返回false时不会继续向下执行
@@ -27,5 +29,5 @@ func defaultBanner() {
 ____________________________________O/_______
                                     O\
 `
-	Console.Printf(str)
+	logger.Trace(str)
 }

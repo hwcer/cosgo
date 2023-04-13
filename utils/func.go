@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"runtime/debug"
 	"time"
@@ -30,7 +31,7 @@ func Timeout(d time.Duration, fn func() error) error {
 	case err := <-cher:
 		return err
 	case <-time.After(d):
-		return ErrorTimeout
+		return errors.New("timeout")
 	}
 }
 

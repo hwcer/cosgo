@@ -2,6 +2,8 @@ package cosgo
 
 import (
 	"fmt"
+	"github.com/hwcer/cosgo/scc"
+	"github.com/hwcer/logger"
 	"math/rand"
 	"os"
 	"runtime"
@@ -13,9 +15,9 @@ var modules []IModule
 
 func assert(err interface{}, s ...string) {
 	if err != nil {
-		Console.Fatal(err)
+		logger.Fatal(err)
 	} else if len(s) > 0 {
-		Console.Info(s[0])
+		logger.Trace(s[0])
 	}
 }
 
@@ -51,13 +53,13 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	if err = writePidFile(); err != nil {
 		panic(err)
 	}
-	Console.Info("\n")
-	Console.Info("App Starting")
+	logger.Trace("\n")
+	logger.Trace("App Starting")
 	defer func() {
 		if err = deletePidFile(); err != nil {
-			Console.Info("App delete pid file err:%v", err)
+			logger.Trace("App delete pid file err:%v", err)
 		}
-		Console.Info("App Closed")
+		logger.Trace("App Closed")
 	}()
 	//=========================加载模块=============================
 	if err = pprofStart(); err != nil {
@@ -80,7 +82,7 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	//=========================启动模块=============================
 	assert(emit(EventTypStartBefore))
 	for _, v := range modules {
-		SCC.WaitGroup.Add(1)
+		scc.Add(1)
 		assert(v.Start(), fmt.Sprintf("mod[%v] start", v.ID()))
 	}
 	assert(emit(EventTypStartAfter))
@@ -91,25 +93,25 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 }
 
 func Close() {
-	if !SCC.Cancel() {
+	if !scc.Cancel() {
 		return
 	}
-	Console.Warn("App will stop")
+	logger.Alert("App will stop")
 	assert(emit(EventTypCloseBefore))
 	for i := len(modules) - 1; i >= 0; i-- {
 		closeModule(modules[i])
 	}
 	assert(emit(EventTypCloseAfter))
-	if err := SCC.Wait(time.Second * 30); err != nil {
-		Console.Error("App Stop Err:%v", err)
+	if err := scc.Wait(time.Second * 30); err != nil {
+		logger.Error("App Stop Error:%v", err)
 	}
 }
 
 func closeModule(m IModule) {
-	defer SCC.WaitGroup.Done()
+	defer scc.Done()
 	defer func() {
 		if err := recover(); err != nil {
-			Console.Error("%v", err)
+			logger.Error(err)
 		}
 	}()
 	assert(m.Close(), fmt.Sprintf("mod [%v] stop", m.ID()))
@@ -139,5 +141,5 @@ func showConfig() {
 	log = append(log, fmt.Sprintf(">> RUNTIME GO:%v  CPU:%v  Pid:%v", runtime.Version(), runtime.NumCPU(), os.Getpid()))
 	log = append(log, "========================================================================")
 	log = append(log, "")
-	Console.Printf(strings.Join(log, "\n"))
+	logger.Trace(strings.Join(log, "\n"))
 }

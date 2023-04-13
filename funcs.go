@@ -1,23 +1,21 @@
 package cosgo
 
 import (
-	"context"
-	"github.com/hwcer/cosgo/utils"
 	"path/filepath"
 )
 
-func GO(fn func()) {
-	SCC.GO(fn)
-}
-
-func CGO(fn func(ctx context.Context)) {
-	SCC.CGO(fn)
-}
-
-// SGO 带崩溃保护
-func SGO(fn func(context.Context), handles ...utils.TryHandle) {
-	SCC.SGO(fn, handles...)
-}
+//func GO(fn func()) {
+//	SCC.GO(fn)
+//}
+//
+//func CGO(fn func(ctx context.Context)) {
+//	SCC.CGO(fn)
+//}
+//
+//// SGO 带崩溃保护
+//func SGO(fn func(context.Context), handles ...utils.TryHandle) {
+//	SCC.SGO(fn, handles...)
+//}
 
 // Abs 获取以工作路径为起点的绝对路径
 func Abs(dir ...string) string {

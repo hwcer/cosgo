@@ -2,7 +2,7 @@ package registry
 
 import (
 	"fmt"
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/logger"
 	"runtime/debug"
 	"strings"
 )
@@ -69,7 +69,7 @@ func (this *Router) Match(paths ...string) (nodes []*Router) {
 	arr := strings.Split(route, "/")
 	lastPathIndex := len(arr) - 1
 	if lastPathIndex == 0 {
-		logger.Info("错误的路由地址:%v\n%v", route, string(debug.Stack()))
+		logger.Trace("错误的路由地址:%v\n%v", route, string(debug.Stack()))
 		return
 	}
 

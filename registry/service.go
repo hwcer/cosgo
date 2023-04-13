@@ -3,7 +3,7 @@ package registry
 import (
 	"errors"
 	"fmt"
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/logger"
 	"path"
 	"reflect"
 	"strings"

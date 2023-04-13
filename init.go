@@ -1,7 +1,6 @@
 package cosgo
 
 import (
-	"github.com/hwcer/cosgo/utils"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,7 +23,6 @@ var (
 	appName string
 	workDir string
 )
-var SCC = utils.NewSCC(nil)
 
 func init() {
 	Config.Flags(AppConfigNamePidFile, "", "", "pid file")
