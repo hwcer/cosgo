@@ -12,6 +12,7 @@ import (
 )
 
 var modules []IModule
+var appStopChan = make(chan struct{})
 
 func assert(err interface{}, s ...string) {
 	if err != nil {
@@ -51,9 +52,8 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 		panic(err)
 	}
 	if err = writePidFile(); err != nil {
-		panic(err)
+		logger.Panic(err)
 	}
-	logger.Trace("\n")
 	logger.Trace("App Starting")
 	defer func() {
 		if err = deletePidFile(); err != nil {
@@ -63,7 +63,7 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	}()
 	//=========================加载模块=============================
 	if err = pprofStart(); err != nil {
-		panic(err)
+		logger.Panic(err)
 	}
 	defer func() {
 		_ = pprofClose()
@@ -92,18 +92,14 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	}
 }
 
-func Close() {
-	if !scc.Cancel() {
-		return
-	}
-	logger.Alert("App will stop")
-	assert(emit(EventTypCloseBefore))
-	for i := len(modules) - 1; i >= 0; i-- {
-		closeModule(modules[i])
-	}
-	assert(emit(EventTypCloseAfter))
-	if err := scc.Wait(time.Second * 30); err != nil {
-		logger.Error("App Stop Error:%v", err)
+// Close 外部关闭程序
+func Close(force bool) {
+	if stop() || force {
+		select {
+		case <-appStopChan:
+		default:
+			close(appStopChan)
+		}
 	}
 }
 
@@ -140,6 +136,22 @@ func showConfig() {
 	//log = append(log, fmt.Sprintf(">> BUIND GO:%v VER:%v  TIME:%v", BUIND_GO, BUIND_VER, BUIND_TIME))
 	log = append(log, fmt.Sprintf(">> RUNTIME GO:%v  CPU:%v  Pid:%v", runtime.Version(), runtime.NumCPU(), os.Getpid()))
 	log = append(log, "========================================================================")
-	log = append(log, "")
 	logger.Trace(strings.Join(log, "\n"))
+}
+
+func stop() (stopped bool) {
+	if !scc.Cancel() {
+		return true
+	}
+	logger.Alert("App will stop")
+	assert(emit(EventTypCloseBefore))
+	for i := len(modules) - 1; i >= 0; i-- {
+		closeModule(modules[i])
+	}
+	assert(emit(EventTypCloseAfter))
+	if err := scc.Wait(time.Second * 10); err != nil {
+		logger.Alert("App Stop Error:%v", err)
+		return false
+	}
+	return true
 }

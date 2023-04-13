@@ -1,7 +1,6 @@
 package cosgo
 
 import (
-	"github.com/hwcer/cosgo/scc"
 	"github.com/hwcer/logger"
 	"os"
 	"os/signal"
@@ -24,11 +23,13 @@ func WaitForSystemExit() {
 	for {
 		select {
 		case sig := <-ch:
-			signalNotify(sig)
+			if signalNotify(sig) {
+				return
+			}
 		case <-timer.C:
 			gcSummaryLogs()
 			timer.Reset(GCSummaryTime)
-		case <-scc.Context().Done():
+		case <-appStopChan:
 			return
 		}
 	}
@@ -40,18 +41,19 @@ func WaitForSystemExit() {
 // syscall.SIGQUIT 退出
 // syscall.SIGKILL  kill -9 系统强制退出程序
 // syscall.SIGTERM  kill 无参数时默认信号
-func signalNotify(sig os.Signal) {
+func signalNotify(sig os.Signal) (stopped bool) {
 	switch sig {
 	case SignalReload:
 		Reload()
 	case syscall.SIGHUP:
 		SIGHUP()
 	case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM:
-		logger.Trace("signal stop:%v\n", sig)
-		Close()
+		logger.Trace("signal stop:%v", sig)
+		stopped = stop()
 	default:
-		logger.Trace("receive signal:%v\n", sig)
+		logger.Trace("receive signal:%v", sig)
 	}
+	return
 }
 
 // SIGHUP 关闭控制台
@@ -66,5 +68,5 @@ func SIGHUP() {
 
 func gcSummaryLogs() {
 	runtime.GC()
-	logger.Trace("GOROUTINE:%v\n", runtime.NumGoroutine())
+	logger.Trace("GOROUTINE:%v", runtime.NumGoroutine())
 }

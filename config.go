@@ -114,9 +114,6 @@ func (this *config) init() (err error) {
 		this.Set(AppConfigNameLogsDir, logsdir)
 		logsFile := Abs(filepath.Join(logsdir, appName+".log"))
 		logsFileHandle := logger.NewFile(logsFile)
-		logsFileHandle.Sprintf = func(message *logger.Message) string {
-			return message.Content
-		}
 		if err = logger.SetOutput("file", logsFileHandle); err != nil {
 			return
 		}
