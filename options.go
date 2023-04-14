@@ -21,5 +21,5 @@ func SetProcess(f func() bool) {
 }
 
 func defaultBanner() {
-	logger.Trace("佛祖保佑永不宕机")
+	logger.Trace("congratulations on successful startup\n")
 }

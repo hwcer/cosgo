@@ -46,7 +46,7 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	rand.Seed(time.Now().UnixNano())
 	var err error
 	if err = Config.init(); err != nil {
-		panic(err)
+		logger.Panic(err)
 	}
 	if err = helps(); err != nil {
 		panic(err)
@@ -59,7 +59,7 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 		if err = deletePidFile(); err != nil {
 			logger.Trace("App delete pid file err:%v", err)
 		}
-		logger.Trace("App Closed")
+		logger.Trace("App Closed\n")
 	}()
 	//=========================加载模块=============================
 	if err = pprofStart(); err != nil {
@@ -85,8 +85,8 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 		scc.Add(1)
 		assert(v.Start(), fmt.Sprintf("mod[%v] start", v.ID()))
 	}
-	assert(emit(EventTypStartAfter))
 	Options.Banner()
+	assert(emit(EventTypStartAfter))
 	if waitForSystemExit {
 		WaitForSystemExit()
 	}
@@ -94,12 +94,13 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 
 // Close 外部关闭程序
 func Close(force bool) {
-	if stop() || force {
-		select {
-		case <-appStopChan:
-		default:
-			close(appStopChan)
-		}
+	if !(stop() || force) {
+		return
+	}
+	select {
+	case <-appStopChan:
+	default:
+		close(appStopChan)
 	}
 }
 
@@ -136,7 +137,9 @@ func showConfig() {
 	//log = append(log, fmt.Sprintf(">> BUIND GO:%v VER:%v  TIME:%v", BUIND_GO, BUIND_VER, BUIND_TIME))
 	log = append(log, fmt.Sprintf(">> RUNTIME GO:%v  CPU:%v  Pid:%v", runtime.Version(), runtime.NumCPU(), os.Getpid()))
 	log = append(log, "========================================================================")
-	logger.Trace(strings.Join(log, "\n"))
+	msg := &logger.Message{}
+	msg.Content = strings.Join(log, "\n")
+	_ = logger.Console.Write(msg)
 }
 
 func stop() (stopped bool) {
@@ -148,10 +151,10 @@ func stop() (stopped bool) {
 	for i := len(modules) - 1; i >= 0; i-- {
 		closeModule(modules[i])
 	}
-	assert(emit(EventTypCloseAfter))
 	if err := scc.Wait(time.Second * 10); err != nil {
 		logger.Alert("App Stop Error:%v", err)
 		return false
 	}
+	assert(emit(EventTypCloseAfter))
 	return true
 }
