@@ -90,7 +90,6 @@ func (this *config) init() (err error) {
 	} else {
 		logger.SetLevel(logger.LevelTrace)
 	}
-	logger.SetPathTrim("cosgo")
 	//设置pidfile
 	if pidfile := this.GetString(AppConfigNamePidFile); pidfile != "" {
 		file := Abs(pidfile)

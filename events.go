@@ -4,12 +4,10 @@ type EventType int32
 type EventFunc func() error
 
 const (
-	EventTypInitBefore EventType = iota
-	EventTypInitAfter
-	EventTypStartBefore
-	EventTypStartAfter
-	EventTypCloseBefore
-	EventTypCloseAfter
+	EventTypStarting EventType = iota
+	EventTypStarted
+	EventTypStopping
+	EventTypStopped
 )
 
 var events map[EventType][]EventFunc

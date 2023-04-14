@@ -54,12 +54,14 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	if err = writePidFile(); err != nil {
 		logger.Panic(err)
 	}
+	assert(emit(EventTypStarting))
 	logger.Trace("App Starting")
 	defer func() {
 		if err = deletePidFile(); err != nil {
 			logger.Trace("App delete pid file err:%v", err)
 		}
 		logger.Trace("App Closed\n")
+		assert(emit(EventTypStopped))
 	}()
 	//=========================加载模块=============================
 	if err = pprofStart(); err != nil {
@@ -68,11 +70,11 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	defer func() {
 		_ = pprofClose()
 	}()
-	assert(emit(EventTypInitBefore))
+	//assert(emit(EventTypInitBefore))
 	for _, v := range modules {
 		assert(v.Init(), fmt.Sprintf("mod[%v] init", v.ID()))
 	}
-	assert(emit(EventTypInitAfter))
+	//assert(emit(EventTypInitialize))
 	//自定义进程
 	if Options.Process != nil && !Options.Process() {
 		return
@@ -80,13 +82,12 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	//=========================启动信息=============================
 	showConfig()
 	//=========================启动模块=============================
-	assert(emit(EventTypStartBefore))
 	for _, v := range modules {
 		scc.Add(1)
 		assert(v.Start(), fmt.Sprintf("mod[%v] start", v.ID()))
 	}
 	Options.Banner()
-	assert(emit(EventTypStartAfter))
+	assert(emit(EventTypStarted))
 	if waitForSystemExit {
 		WaitForSystemExit()
 	}
@@ -146,8 +147,8 @@ func stop() (stopped bool) {
 	if !scc.Cancel() {
 		return true
 	}
+	assert(emit(EventTypStopping))
 	logger.Alert("App will stop")
-	assert(emit(EventTypCloseBefore))
 	for i := len(modules) - 1; i >= 0; i-- {
 		closeModule(modules[i])
 	}
@@ -155,6 +156,5 @@ func stop() (stopped bool) {
 		logger.Alert("App Stop Error:%v", err)
 		return false
 	}
-	assert(emit(EventTypCloseAfter))
 	return true
 }

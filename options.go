@@ -1,6 +1,8 @@
 package cosgo
 
-import "github.com/hwcer/logger"
+import (
+	"github.com/hwcer/logger"
+)
 
 var Options = &struct {
 	Banner  func()
