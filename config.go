@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // 其他模块可以使用pflag设置额外的参数
@@ -113,7 +114,7 @@ func (this *config) init() (err error) {
 		}
 		this.Set(AppConfigNameLogsDir, logsdir)
 		logsFile := logger.NewFile(logsdir)
-		logsFile.SetFileName(appName + ".")
+		logsFile.SetFileName(logsFileNameFormatter)
 		if err = logger.SetOutput("file", logsFile); err != nil {
 			return
 		}
@@ -133,5 +134,11 @@ func fileExist(name, ext string) (f string, exist bool) {
 	if err == nil && !stat.IsDir() {
 		exist = true
 	}
+	return
+}
+
+func logsFileNameFormatter() (name string, expire time.Duration) {
+	name, expire = logger.DefaultFileNameFormatter()
+	name = strings.Join([]string{appName, name, "log"}, ".")
 	return
 }
