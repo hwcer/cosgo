@@ -72,7 +72,12 @@ func (schema *Schema) GetValue(i interface{}, key string) interface{} {
 	return nil
 }
 
-func (schema *Schema) SetValue(i interface{}, key string, val any) error {
+func (schema *Schema) SetValue(i interface{}, key string, val any) (err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("%v", e)
+		}
+	}()
 	field := schema.LookUpField(key)
 	if field == nil {
 		return fmt.Errorf("field not exist:%v", key)
