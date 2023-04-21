@@ -118,25 +118,23 @@ func closeModule(m IModule) {
 func showConfig() {
 	var log []string
 	log = append(log, "============================Show App Config============================")
-	log = append(log, fmt.Sprintf(">> appName:%v", Name()))
-	log = append(log, fmt.Sprintf(">> workDir:%v", WorkDir()))
+	log = append(log, fmt.Sprintf(">> App : %v", Name()))
+	pidFile := ""
+	if enablePidFile {
+		pidFile = Config.GetString(AppConfigNamePidFile)
+	} else {
+		pidFile = "Disable"
+	}
+	log = append(log, fmt.Sprintf(">> Pid : %v", pidFile))
 
+	log = append(log, fmt.Sprintf(">> Path : %v", WorkDir()))
 	logsDir := Config.GetString(AppConfigNameLogsDir)
 	if logsDir == "" {
 		logsDir = "Console"
 	}
-	log = append(log, fmt.Sprintf(">> logsDir:%v", logsDir))
-
-	pidfile := ""
-	if enablePidFile {
-		pidfile = Config.GetString(AppConfigNamePidFile)
-	} else {
-		pidfile = "Disable"
-	}
-	log = append(log, fmt.Sprintf(">> pidFile:%v", pidfile))
-
-	//log = append(log, fmt.Sprintf(">> BUIND GO:%v VER:%v  TIME:%v", BUIND_GO, BUIND_VER, BUIND_TIME))
-	log = append(log, fmt.Sprintf(">> RUNTIME GO:%v  CPU:%v  Pid:%v", runtime.Version(), runtime.NumCPU(), os.Getpid()))
+	log = append(log, fmt.Sprintf(">> Logs : %v", logsDir))
+	log = append(log, fmt.Sprintf(">> Version : %v", Version))
+	log = append(log, fmt.Sprintf(">> Runtime GO:%v  CPU:%v  Pid:%v", runtime.Version(), runtime.NumCPU(), os.Getpid()))
 	log = append(log, "========================================================================")
 	logger.Trace(strings.Join(log, "\n"))
 }

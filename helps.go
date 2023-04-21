@@ -1,23 +1,25 @@
 package cosgo
 
 import (
+	"fmt"
 	"github.com/spf13/pflag"
 	"os"
+	"runtime"
 )
 
-//var (
-//	BUIND_GO   = "unknown"
-//	BUIND_VER  = "unknown"
-//	BUIND_TIME = "unknown"
-//)
+var Version string = "unknown"
 
 func init() {
 	Config.Flags("help", "h", false, "Show App helps")
-	//Config.Flags("version", "v", false, "Show build Version")
+	Config.Flags("version", "v", false, "Show build Version")
 }
 
 func helps() error {
-	if Config.IsSet("help") {
+	if Config.IsSet("version") {
+		fmt.Printf("runtime : %v\n", runtime.Version())
+		fmt.Printf("version : %v\n", Version)
+		os.Exit(0)
+	} else if Config.IsSet("help") {
 		pflag.Usage()
 		os.Exit(0)
 	}
