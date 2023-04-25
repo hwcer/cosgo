@@ -34,7 +34,7 @@ func NewCrypto(encoding *base64.Encoding) *crypto {
 	return &crypto{base64: encoding}
 }
 
-//Encrypt DES加密
+// Encrypt DES加密
 func (this *crypto) Encrypt(originalBytes, key []byte, scType CryptoType, ivs ...[]byte) ([]byte, error) {
 	// 1、实例化密码器block(参数为密钥)
 	var err error
@@ -70,7 +70,7 @@ func (this *crypto) Encrypt(originalBytes, key []byte, scType CryptoType, ivs ..
 	return cipherBytes, nil
 }
 
-// SCDecrypt 解密字节切片，返回字节切片
+// Decrypt 解密字节切片，返回字节切片
 func (this *crypto) Decrypt(cipherBytes, key []byte, scType CryptoType, ivs ...[]byte) ([]byte, error) {
 	// 1、实例化密码器block(参数为密钥)
 	var err error
