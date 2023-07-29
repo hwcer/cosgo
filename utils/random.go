@@ -17,8 +17,7 @@ type random struct {
 }
 
 func NewRandom(randomStringSeed string) *random {
-	rand := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return &random{bytes: []byte(randomStringSeed), rand: rand}
+	return &random{bytes: []byte(randomStringSeed), rand: rand.New(rand.NewSource(time.Now().UnixNano()))}
 }
 
 func (this *random) Roll(a, b int) int {
