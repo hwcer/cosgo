@@ -146,10 +146,10 @@ func (this *DateTime) Monthly(addMonth int) *DateTime {
 /*
 Expire 有效期
 0不限制 返回0 无刷新时间
-1 日刷新  刷新礼包时间可配置具体几日
-2 周刷新  刷新礼包时间可配置具体几周
-3 月刷新  刷新礼包时间可配置具体几月
-4 按当天0点时间   刷新礼包时间配置秒数
+1 日刷新    刷新礼包时间可配置具体几日
+2 周刷新    刷新礼包时间可配置具体几周
+3 月刷新    刷新礼包时间可配置具体几月
+4 当前时间  刷新礼包时间配置秒数
 5 具体到期时间 2021010123  //年月日时,精确到小时
 v = 1 :当天，周，月 23:59:59
 */
@@ -172,7 +172,7 @@ func (this *DateTime) Expire(t, v int) (ttl *DateTime, err error) {
 	case DateTimeExpireMonthly:
 		ttl = this.Monthly(v).Add(-1)
 	case DateTimeExpireSecond:
-		ttl = this.Daily(0).Add(time.Second * time.Duration(v))
+		ttl = this.Add(time.Second * time.Duration(v))
 	case DateTimeExpireCustomize:
 		ttl, err = this.Parse(fmt.Sprintf("%v%v", v, this.timeZone), "2006010215-0700")
 	default:
