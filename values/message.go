@@ -1,6 +1,7 @@
 package values
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -16,10 +17,10 @@ func (this *Message) Parse(v interface{}) *Message {
 		return r
 	}
 	if _, ok := v.(error); ok {
-		this.Errorf(0, v)
+		this.Format(0, v)
 	} else {
 		if err := this.Marshal(v); err != nil {
-			this.Errorf(0, err)
+			this.Format(0, err)
 		}
 	}
 	return this
@@ -37,11 +38,11 @@ func (this *Message) String() string {
 }
 
 func (this *Message) Error() string {
-	return fmt.Sprintf("[%v]%v", this.Code, this.String())
+	return this.String()
 }
 
-// Errorf 格式化一个错误,必定产生错误码
-func (this *Message) Errorf(code int, format interface{}, args ...interface{}) {
+// Format 格式化一个错误,必定产生错误码
+func (this *Message) Format(code int, format any, args ...any) {
 	if code == 0 {
 		this.Code = MessageErrorCodeDefault
 	} else {
@@ -68,12 +69,12 @@ func (this *Message) Marshal(v interface{}) error {
 // Unmarshal 如果是一个错误信息 应当单独处理
 func (this *Message) Unmarshal(i interface{}) error {
 	if this.Code != 0 {
-		return this
+		return errors.New(this.String())
 	}
 	return this.Data.Unmarshal(i)
 }
 
-func Parse(v interface{}) *Message {
+func Parse(v any) *Message {
 	if v == nil {
 		return &Message{}
 	}
@@ -84,19 +85,23 @@ func Parse(v interface{}) *Message {
 	r = r.Parse(v)
 	return r
 }
-func Error(err interface{}) (r *Message) {
-	r = &Message{}
-	r.Errorf(0, err)
-	return
-}
-func Errorf(code int, err interface{}, args ...interface{}) (r *Message) {
-	r = &Message{}
-	r.Errorf(code, err, args...)
-	return
-}
 
-func NewError(code int, err interface{}, args ...interface{}) (r *Message) {
-	return Errorf(code, err, args...)
+func Error(err any) (r *Message) {
+	r = &Message{}
+	r.Format(0, err)
+	return
+}
+func Errorf(code int, format any, args ...any) (r *Message) {
+	var ok bool
+	if r, ok = format.(*Message); ok {
+		if code != 0 {
+			r.Code = code
+		}
+		return r
+	}
+	r = &Message{}
+	r.Format(code, format, args...)
+	return
 }
 
 func NewMessage(v interface{}) *Message {
