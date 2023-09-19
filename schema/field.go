@@ -9,16 +9,35 @@ import (
 
 type Field struct {
 	Name              string
+	Index             []int
 	DBName            string
 	FieldType         reflect.Type
 	IndirectFieldType reflect.Type
 	StructField       reflect.StructField
-	Schema            *Schema
+	Schema            *Schema //所在的父对象
 	EmbeddedSchema    *Schema //嵌入子对象
+
 	//OwnerSchema    *Schema
 	ReflectValueOf func(reflect.Value) reflect.Value
 	//ValueOf        func(reflect.Value) (value interface{}, zero bool)
 	Set func(reflect.Value, interface{}) error
+}
+
+func (field *Field) GetFields() (r []*Field) {
+	if field.StructField.Anonymous {
+		for _, ef := range field.EmbeddedSchema.Fields {
+			v := &(*ef)
+			if field.FieldType.Kind() == reflect.Struct {
+				v.Index = append([]int{field.StructField.Index[0]}, v.StructField.Index...)
+			} else {
+				v.Index = append([]int{-field.StructField.Index[0] - 1}, v.StructField.Index...)
+			}
+			r = append(r, v)
+		}
+	} else {
+		r = append(r, field)
+	}
+	return
 }
 
 func (schema *Schema) ParseField(fieldStruct reflect.StructField) *Field {
@@ -37,7 +56,7 @@ func (schema *Schema) ParseField(fieldStruct reflect.StructField) *Field {
 	}
 
 	fieldValue := reflect.New(field.IndirectFieldType)
-	if dbName := fieldStruct.Tag.Get("bson"); dbName != "" {
+	if dbName := fieldStruct.Tag.Get("bson"); dbName != "" && dbName != "inline" {
 		field.DBName = dbName
 	}
 
@@ -49,18 +68,12 @@ func (schema *Schema) ParseField(fieldStruct reflect.StructField) *Field {
 			if field.EmbeddedSchema, err = getOrParse(fieldValue.Interface(), schema.options); err != nil {
 				schema.err = err
 			}
-
-			for _, ef := range field.EmbeddedSchema.Fields {
-				if field.FieldType.Kind() == reflect.Struct {
-					ef.StructField.Index = append([]int{fieldStruct.Index[0]}, ef.StructField.Index...)
-				} else {
-					ef.StructField.Index = append([]int{-fieldStruct.Index[0] - 1}, ef.StructField.Index...)
-				}
-			}
 		case reflect.Invalid, reflect.Uintptr, reflect.Array, reflect.Chan, reflect.Func, reflect.Interface,
 			reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer, reflect.Complex64, reflect.Complex128:
 			schema.err = fmt.Errorf("invalid embedded struct for %s's field %s, should be struct, but got %v", field.Schema.Name, field.Name, field.FieldType)
 		}
+	} else {
+		field.Index = field.StructField.Index
 	}
 
 	return field
@@ -107,19 +120,19 @@ func (field *Field) setupValuerAndSetter() {
 
 	// ReflectValueOf
 	switch {
-	case len(field.StructField.Index) == 1:
+	case len(field.Index) == 1:
 		field.ReflectValueOf = func(value reflect.Value) reflect.Value {
-			return reflect.Indirect(value).Field(field.StructField.Index[0])
+			return reflect.Indirect(value).Field(field.Index[0])
 		}
-	case len(field.StructField.Index) == 2 && field.StructField.Index[0] >= 0 && field.FieldType.Kind() != reflect.Ptr:
+	case len(field.Index) == 2 && field.Index[0] >= 0 && field.FieldType.Kind() != reflect.Ptr:
 		field.ReflectValueOf = func(value reflect.Value) reflect.Value {
-			return reflect.Indirect(value).Field(field.StructField.Index[0]).Field(field.StructField.Index[1])
+			return reflect.Indirect(value).Field(field.Index[0]).Field(field.Index[1])
 		}
 	default:
 		field.ReflectValueOf = func(value reflect.Value) reflect.Value {
 			v := reflect.Indirect(value)
 			//logger.Debug("ReflectValueOf:%+v", v.Interface())
-			for idx, fieldIdx := range field.StructField.Index {
+			for idx, fieldIdx := range field.Index {
 				if fieldIdx >= 0 {
 					v = v.Field(fieldIdx)
 				} else {
@@ -133,7 +146,7 @@ func (field *Field) setupValuerAndSetter() {
 						}
 					}
 
-					if idx < len(field.StructField.Index)-1 {
+					if idx < len(field.Index)-1 {
 						v = v.Elem()
 					}
 				}

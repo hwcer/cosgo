@@ -69,11 +69,7 @@ func ParseWithSpecialTableName(dest interface{}, specialTableName string, opts *
 		fieldStruct := modelType.Field(i)
 		if ast.IsExported(fieldStruct.Name) {
 			field := schema.ParseField(fieldStruct)
-			if field.EmbeddedSchema != nil {
-				schema.Fields = append(schema.Fields, field.EmbeddedSchema.Fields...)
-			} else {
-				schema.Fields = append(schema.Fields, field)
-			}
+			schema.Fields = append(schema.Fields, field.GetFields()...)
 		}
 	}
 
