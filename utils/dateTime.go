@@ -75,10 +75,12 @@ func (this *DateTime) Parse(value string, layout ...string) (*DateTime, error) {
 	return this.New(t), nil
 }
 
-func (this *DateTime) TimeZone(zone string) {
+func (this *DateTime) SetTimeZone(zone string) {
 	this.timeZone = zone
 }
-
+func (this *DateTime) GetTimeZone() string {
+	return this.timeZone
+}
 func (this *DateTime) TimeReset(args ...int) {
 	if len(args) < 4 {
 		args = append(args, 0, 0, 0, 0)

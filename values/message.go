@@ -13,12 +13,12 @@ type Message struct {
 }
 
 func (this *Message) Parse(v interface{}) *Message {
-	if r, ok := v.(*Message); ok {
-		return r
-	}
-	if _, ok := v.(error); ok {
-		this.Format(0, v)
-	} else {
+	switch d := v.(type) {
+	case error:
+		this.Format(0, d)
+	case []byte:
+		this.Data = d
+	default:
 		if err := this.Marshal(v); err != nil {
 			this.Format(0, err)
 		}
@@ -75,15 +75,13 @@ func (this *Message) Unmarshal(i interface{}) error {
 }
 
 func Parse(v any) *Message {
-	if v == nil {
-		return &Message{}
+	switch d := v.(type) {
+	case *Message:
+		return d
+	default:
+		r := &Message{}
+		return r.Parse(v)
 	}
-	if r, ok := v.(*Message); ok {
-		return r
-	}
-	r := &Message{}
-	r = r.Parse(v)
-	return r
 }
 
 func Error(err any) (r *Message) {
@@ -104,6 +102,6 @@ func Errorf(code int, format any, args ...any) (r *Message) {
 	return
 }
 
-func NewMessage(v interface{}) *Message {
-	return Parse(v)
-}
+//func NewMessage(v interface{}) *Message {
+//	return Parse(v)
+//}
