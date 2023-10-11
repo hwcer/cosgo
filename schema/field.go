@@ -26,7 +26,8 @@ type Field struct {
 func (field *Field) GetFields() (r []*Field) {
 	if field.StructField.Anonymous {
 		for _, ef := range field.EmbeddedSchema.Fields {
-			v := &(*ef)
+			i := *ef
+			v := &i
 			if field.FieldType.Kind() == reflect.Struct {
 				v.Index = append([]int{field.StructField.Index[0]}, v.StructField.Index...)
 			} else {
