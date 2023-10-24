@@ -156,16 +156,39 @@ Expire 有效期
 v = 1 :当天，周，月 23:59:59
 */
 
+type DateTimeExpire int8
+
 const (
-	DateTimeExpireNone      int = 0
-	DateTimeExpireDaily         = 1
-	DateTimeExpireWeekly        = 2
-	DateTimeExpireMonthly       = 3
-	DateTimeExpireSecond        = 4
-	DateTimeExpireCustomize     = 5
+	DateTimeExpireNone      DateTimeExpire = 0
+	DateTimeExpireDaily     DateTimeExpire = 1
+	DateTimeExpireWeekly    DateTimeExpire = 2
+	DateTimeExpireMonthly   DateTimeExpire = 3
+	DateTimeExpireSecond    DateTimeExpire = 4
+	DateTimeExpireCustomize DateTimeExpire = 5
 )
 
-func (this *DateTime) Expire(t, v int) (ttl *DateTime, err error) {
+// Verify 验证是否有效,true:有效
+func (this *DateTime) Verify(et DateTimeExpire, v int64) (r bool) {
+	if et == DateTimeExpireNone {
+		return true
+	}
+	var s int64
+	switch et {
+	case DateTimeExpireDaily:
+		s = this.Daily(0).Unix()
+	case DateTimeExpireWeekly:
+		s = this.Weekly(0).Unix()
+	case DateTimeExpireMonthly:
+		s = this.Monthly(0).Unix()
+	case DateTimeExpireSecond:
+		s = this.Unix()
+	default:
+		return false
+	}
+	return v > s
+}
+
+func (this *DateTime) Expire(t DateTimeExpire, v int) (ttl *DateTime, err error) {
 	switch t {
 	case DateTimeExpireDaily:
 		ttl = this.Daily(v).Add(-1)
