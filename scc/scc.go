@@ -78,7 +78,7 @@ func (s *SCC) Wait(timeout time.Duration) (err error) {
 	if timeout == 0 {
 		s.WaitGroup.Wait()
 	} else {
-		err = Timeout(timeout, func() error {
+		err = s.Timeout(timeout, func() error {
 			s.WaitGroup.Wait()
 			return nil
 		})
