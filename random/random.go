@@ -1,4 +1,4 @@
-package utils
+package random
 
 type Random struct {
 	items map[int32]int32
