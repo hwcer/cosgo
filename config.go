@@ -85,15 +85,16 @@ func (this *config) init() (err error) {
 			return err
 		}
 	}
-	debug = this.GetBool(AppConfigDebug)
-	if debug {
-		logger.SetLevel(logger.LevelDebug)
-	} else {
+	if this.IsSet(AppConfigNameLogsLevel) {
+		level := this.GetInt32(AppConfigNameLogsLevel)
+		logger.SetLevel(logger.Level(level))
+	} else if !this.GetBool(AppConfigDebug) {
 		logger.SetLevel(logger.LevelTrace)
 	}
-	//设置pidfile
-	if pidfile := this.GetString(AppConfigNamePidFile); pidfile != "" {
-		file := Abs(pidfile)
+
+	//设置pidFile
+	if pidFile := this.GetString(AppConfigNamePidFile); pidFile != "" {
+		file := Abs(pidFile)
 		stat, osErr := os.Stat(file)
 		if osErr != nil && !os.IsExist(osErr) {
 			return osErr
@@ -104,16 +105,16 @@ func (this *config) init() (err error) {
 		this.Set(AppConfigNamePidFile, file)
 	}
 	//设置日志
-	if logsdir := this.GetString(AppConfigNameLogsDir); logsdir != "" {
-		logsdir = Abs(logsdir)
-		_, osErr := os.Stat(logsdir)
+	if logsPath := this.GetString(AppConfigNameLogsPath); logsPath != "" {
+		logsPath = Abs(logsPath)
+		_, osErr := os.Stat(logsPath)
 		if osErr != nil && !os.IsExist(osErr) {
-			if err = os.MkdirAll(logsdir, 0777); err != nil {
+			if err = os.MkdirAll(logsPath, 0777); err != nil {
 				return
 			}
 		}
-		this.Set(AppConfigNameLogsDir, logsdir)
-		logsFile := logger.NewFile(logsdir)
+		this.Set(AppConfigNameLogsPath, logsPath)
+		logsFile := logger.NewFile(logsPath)
 		logsFile.SetFileName(logsFileNameFormatter)
 		if err = logger.SetOutput("file", logsFile); err != nil {
 			return

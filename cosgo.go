@@ -128,7 +128,7 @@ func showConfig() {
 	log = append(log, fmt.Sprintf(">> Pid : %v", pidFile))
 
 	log = append(log, fmt.Sprintf(">> Path : %v", WorkDir()))
-	logsDir := Config.GetString(AppConfigNameLogsDir)
+	logsDir := Config.GetString(AppConfigNameLogsPath)
 	if logsDir == "" {
 		logsDir = "Console"
 	}
