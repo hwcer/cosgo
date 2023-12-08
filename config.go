@@ -85,10 +85,11 @@ func (this *config) init() (err error) {
 			return err
 		}
 	}
+	debug = this.GetBool(AppConfigDebug)
 	if this.IsSet(AppConfigNameLogsLevel) {
 		level := this.GetInt32(AppConfigNameLogsLevel)
 		logger.SetLevel(logger.Level(level))
-	} else if !this.GetBool(AppConfigDebug) {
+	} else if !debug {
 		logger.SetLevel(logger.LevelTrace)
 	}
 
