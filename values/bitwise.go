@@ -59,7 +59,7 @@ func (m *Bitwise) Set(bit int) {
 	j := bit % MaxBitwiseUnit
 	if i >= len(b) {
 		c := i + 1
-		v := make(Bitwise, c, c)
+		v := make(Bitwise, c)
 		copy(v, b)
 		b = v
 	}
