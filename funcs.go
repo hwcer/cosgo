@@ -21,26 +21,26 @@ import (
 func Abs(dir ...string) string {
 	path := filepath.Join(dir...)
 	if !filepath.IsAbs(path) {
-		path = filepath.Join(workDir, path)
+		path = filepath.Join(Dir(), path)
 	}
 	return path
 }
 
 func Debug() bool {
-	return debug
+	return Config.GetBool(AppDebug)
 }
 
-// Dir APP主程序所在目录
+// Dir 程序工作目录
 func Dir() string {
-	return appDir
+	return Config.GetString(AppDir)
 }
 
 // Name 项目内部获取appName
 func Name() string {
-	return appName
+	return Config.GetString(AppName)
 }
 
-// WorkDir 程序工作目录
+// WorkDir 程序工作目录 废弃
 func WorkDir() string {
-	return workDir
+	return Config.GetString(AppDir)
 }

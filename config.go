@@ -79,13 +79,14 @@ func (this *config) init() (err error) {
 		}
 	}
 	//通过程序名称读取 ${appName}.toml
+	appName := Name()
 	if f, exist := fileExist(appName, ext); exist {
 		this.SetConfigFile(f)
 		if err = this.MergeInConfig(); err != nil {
 			return err
 		}
 	}
-	debug = this.GetBool(AppConfigDebug)
+	debug := this.GetBool(AppDebug)
 	if this.IsSet(AppConfigNameLogsLevel) {
 		level := this.GetInt32(AppConfigNameLogsLevel)
 		logger.SetLevel(logger.Level(level))
@@ -129,7 +130,7 @@ func fileExist(name, ext string) (f string, exist bool) {
 	if strings.Contains(name, ".") {
 		file = name
 	} else {
-		file = strings.Join([]string{appName, ext}, ".")
+		file = strings.Join([]string{Name(), ext}, ".")
 	}
 	f = Abs(file)
 	stat, err := os.Stat(f)
@@ -141,6 +142,6 @@ func fileExist(name, ext string) (f string, exist bool) {
 
 func logsFileNameFormatter() (name string, expire time.Duration) {
 	name, expire = logger.DefaultFileNameFormatter()
-	name = strings.Join([]string{appName, name, "log"}, ".")
+	name = strings.Join([]string{Name(), name, "log"}, ".")
 	return
 }
