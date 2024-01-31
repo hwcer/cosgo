@@ -58,12 +58,7 @@ func signalNotify(sig os.Signal) (stopped bool) {
 
 // SIGHUP 关闭控制台
 func SIGHUP() {
-	//if !Config.GetBool(AppConfigNameDaemonize) {
-	//	logger.Info("signal stop:%v\n", syscall.SIGHUP)
-	//	Close()
-	//} else {
-	//	logger.DelDefaultAdapter()
-	//}
+	logger.DelOutput(logger.DefaultConsoleName)
 }
 
 func gcSummaryLogs() {

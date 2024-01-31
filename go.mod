@@ -1,11 +1,13 @@
 module github.com/hwcer/cosgo
 
 go 1.18
-
+replace (
+	github.com/hwcer/logger v0.0.4 => ../logger
+)
 require (
 	github.com/coreos/etcd v3.3.27+incompatible
 	github.com/go-redis/redis/v8 v8.11.5
-	github.com/hwcer/logger v0.0.3
+	github.com/hwcer/logger v0.0.4
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.15.0
 	go.mongodb.org/mongo-driver v1.11.4
