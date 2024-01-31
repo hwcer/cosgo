@@ -17,8 +17,8 @@ func init() {
 }
 
 func emit(e EventType) (err error) {
-	if funcs, ok := events[e]; ok {
-		for _, f := range funcs {
+	if hs, ok := events[e]; ok {
+		for _, f := range hs {
 			if err = f(); err != nil {
 				return
 			}

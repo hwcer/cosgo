@@ -26,11 +26,12 @@ func Use(mods ...IModule) {
 		modules = append(modules, mod)
 	}
 }
-func Get() (r []IModule) {
+func Range(f func(IModule) bool) {
 	for _, mod := range modules {
-		r = append(r, mod)
+		if !f(mod) {
+			return
+		}
 	}
-	return
 }
 
 /**
