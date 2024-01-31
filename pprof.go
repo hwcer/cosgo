@@ -74,7 +74,7 @@ func pprofStart() error {
 	pprofServer = new(http.Server)
 	pprofServer.Addr = pprof
 	pprofServer.Handler = http.DefaultServeMux
-	utils.Timeout(time.Second, func() error {
+	_ = utils.Timeout(time.Second, func() error {
 		return pprofServer.ListenAndServe()
 	})
 	fmt.Printf("pprof server start:%v\n", pprof)

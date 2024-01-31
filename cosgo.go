@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/hwcer/cosgo/scc"
 	"github.com/hwcer/logger"
-	"math/rand"
 	"os"
 	"runtime"
 	"strings"
@@ -27,10 +26,9 @@ func Use(mods ...IModule) {
 		modules = append(modules, mod)
 	}
 }
-
-func Modules() (r []string) {
-	for _, m := range modules {
-		r = append(r, m.ID())
+func Get() (r []IModule) {
+	for _, mod := range modules {
+		r = append(r, mod)
 	}
 	return
 }
@@ -43,7 +41,6 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	for _, mod := range mods {
 		modules = append(modules, mod)
 	}
-	rand.Seed(time.Now().UnixNano())
 	var err error
 	if err = Config.init(); err != nil {
 		logger.Panic(err)
@@ -88,6 +85,7 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	}
 	Options.Banner()
 	assert(emit(EventTypStarted))
+
 	if waitForSystemExit {
 		WaitForSystemExit()
 	}
