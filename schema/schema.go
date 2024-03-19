@@ -64,7 +64,7 @@ func (schema *Schema) GetValue(i interface{}, key string) interface{} {
 		return nil
 	}
 	vf := reflect.Indirect(ValueOf(i))
-	val := vf.FieldByIndex(field.StructField.Index)
+	val := vf.FieldByIndex(field.Index)
 
 	if val.IsValid() && !val.IsZero() {
 		return val.Interface()
