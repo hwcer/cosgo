@@ -2,8 +2,8 @@ package binder
 
 import (
 	"errors"
-	"github.com/hwcer/cosgo/schema"
 	"github.com/hwcer/cosgo/values"
+	"github.com/hwcer/schema"
 	"io"
 	"net/url"
 	"reflect"

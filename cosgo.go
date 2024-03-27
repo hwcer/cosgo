@@ -2,8 +2,8 @@ package cosgo
 
 import (
 	"fmt"
-	"github.com/hwcer/cosgo/scc"
 	"github.com/hwcer/logger"
+	"github.com/hwcer/scc"
 	"os"
 	"runtime"
 	"strings"
