@@ -104,16 +104,6 @@ func Close(force bool) {
 	}
 }
 
-func closeModule(m IModule) {
-	defer scc.Done()
-	defer func() {
-		if err := recover(); err != nil {
-			logger.Error(err)
-		}
-	}()
-	assert(m.Close(), fmt.Sprintf("mod [%v] stop", m.ID()))
-}
-
 func showConfig() {
 	var log []string
 	log = append(log, "============================Show App Config============================")
@@ -149,7 +139,16 @@ func stop() (stopped bool) {
 	}
 	if err := scc.Wait(time.Second * 10); err != nil {
 		logger.Alert("App Stop Error:%v", err)
-		return false
 	}
 	return true
+}
+
+func closeModule(m IModule) {
+	defer scc.Done()
+	defer func() {
+		if err := recover(); err != nil {
+			logger.Error(err)
+		}
+	}()
+	assert(m.Close(), fmt.Sprintf("mod [%v] stop", m.ID()))
 }

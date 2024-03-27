@@ -6,7 +6,7 @@ require (
 	github.com/coreos/etcd v3.3.27+incompatible
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/hwcer/logger v0.0.5
-	github.com/hwcer/scc v0.0.2
+	github.com/hwcer/scc v0.0.3
 	github.com/hwcer/schema v0.0.2
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.18.2

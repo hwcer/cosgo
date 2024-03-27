@@ -1,6 +1,7 @@
 package cosgo
 
 import (
+	"fmt"
 	"github.com/hwcer/logger"
 	"os"
 	"os/signal"
@@ -42,14 +43,15 @@ func WaitForSystemExit() {
 // syscall.SIGKILL  kill -9 系统强制退出程序
 // syscall.SIGTERM  kill 无参数时默认信号
 func signalNotify(sig os.Signal) (stopped bool) {
+	fmt.Printf("收到信号：%v\n", sig)
 	switch sig {
 	case SignalReload:
 		Reload()
 	case syscall.SIGHUP:
 		SIGHUP()
 	case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM:
-		logger.Trace("signal stop:%v", sig)
-		stopped = stop()
+		stop()
+		stopped = true
 	default:
 		logger.Trace("receive signal:%v", sig)
 	}
