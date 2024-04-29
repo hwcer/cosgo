@@ -31,6 +31,7 @@ github.com/hwcer/logger v0.0.5 h1:zCXO/CH+uL7EXS1banfRWNpAMZ41Vn1Nbs1TAppUCJU=
 github.com/hwcer/logger v0.0.5/go.mod h1:x6L6wmod8ffnCDjLFHsRHP/4jC7HiKZkYuxZBfA+amg=
 github.com/hwcer/scc v0.0.4 h1:JCRYgXL3er77WYnRFquNtz6IASvgJiM4Ne1ORMYEFVQ=
 github.com/hwcer/scc v0.0.4/go.mod h1:wmcglOLfq8Va4ydSz+SK2auYx7/u6pinM8tfC3bXLSo=
+github.com/hwcer/scc v0.0.6/go.mod h1:wmcglOLfq8Va4ydSz+SK2auYx7/u6pinM8tfC3bXLSo=
 github.com/hwcer/schema v0.0.3 h1:yhUWGyX26ZHe/TY/OLHviyrTDfvjbs8l5KOtG31pR7M=
 github.com/hwcer/schema v0.0.3/go.mod h1:lq6NL2b7NhNHATiRzQONCVc8bKNTX0pu78RvBzd0R+E=
 github.com/klauspost/compress v1.17.7 h1:ehO88t2UGzQK66LMdE8tibEd1ErmzZjNEqWkjLAKQQg=
