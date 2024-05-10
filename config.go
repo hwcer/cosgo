@@ -63,29 +63,37 @@ func (this *config) Flags(name, shorthand string, value interface{}, usage strin
 
 func (this *config) init() (err error) {
 	pflag.Parse()
+	appName := Name()
 	if err = this.BindPFlags(pflag.CommandLine); err != nil {
 		return err
 	}
 	ext := Config.GetString(AppConfigNameConfigFileExt)
 	//通过基础配置读取  config.toml
-	if configFile := this.GetString(AppConfigNameConfigFileName); configFile != "" {
-		if s := filepath.Ext(configFile); s == "" {
-			configFile = strings.Join([]string{configFile, ext}, ".")
-		}
-		f := Abs(configFile)
+	if f, exist := fileExist(Abs("config"), ext); exist {
 		this.SetConfigFile(f)
-		if err = this.ReadInConfig(); err != nil {
+		if err = this.MergeInConfig(); err != nil {
 			return err
 		}
 	}
 	//通过程序名称读取 ${appName}.toml
-	appName := Name()
 	if f, exist := fileExist(appName, ext); exist {
 		this.SetConfigFile(f)
 		if err = this.MergeInConfig(); err != nil {
 			return err
 		}
 	}
+	//通过启动参数
+	if configFile := this.GetString(AppConfigNameConfigFileName); configFile != "" {
+		if s := filepath.Ext(configFile); s == "" {
+			configFile = strings.Join([]string{configFile, ext}, ".")
+		}
+		f := Abs(configFile)
+		this.SetConfigFile(f)
+		if err = this.MergeInConfig(); err != nil {
+			return err
+		}
+	}
+
 	debug := this.GetBool(AppDebug)
 	if this.IsSet(AppConfigNameLogsLevel) {
 		level := this.GetInt32(AppConfigNameLogsLevel)
@@ -135,7 +143,7 @@ func fileExist(name, ext string) (f string, exist bool) {
 	if strings.Contains(name, ".") {
 		file = name
 	} else {
-		file = strings.Join([]string{Name(), ext}, ".")
+		file = strings.Join([]string{name, ext}, ".")
 	}
 	f = Abs(file)
 	stat, err := os.Stat(f)
