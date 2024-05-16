@@ -56,6 +56,13 @@ func (this *Random) Multi(num int) (r []int32) {
 			}
 		}
 	}
-
 	return
+}
+
+func (this *Random) Range(f func(k, v int32) bool) {
+	for k, v := range this.items {
+		if !f(k, v) {
+			return
+		}
+	}
 }
