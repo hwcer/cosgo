@@ -18,6 +18,9 @@ func TestName(t *testing.T) {
 	for i := 0; i < 100000; i++ {
 		n := rnd.Roll()
 		r[n] += 1
+		if n == 4 {
+			t.Logf("第%v次出现极限命中", i)
+		}
 	}
 	logf(t, r, "Roll")
 
@@ -26,6 +29,9 @@ func TestName(t *testing.T) {
 	for i := 0; i < 100000; i++ {
 		n := rnd.Weight()
 		r2[n] += 1
+		if n == 4 {
+			t.Logf("第%v次出现极限命中", i)
+		}
 	}
 	logf(t, r2, "Weight")
 

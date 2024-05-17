@@ -40,9 +40,9 @@ func (this *Random) Roll() int32 {
 
 // Weight 权重算法,每一条执行一次随机，如果不命中继续下一条
 // 按照权重从小到大执行, 最后一条(权重最大)作为保底
-// 执行结果和 Roll 基本一致，
+// 执行结果和 Roll 基本一致
+// 优点是极限值出现的时机更加靠后,策划更加满意和放心
 // 缺点是更加消耗硬件
-// 优点是策划更加满意和放心
 func (this *Random) Weight() (r int32) {
 	if this.total == 0 {
 		return -1
