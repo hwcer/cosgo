@@ -7,12 +7,15 @@ import (
 
 var items = map[int32]int32{}
 
-func TestRoll(t *testing.T) {
+func init() {
 	items[1] = 5000
 	items[2] = 4500
 	items[3] = 490
 	items[4] = 8
 	items[5] = 2
+}
+
+func TestRoll(t *testing.T) {
 
 	r := map[int32]int32{}
 	rnd := New(items)
@@ -29,12 +32,6 @@ func TestRoll(t *testing.T) {
 }
 
 func TestWeight(t *testing.T) {
-	items[1] = 5000
-	items[2] = 4500
-	items[3] = 490
-	items[4] = 9
-	items[5] = 1
-
 	rnd := New(items)
 	r2 := map[int32]int32{}
 	var m int
