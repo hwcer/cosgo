@@ -1,57 +1,85 @@
 package random
 
+import (
+	"sort"
+)
+
 type Random struct {
-	items map[int32]int32
-	limit int32
+	items [][2]int32 //[id,weight]
+	total int32
 }
 
 func New(items map[int32]int32) *Random {
-	i := &Random{}
-	i.items = map[int32]int32{}
+	r := &Random{}
 	for k, v := range items {
-		i.items[k] = v
-		i.limit += v
+		r.items = append(r.items, [2]int32{k, v})
+		r.total += v
 	}
-	return i
+	sort.Slice(r.items, func(i, j int) bool {
+		return r.items[i][1] > r.items[j][1]
+	})
+	return r
 }
 
+// Roll 简单的权重算法，直接计算区间落点
 func (this *Random) Roll() int32 {
-	if this.limit == 0 {
+	if this.total == 0 {
 		return -1
 	}
-	rnd := int32(Roll(1, int(this.limit)))
-	for i, v := range this.items {
-		if v > 0 {
-			rnd -= v
+	rnd := Roll(1, this.total)
+	for _, v := range this.items {
+		if v[1] > 0 {
+			rnd -= v[1]
 			if rnd <= 0 {
-				return i
+				return v[0]
 			}
 		}
 	}
 	return -1
 }
 
+// Weight 权重算法,每一条执行一次随机，如果不命中继续下一条
+// 按照权重从小到大执行, 最后一条(权重最大)作为保底
+// 执行结果和 Roll 基本一致，
+// 缺点是更加消耗硬件
+// 优点是策划更加满意和放心
+func (this *Random) Weight() (r int32) {
+	if this.total == 0 {
+		return -1
+	}
+	for i := len(this.items) - 1; i >= 0; i-- {
+		v := this.items[i]
+		r = v[0]
+		if rnd := Roll(1, this.total); v[1] >= rnd {
+			return
+		}
+	}
+	return
+}
+
 // Multi 随机多个不重复
 func (this *Random) Multi(num int) (r []int32) {
 	if num >= len(this.items) {
-		for k, _ := range this.items {
-			r = append(r, k)
+		for _, v := range this.items {
+			r = append(r, v[0])
 		}
 		return
 	}
-	items := make(map[int32]int32, len(this.items))
-	limit := this.limit
-	for k, v := range this.items {
-		items[k] = v
-	}
+	items := make([][2]int32, len(this.items))
+	limit := this.total
+	copy(items, this.items)
+
 	for i := 0; i < num; i++ {
-		rnd := int32(Roll(1, int(limit)))
-		for j, v := range this.items {
-			rnd -= v
+		rnd := Roll(1, limit)
+		for j, v := range items {
+			if v[1] <= 0 {
+				continue
+			}
+			rnd -= v[1]
 			if rnd <= 0 {
-				r = append(r, j)
-				delete(items, j)
-				limit -= v
+				r = append(r, v[0])
+				limit -= v[1]
+				items[j] = [2]int32{v[0], 0}
 				break
 			}
 		}
@@ -60,8 +88,8 @@ func (this *Random) Multi(num int) (r []int32) {
 }
 
 func (this *Random) Range(f func(k, v int32) bool) {
-	for k, v := range this.items {
-		if !f(k, v) {
+	for _, v := range this.items {
+		if !f(v[0], v[1]) {
 			return
 		}
 	}

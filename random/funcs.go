@@ -2,19 +2,19 @@ package random
 
 import "math/rand"
 
-func Roll(a, b int) int {
+func Roll(a, b int32) int32 {
 	if b <= a {
 		return a
 	}
-	return a + rand.Intn(b-a)
+	return a + rand.Int31n(b-a+1)
 }
 
 // Probability 独立概率，args单位，默认万分比，，，百分比传入100
-func Probability(per int, args ...int) bool {
+func Probability(per int32, args ...int32) bool {
 	if per <= 0 {
 		return false
 	}
-	var unit = 10000
+	var unit = int32(10000)
 	if len(args) > 0 && args[0] != 0 {
 		unit = args[0]
 	}
@@ -43,7 +43,7 @@ func Relative(items map[int32]int32) int32 {
 	if total == 0 {
 		return -1
 	}
-	rnd := int32(Roll(1, int(total)))
+	rnd := int32(Roll(1, total))
 	for i, v := range items {
 		if v > 0 {
 			rnd -= v
@@ -56,7 +56,7 @@ func Relative(items map[int32]int32) int32 {
 }
 
 // RelativeMulti 相对概率，权重 返回多个,repeat 是否可以重复
-func RelativeMulti(items map[int32]int32, num int, repeat ...bool) []int32 {
+func RelativeMulti(items map[int32]int32, num int32, repeat ...bool) []int32 {
 	var total int32 = 0
 	for _, v := range items {
 		if v > 0 {
@@ -72,8 +72,8 @@ func RelativeMulti(items map[int32]int32, num int, repeat ...bool) []int32 {
 		re = true
 	}
 	ret := make([]int32, num)
-	for i := 0; i < num; i++ {
-		rnd := int32(Roll(1, int(total)))
+	for i := 0; i < int(num); i++ {
+		rnd := int32(Roll(1, total))
 		for it, v := range items {
 			if v > 0 {
 				rnd -= v
