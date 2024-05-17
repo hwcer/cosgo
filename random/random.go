@@ -5,20 +5,37 @@ import (
 )
 
 type Random struct {
-	items [][2]int32 //[id,weight]
+	items [][3]int32 //[id,Roll,Weight]
 	total int32
 }
 
 func New(items map[int32]int32) *Random {
 	r := &Random{}
 	for k, v := range items {
-		r.items = append(r.items, [2]int32{k, v})
+		r.items = append(r.items, [3]int32{k, v, 0})
 		r.total += v
 	}
-	sort.Slice(r.items, func(i, j int) bool {
-		return r.items[i][1] > r.items[j][1]
-	})
+	r.init()
 	return r
+}
+
+func (this *Random) init() {
+	sort.Slice(this.items, func(i, j int) bool {
+		return this.items[i][1] > this.items[j][1]
+	})
+	x := this.total
+	var no int32
+	for i, v := range this.items {
+		p := v[1]
+		if no > 0 {
+			p = p * x / no
+			no = no * (x - p) / x
+		} else {
+			no = x - p
+		}
+		v[2] = p
+		this.items[i] = v
+	}
 }
 
 // Roll 简单的权重算法，直接计算区间落点
@@ -42,15 +59,13 @@ func (this *Random) Roll() int32 {
 // 按照权重从小到大执行, 最后一条(权重最大)作为保底
 // 执行结果和 Roll 基本一致
 // 优点是极限值出现的时机更加靠后,策划更加满意和放心
-// 缺点是更加消耗硬件
 func (this *Random) Weight() (r int32) {
 	if this.total == 0 {
 		return -1
 	}
-	for i := len(this.items) - 1; i >= 0; i-- {
-		v := this.items[i]
+	for _, v := range this.items {
 		r = v[0]
-		if rnd := Roll(1, this.total); v[1] >= rnd {
+		if rnd := Roll(1, this.total); v[2] >= rnd {
 			return
 		}
 	}
@@ -65,7 +80,7 @@ func (this *Random) Multi(num int) (r []int32) {
 		}
 		return
 	}
-	items := make([][2]int32, len(this.items))
+	items := make([][3]int32, len(this.items))
 	limit := this.total
 	copy(items, this.items)
 
@@ -79,7 +94,7 @@ func (this *Random) Multi(num int) (r []int32) {
 			if rnd <= 0 {
 				r = append(r, v[0])
 				limit -= v[1]
-				items[j] = [2]int32{v[0], 0}
+				items[j] = [3]int32{v[0], 0, 0}
 				break
 			}
 		}

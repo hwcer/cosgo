@@ -7,37 +7,49 @@ import (
 
 var items = map[int32]int32{}
 
-func TestName(t *testing.T) {
-	items[1] = 8000
-	items[2] = 1000
-	items[3] = 999
-	items[4] = 1
+func TestRoll(t *testing.T) {
+	items[1] = 5000
+	items[2] = 4500
+	items[3] = 490
+	items[4] = 8
+	items[5] = 2
 
 	r := map[int32]int32{}
 	rnd := New(items)
-	for i := 0; i < 100000; i++ {
+
+	var m int
+	for i := 1; i <= 1000000; i++ {
 		n := rnd.Roll()
 		r[n] += 1
-		if n == 4 {
-			t.Logf("第%v次出现极限命中", i)
+		if n == int32(len(items)) && m == 0 {
+			m = i
 		}
 	}
-	logf(t, r, "Roll")
-
-	t.Logf("-----------Weight--------------")
-	r2 := map[int32]int32{}
-	for i := 0; i < 100000; i++ {
-		n := rnd.Weight()
-		r2[n] += 1
-		if n == 4 {
-			t.Logf("第%v次出现极限命中", i)
-		}
-	}
-	logf(t, r2, "Weight")
-
+	logf(t, r, m)
 }
 
-func logf(t *testing.T, r map[int32]int32, name string) {
+func TestWeight(t *testing.T) {
+	items[1] = 5000
+	items[2] = 4500
+	items[3] = 490
+	items[4] = 9
+	items[5] = 1
+
+	rnd := New(items)
+	r2 := map[int32]int32{}
+	var m int
+	for i := 1; i <= 1000000; i++ {
+		n := rnd.Weight()
+		r2[n] += 1
+		if n == int32(len(items)) && m == 0 {
+			m = i
+		}
+	}
+	logf(t, r2, m)
+
+}
+func logf(t *testing.T, r map[int32]int32, m int) {
+	t.Logf("首次出现极限命中发生在第%v次", m)
 	var sr [][2]int32
 	for k, v := range r {
 		sr = append(sr, [2]int32{k, v})
@@ -46,6 +58,6 @@ func logf(t *testing.T, r map[int32]int32, name string) {
 		return sr[i][0] < sr[j][0]
 	})
 	for _, v := range sr {
-		t.Logf("%v key:%v,Num:%v,Weight:%v", name, v[0], v[1], items[v[0]])
+		t.Logf("key:%v,Num:%v,Weight:%v", v[0], v[1], items[v[0]])
 	}
 }
