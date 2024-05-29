@@ -22,6 +22,8 @@ type Client struct {
 	middleware []middleware
 }
 
+// Use 发放请求前中间件
+// 使用 OAuth.SetHeader 作为中间件自动签名
 func (c *Client) Use(m middleware) {
 	c.middleware = append(c.middleware, m)
 }

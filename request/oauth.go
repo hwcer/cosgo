@@ -27,14 +27,15 @@ const (
 )
 
 func NewOAuth(key, secret string) *OAuth {
-	oauth := &OAuth{key: key, secret: secret, Strict: false, Timeout: 0}
-	oauth.Client = New()
-	oauth.Client.Use(oauth.setHeader)
+	oauth := &OAuth{key: key, secret: secret, Strict: false, Timeout: 30}
 	return oauth
 }
 
+type Header interface {
+	Get(key string) string
+}
+
 type OAuth struct {
-	*Client
 	key     string
 	secret  string
 	Strict  bool  //严格模式，body会参与签名
@@ -43,7 +44,8 @@ type OAuth struct {
 
 var oauthParams = []string{"oauth_consumer_key", "oauth_nonce", "oauth_timestamp", "oauth_version", "oauth_signature_method"}
 
-func (this *OAuth) setHeader(req *http.Request) (err error) {
+// SetHeader 自动设置HTTP请求头
+func (this *OAuth) SetHeader(req *http.Request) (err error) {
 	header := this.NewOAuthParams()
 	var bodyBytes []byte
 	if this.Strict {
@@ -55,7 +57,7 @@ func (this *OAuth) setHeader(req *http.Request) (err error) {
 			return
 		}
 	}
-	signature := this.Signature(req.Method, Address(req), header, string(bodyBytes))
+	signature := this.Signature(Address(req), header, string(bodyBytes))
 	header[OAuthSignatureName] = signature
 	for k, v := range header {
 		req.Header.Add(k, v)
@@ -73,13 +75,13 @@ func (this *OAuth) NewOAuthParams() map[string]string {
 	return args
 }
 
-// 签名Signature
+// Signature 签名Signature
 // method GET POST
 // body JSON字符串
 //
 //url:protocol://hostname/path
-func (this *OAuth) Signature(method, address string, oauth map[string]string, body string) string {
-	arr := []string{method, address}
+func (this *OAuth) Signature(address string, oauth map[string]string, body string) string {
+	arr := []string{address}
 	for _, k := range oauthParams {
 		arr = append(arr, k+"="+oauth[k])
 	}
@@ -89,22 +91,23 @@ func (this *OAuth) Signature(method, address string, oauth map[string]string, bo
 }
 
 // Verify http(s)验签
-func (this *OAuth) Verify(req *http.Request) (err error) {
-	signature := req.Header.Get(OAuthSignatureName)
+// address  protocol://hostname/path
+func (this *OAuth) Verify(address string, header Header, body io.Reader) (r io.ReadCloser, err error) {
+	signature := header.Get(OAuthSignatureName)
 	if signature == "" {
-		return errors.New("OAuth Signature empty")
+		return nil, errors.New("OAuth Signature empty")
 	}
 
 	OAuthMap := make(map[string]string)
 	for _, k := range oauthParams {
-		v := req.Header.Get(k)
+		v := header.Get(k)
 		if v == "" {
-			return errors.New("OAuth Params empty")
+			return nil, errors.New("OAuth Params empty")
 		}
 		OAuthMap[k] = v
 	}
 	if OAuthMap["oauth_consumer_key"] != this.key {
-		return errors.New("oauth_consumer_key error")
+		return nil, errors.New("oauth_consumer_key error")
 	}
 
 	//验证时间
@@ -112,29 +115,28 @@ func (this *OAuth) Verify(req *http.Request) (err error) {
 		var oauthTimeStamp int64
 		oauthTimeStamp, err = strconv.ParseInt(OAuthMap["oauth_timestamp"], 10, 64)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		requestTime := time.Now().Unix() - oauthTimeStamp
 		if requestTime < 0 || requestTime > int64(this.Timeout) {
-			return errors.New("OAuth timeout")
+			return nil, errors.New("OAuth timeout")
 		}
 	}
 
-	var body string
-	if this.Strict && req.Body != nil {
+	var data string
+	if this.Strict && body != nil {
 		var v []byte
-		v, err = io.ReadAll(req.Body)
+		v, err = io.ReadAll(body)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		req.Body = io.NopCloser(bytes.NewReader(v))
-		body = string(v)
+		r = io.NopCloser(bytes.NewReader(v))
+		data = string(v)
 	}
-
-	if signature != this.Signature(req.Method, Address(req), OAuthMap, body) {
-		return errors.New("OAuth signature error")
+	if signature != this.Signature(address, OAuthMap, data) {
+		return nil, errors.New("OAuth signature error")
 	}
-	return nil
+	return
 }
 
 func HMACSHA1(key, data string) string {
