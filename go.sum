@@ -35,6 +35,7 @@ github.com/hwcer/scc v0.0.6/go.mod h1:wmcglOLfq8Va4ydSz+SK2auYx7/u6pinM8tfC3bXLS
 github.com/hwcer/scc v0.0.7/go.mod h1:wmcglOLfq8Va4ydSz+SK2auYx7/u6pinM8tfC3bXLSo=
 github.com/hwcer/schema v0.0.3 h1:yhUWGyX26ZHe/TY/OLHviyrTDfvjbs8l5KOtG31pR7M=
 github.com/hwcer/schema v0.0.3/go.mod h1:lq6NL2b7NhNHATiRzQONCVc8bKNTX0pu78RvBzd0R+E=
+github.com/hwcer/schema v0.0.4/go.mod h1:lq6NL2b7NhNHATiRzQONCVc8bKNTX0pu78RvBzd0R+E=
 github.com/klauspost/compress v1.17.7 h1:ehO88t2UGzQK66LMdE8tibEd1ErmzZjNEqWkjLAKQQg=
 github.com/klauspost/compress v1.17.7/go.mod h1:Di0epgTjJY877eYKx5yC51cX2A2Vl2ibi7bDH9ttBbw=
 github.com/kr/pretty v0.2.1/go.mod h1:ipq/a2n7PKx3OHsz4KJII5eveXtPO4qwEXGdVfWzfnI=
