@@ -64,6 +64,18 @@ func (this *Random) Roll() int32 {
 	}
 	return -1
 }
+func (this *Random) Weight() (r int32) {
+	if this.total == 0 {
+		return -1
+	}
+	for _, v := range this.items {
+		r = v.GetKey()
+		if n := Roll(1, this.total); v.GetVal() >= n {
+			return
+		}
+	}
+	return
+}
 
 // Multi 随机多个不重复
 func (this *Random) Multi(num int) (r []int32) {
