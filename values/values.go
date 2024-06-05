@@ -46,19 +46,33 @@ func (m Values) GetInt64(key string) int64 {
 	if !ok {
 		return 0
 	}
-	switch v.(type) {
+	switch d := v.(type) {
 	case int:
-		return int64(v.(int))
+		return int64(d)
+	case uint:
+		return int64(d)
+	case int8:
+		return int64(d)
+	case uint8:
+		return int64(d)
+	case int16:
+		return int64(d)
+	case uint16:
+		return int64(d)
 	case int32:
-		return int64(v.(int32))
+		return int64(d)
+	case uint32:
+		return int64(d)
 	case int64:
-		return v.(int64)
+		return int64(d)
+	case uint64:
+		return int64(d)
 	case float32:
-		return int64(v.(float32))
+		return int64(d)
 	case float64:
-		return int64(v.(float64))
+		return int64(d)
 	case string:
-		temp, _ := strconv.ParseInt(v.(string), 10, 64)
+		temp, _ := strconv.ParseInt(d, 10, 64)
 		return temp
 	default:
 		return 0
