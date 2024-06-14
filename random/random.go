@@ -19,6 +19,7 @@ func (this *Data) GetVal() int32 {
 type Less func(a, b *Data) bool
 
 type Random struct {
+	less  Less
 	items []*Data //[id,Roll]
 	total int32
 }
@@ -29,17 +30,13 @@ func New(items map[int32]int32, less ...Less) *Random {
 		r.items = append(r.items, &Data{Key: k, Val: v})
 		r.total += v
 	}
-	var f Less
 	if len(less) > 0 {
-		f = less[0]
+		r.less = less[0]
 	} else {
-		f = r.less
+		r.less = func(i, j *Data) bool { return i.Val > j.Val }
 	}
-	r.Sort(f)
+	r.Sort(r.less)
 	return r
-}
-func (this *Random) less(i, j *Data) bool {
-	return i.Val > j.Val
 }
 
 func (this *Random) Sort(f Less) {
@@ -113,4 +110,14 @@ func (this *Random) Range(f func(k, v int32) bool) {
 			return
 		}
 	}
+}
+
+func (this *Random) Filter(filter func(k, v int32) bool) *Random {
+	items := make(map[int32]int32)
+	for _, d := range this.items {
+		if filter(d.Key, d.Val) {
+			items[d.Key] = d.Val
+		}
+	}
+	return New(items, this.less)
 }
