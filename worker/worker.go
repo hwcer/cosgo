@@ -10,10 +10,8 @@ import (
 
 var ErrTimeout = values.Errorf(0, "timeout")
 
-func New(cap int) *Worker {
-	i := &Worker{}
-	i.c = make(chan *message, cap)
-	return i
+func New() *Worker {
+	return &Worker{}
 }
 
 type Handle func(args any) error
@@ -46,7 +44,8 @@ func (this *Worker) Call(handle Handle, args any) error {
 	return this.wait(msg)
 }
 
-func (this *Worker) Start() {
+func (this *Worker) Start(cap int) {
+	this.c = make(chan *message, cap)
 	scc.CGO(this.process)
 }
 

@@ -48,3 +48,12 @@ func Sprintf(format interface{}, args ...interface{}) (r string) {
 	}
 	return
 }
+
+func IncludeNotPrintableChar(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if v := s[i]; v < 32 || v == 127 { //空格32
+			return true
+		}
+	}
+	return false
+}
