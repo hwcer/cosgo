@@ -5,44 +5,50 @@ import (
 	"strconv"
 )
 
-type Values map[string]interface{}
+type Values map[string]any
 
-func (m Values) Has(key string) bool {
-	_, ok := m[key]
+func (m Values) rk(k any) string {
+	switch r := k.(type) {
+	case string:
+		return r
+	case int:
+		return strconv.Itoa(r)
+	case int32:
+		return strconv.Itoa(int(r))
+	case int64:
+		return strconv.FormatInt(r, 10)
+	default:
+		return fmt.Sprint(r)
+	}
+}
+
+func (m Values) Has(k any) bool {
+	rk := m.rk(k)
+	_, ok := m[rk]
 	return ok
 }
 
-func (m Values) Get(key string) interface{} {
-	return m[key]
+func (m Values) Get(k any) any {
+	rk := m.rk(k)
+	return m[rk]
 }
 
-func (m Values) Set(key string, val interface{}) interface{} {
-	m[key] = val
-	return val
+func (m Values) Set(k any, v any) {
+	rk := m.rk(k)
+	m[rk] = v
 }
 
-//func (m Values) Add(key string, val int64) (r int64) {
-//	r = m.GetInt64(key) + val
-//	m[key] = r
-//	return
-//}
-//
-//func (m Values) Sub(key string, val int64) (r int64) {
-//	r = m.GetInt64(key) - val
-//	m[key] = r
-//	return
-//}
-
-func (m Values) GetInt(key string) int {
-	return int(m.GetInt64(key))
+func (m Values) GetInt(k any) int {
+	return int(m.GetInt64(k))
 }
 
-func (m Values) GetInt32(key string) int32 {
-	return int32(m.GetInt64(key))
+func (m Values) GetInt32(k any) int32 {
+	return int32(m.GetInt64(k))
 }
 
-func (m Values) GetInt64(key string) int64 {
-	v, ok := m[key]
+func (m Values) GetInt64(k any) int64 {
+	rk := m.rk(k)
+	v, ok := m[rk]
 	if !ok {
 		return 0
 	}
@@ -79,12 +85,13 @@ func (m Values) GetInt64(key string) int64 {
 	}
 }
 
-func (m Values) GetFloat32(key string) float32 {
-	return float32(m.GetInt64(key))
+func (m Values) GetFloat32(k any) float32 {
+	return float32(m.GetInt64(k))
 }
 
-func (m Values) GetFloat64(key string) (r float64) {
-	v, ok := m[key]
+func (m Values) GetFloat64(k any) (r float64) {
+	rk := m.rk(k)
+	v, ok := m[rk]
 	if !ok {
 		return 0
 	}
@@ -96,12 +103,13 @@ func (m Values) GetFloat64(key string) (r float64) {
 	case string:
 		r, _ = strconv.ParseFloat(v.(string), 10)
 	default:
-		return float64(m.GetInt64(key))
+		return float64(m.GetInt64(k))
 	}
 	return
 }
-func (m Values) GetString(key string) (r string) {
-	v, ok := m[key]
+func (m Values) GetString(k any) (r string) {
+	rk := m.rk(k)
+	v, ok := m[rk]
 	if !ok {
 		return ""
 	}
@@ -109,7 +117,7 @@ func (m Values) GetString(key string) (r string) {
 	case string:
 		r = v.(string)
 	default:
-		r = fmt.Sprintf("%v", v)
+		r = fmt.Sprint("%v", v)
 	}
 	return
 }
