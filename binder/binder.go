@@ -1,8 +1,6 @@
 package binder
 
 import (
-	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -19,15 +17,11 @@ type Interface interface {
 	Unmarshal([]byte, interface{}) error
 }
 
-func New(t string) (b *Binder) {
-	h := Handle(t)
-	if h != nil {
-		b = &Binder{handle: h, mime: t}
-	}
-	return
+func New(t string) (b Interface) {
+	return Get(t)
 }
 
-func Handle(t string) (h Interface) {
+func Get(t string) (h Interface) {
 	ct, _, err := mime.ParseMediaType(t)
 	if err == nil {
 		h = binderMap[ct]
@@ -44,7 +38,7 @@ func Register(t string, handle Interface) error {
 }
 
 func Encode(w io.Writer, i interface{}, t string) error {
-	handle := Handle(t)
+	handle := Get(t)
 	if handle == nil {
 		return errors.New("name not exist")
 	}
@@ -52,7 +46,7 @@ func Encode(w io.Writer, i interface{}, t string) error {
 }
 
 func Decode(r io.Reader, i interface{}, t string) error {
-	handle := Handle(t)
+	handle := Get(t)
 	if handle == nil {
 		return errors.New("name not exist")
 	}
@@ -60,75 +54,76 @@ func Decode(r io.Reader, i interface{}, t string) error {
 }
 
 func Marshal(i interface{}, t string) ([]byte, error) {
-	handle := Handle(t)
+	handle := Get(t)
 	if handle == nil {
 		return nil, errors.New("type not exist")
 	}
 	return handle.Marshal(i)
 }
 func Unmarshal(b []byte, i interface{}, t string) error {
-	handle := Handle(t)
+	handle := Get(t)
 	if handle == nil {
 		return errors.New("type not exist")
 	}
 	return handle.Unmarshal(b, i)
 }
 
-// Binder 只对非基础类型进行序列化,一般用于内部通信,双方明确指定类型
-type Binder struct {
-	mime   string
-	handle Interface
-}
-
-func (this *Binder) String() string {
-	return this.mime
-}
-
-func (this *Binder) Encode(w io.Writer, i interface{}) (err error) {
-	switch v := i.(type) {
-	case []byte:
-		_, err = w.Write(v)
-	case string:
-		_, err = w.Write([]byte(v))
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool, complex64, complex128:
-		err = binary.Write(w, binary.BigEndian, v)
-	default:
-		err = this.handle.Encode(w, i)
-	}
-	return
-}
-
-func (this *Binder) Decode(r io.Reader, i interface{}) (err error) {
-	switch v := i.(type) {
-	case []byte:
-		_, err = io.ReadFull(r, v)
-	case *[]byte:
-		_, err = io.ReadFull(r, *v)
-	case *string:
-		var b []byte
-		if b, err = io.ReadAll(r); err == nil {
-			*v = string(b)
-		}
-	case *int, *int8, *int16, *int32, *int64, *uint, *uint8, *uint16, *uint32, *uint64, *float32, *float64, *bool, *complex64, *complex128:
-		err = binary.Read(r, binary.BigEndian, i)
-	default:
-		err = this.handle.Decode(r, i)
-	}
-	return
-}
-
-// Marshal 将一个对象放入Message.data
-func (this *Binder) Marshal(i interface{}) (b []byte, err error) {
-	buf := &bytes.Buffer{}
-	if err = this.Encode(buf, i); err == nil {
-		b = buf.Bytes()
-	}
-	return
-}
-
-// Unmarshal 解析Message body
-func (this *Binder) Unmarshal(b []byte, i interface{}) (err error) {
-	buf := bytes.NewBuffer(b)
-	err = this.Decode(buf, i)
-	return
-}
+//
+//// Binder 只对非基础类型进行序列化,一般用于内部通信,双方明确指定类型
+//type Binder struct {
+//	mime   string
+//	handle Interface
+//}
+//
+//func (this *Binder) String() string {
+//	return this.mime
+//}
+//
+//func (this *Binder) Encode(w io.Writer, i interface{}) (err error) {
+//	switch v := i.(type) {
+//	case []byte:
+//		_, err = w.Write(v)
+//	case string:
+//		_, err = w.Write([]byte(v))
+//	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, bool, complex64, complex128:
+//		err = binary.Write(w, binary.BigEndian, v)
+//	default:
+//		err = this.handle.Encode(w, i)
+//	}
+//	return
+//}
+//
+//func (this *Binder) Decode(r io.Reader, i interface{}) (err error) {
+//	switch v := i.(type) {
+//	case []byte:
+//		_, err = io.ReadFull(r, v)
+//	case *[]byte:
+//		_, err = io.ReadFull(r, *v)
+//	case *string:
+//		var b []byte
+//		if b, err = io.ReadAll(r); err == nil {
+//			*v = string(b)
+//		}
+//	case *int, *int8, *int16, *int32, *int64, *uint, *uint8, *uint16, *uint32, *uint64, *float32, *float64, *bool, *complex64, *complex128:
+//		err = binary.Read(r, binary.BigEndian, i)
+//	default:
+//		err = this.handle.Decode(r, i)
+//	}
+//	return
+//}
+//
+//// Marshal 将一个对象放入Message.data
+//func (this *Binder) Marshal(i interface{}) (b []byte, err error) {
+//	buf := &bytes.Buffer{}
+//	if err = this.Encode(buf, i); err == nil {
+//		b = buf.Bytes()
+//	}
+//	return
+//}
+//
+//// Unmarshal 解析Message body
+//func (this *Binder) Unmarshal(b []byte, i interface{}) (err error) {
+//	buf := bytes.NewBuffer(b)
+//	err = this.Decode(buf, i)
+//	return
+//}
