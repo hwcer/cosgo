@@ -117,7 +117,7 @@ func (m Values) GetString(k any) (r string) {
 	case string:
 		r = v.(string)
 	default:
-		r = fmt.Sprint("%v", v)
+		r = fmt.Sprintf("%v", v)
 	}
 	return
 }
