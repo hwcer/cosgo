@@ -164,7 +164,7 @@ func (this *crypto) AESDecrypt(chipper, secret string, ivs ...string) (string, e
 
 // GCMEncrypt
 // AES-GCM（Galois/Counter Mode），因为它结合了AES的高强度加密和GCM的认证机制，能够提供很好的安全性并且生成的密文相对较短。
-func (this *crypto) GCMEncrypt(text string, secret string) (string, error) {
+func (this *crypto) GCMEncrypt(text string, secret string, encode *base64.Encoding) (string, error) {
 	//key := []byte("32-byte-long-key-here") // 应该是一个32字节的密钥
 	key := []byte(secret)
 	plaintext := []byte(text)
@@ -182,14 +182,20 @@ func (this *crypto) GCMEncrypt(text string, secret string) (string, error) {
 	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
 		return "", err
 	}
-
 	ciphertext := aesgcm.Seal(nonce, nonce, plaintext, nil)
-	return base64.StdEncoding.EncodeToString(ciphertext), nil
+	if encode == nil {
+		encode = base64.StdEncoding
+	}
+
+	return encode.EncodeToString(ciphertext), nil
 }
 
-func (this *crypto) GCMDecrypt(encryptedText string, secret string) (string, error) {
+func (this *crypto) GCMDecrypt(encryptedText string, secret string, encode *base64.Encoding) (string, error) {
 	key := []byte(secret) // 应该是一个32字节的密钥
-	ciphertext, err := base64.StdEncoding.DecodeString(encryptedText)
+	if encode == nil {
+		encode = base64.StdEncoding
+	}
+	ciphertext, err := encode.DecodeString(encryptedText)
 	if err != nil {
 		return "", err
 	}
