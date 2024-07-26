@@ -18,6 +18,18 @@ func (a *Attach) MarshalJSON() ([]byte, error) {
 	r := []byte(*a)
 	return r, nil
 }
+func (a *Attach) GetInt32() (r int32) {
+	v := a.GetInt64()
+	return int32(v)
+}
+func (a *Attach) GetInt64() (r int64) {
+	_ = a.Unmarshal(&r)
+	return
+}
+func (a *Attach) GetString() (r string) {
+	_ = a.Unmarshal(&r)
+	return
+}
 
 // Marshal 将一个对象放入Attach TODO len(*a) == 0
 func (a *Attach) Marshal(v interface{}) error {

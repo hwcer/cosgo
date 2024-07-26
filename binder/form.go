@@ -65,6 +65,7 @@ func (f *formBinding) Unmarshal(b []byte, i interface{}) (err error) {
 	if err != nil {
 		return
 	}
+
 	//values.Values
 	if d, ok := i.(*values.Values); ok {
 		for k, _ := range vs {
@@ -93,13 +94,13 @@ func (f *formBinding) Unmarshal(b []byte, i interface{}) (err error) {
 	for _, field := range s.Fields {
 		switch field.IndirectFieldType.Kind() {
 		case reflect.String:
-			field.Set(vf, data.GetString(field.DBName))
+			field.Set(vf, data.GetString(field.Name))
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			field.Set(vf, data.GetInt64(field.DBName))
+			field.Set(vf, data.GetInt64(field.Name))
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			field.Set(vf, data.GetInt64(field.DBName))
+			field.Set(vf, data.GetInt64(field.Name))
 		case reflect.Float32, reflect.Float64:
-			field.Set(vf, data.GetFloat64(field.DBName))
+			field.Set(vf, data.GetFloat64(field.Name))
 		}
 	}
 	return nil
