@@ -92,7 +92,7 @@ func (this *OAuth) Signature(address string, oauth map[string]string, body strin
 
 // Verify http(s)验签
 // address  protocol://hostname/path
-func (this *OAuth) Verify(address string, header Header, body io.Reader) (r io.ReadCloser, err error) {
+func (this *OAuth) Verify(address string, header Header, body io.Reader) (r io.Reader, err error) {
 	signature := header.Get(OAuthSignatureName)
 	if signature == "" {
 		return nil, errors.New("OAuth Signature empty")
@@ -125,13 +125,12 @@ func (this *OAuth) Verify(address string, header Header, body io.Reader) (r io.R
 
 	var data string
 	if this.Strict && body != nil {
-		var v []byte
-		v, err = io.ReadAll(body)
-		if err != nil {
+		b := bytes.NewBuffer(nil)
+		if _, err = b.ReadFrom(body); err != nil {
 			return nil, err
 		}
-		r = io.NopCloser(bytes.NewReader(v))
-		data = string(v)
+		r = b
+		data = b.String()
 	}
 	if signature != this.Signature(address, OAuthMap, data) {
 		return nil, errors.New("OAuth signature error")

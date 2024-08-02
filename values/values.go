@@ -46,37 +46,7 @@ func (m Values) GetInt64(key string) int64 {
 	if !ok {
 		return 0
 	}
-	switch d := v.(type) {
-	case int:
-		return int64(d)
-	case uint:
-		return int64(d)
-	case int8:
-		return int64(d)
-	case uint8:
-		return int64(d)
-	case int16:
-		return int64(d)
-	case uint16:
-		return int64(d)
-	case int32:
-		return int64(d)
-	case uint32:
-		return int64(d)
-	case int64:
-		return int64(d)
-	case uint64:
-		return int64(d)
-	case float32:
-		return int64(d)
-	case float64:
-		return int64(d)
-	case string:
-		temp, _ := strconv.ParseInt(d, 10, 64)
-		return temp
-	default:
-		return 0
-	}
+	return ParseInt64(v)
 }
 
 func (m Values) GetFloat32(key string) float32 {
@@ -88,6 +58,7 @@ func (m Values) GetFloat64(key string) (r float64) {
 	if !ok {
 		return 0
 	}
+<<<<<<< Updated upstream
 	switch v.(type) {
 	case float32:
 		r = float64(v.(float32))
@@ -99,17 +70,14 @@ func (m Values) GetFloat64(key string) (r float64) {
 		return float64(m.GetInt64(key))
 	}
 	return
+=======
+	return ParseFloat64(v)
+>>>>>>> Stashed changes
 }
 func (m Values) GetString(key string) (r string) {
 	v, ok := m[key]
 	if !ok {
 		return ""
 	}
-	switch v.(type) {
-	case string:
-		r = v.(string)
-	default:
-		r = fmt.Sprintf("%v", v)
-	}
-	return
+	return ParseString(v)
 }

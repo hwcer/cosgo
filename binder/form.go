@@ -2,7 +2,11 @@ package binder
 
 import (
 	"errors"
+<<<<<<< Updated upstream
 	"github.com/hwcer/cosgo/values"
+=======
+	"fmt"
+>>>>>>> Stashed changes
 	"github.com/hwcer/schema"
 	"io"
 	"net/url"
@@ -48,6 +52,7 @@ func (f *formBinding) Unmarshal(b []byte, i interface{}) (err error) {
 	if err != nil {
 		return
 	}
+<<<<<<< Updated upstream
 	//values.Values
 	if d, ok := i.(*values.Values); ok {
 		for k, _ := range vs {
@@ -67,13 +72,29 @@ func (f *formBinding) Unmarshal(b []byte, i interface{}) (err error) {
 	data := values.Values{}
 	for k, _ := range vs {
 		data.Set(k, vs.Get(k))
+=======
+	return f.UnmarshalFromValues(vs, i)
+}
+
+func (f *formBinding) UnmarshalFromValues(vs url.Values, i interface{}) (err error) {
+	if len(vs) == 0 {
+		return nil
+>>>>>>> Stashed changes
 	}
 	vf := reflect.ValueOf(i)
+	if iv := reflect.Indirect(vf); iv.Kind() == reflect.Map {
+		for k, v := range vs {
+			iv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v))
+		}
+		return nil
+	}
+
 	s, err := formBindingSchema.Parse(vf)
 	if err != nil {
 		return nil
 	}
 	for _, field := range s.Fields {
+<<<<<<< Updated upstream
 		switch field.IndirectFieldType.Kind() {
 		case reflect.String:
 			field.Set(vf, data.GetString(field.DBName))
@@ -83,7 +104,52 @@ func (f *formBinding) Unmarshal(b []byte, i interface{}) (err error) {
 			field.Set(vf, data.GetInt64(field.DBName))
 		case reflect.Float32, reflect.Float64:
 			field.Set(vf, data.GetFloat64(field.DBName))
+=======
+		if err = field.Set(vf, vs.Get(field.JsonName())); err != nil {
+			return err
+>>>>>>> Stashed changes
 		}
 	}
 	return nil
 }
+<<<<<<< Updated upstream
+=======
+
+func (this *formBinding) ToMap(v any) (map[string]string, error) {
+	vf := reflect.Indirect(reflect.ValueOf(v))
+	switch vf.Kind() {
+	case reflect.Struct:
+		return this.fromStruct(v)
+	case reflect.Map:
+		return this.fromMap(vf)
+	default:
+		return nil, errors.New("unsupported type")
+	}
+}
+
+func (this *formBinding) fromMap(vf reflect.Value) (map[string]string, error) {
+	r := make(map[string]string)
+	iter := vf.MapRange()
+	for iter.Next() {
+		k := fmt.Sprintf("%v", iter.Key().Interface())
+		r[k] = fmt.Sprintf("%v", iter.Value().Interface())
+	}
+	return r, nil
+}
+func (this *formBinding) fromStruct(i any) (map[string]string, error) {
+	vs := make(map[string]any)
+	b, err := Json.Marshal(i)
+	if err != nil {
+		return nil, err
+	}
+	err = Json.Unmarshal(b, &vs)
+	if err != nil {
+		return nil, err
+	}
+	r := make(map[string]string)
+	for k, _ := range vs {
+		r[k] = fmt.Sprintf("%v", vs[k])
+	}
+	return r, nil
+}
+>>>>>>> Stashed changes
