@@ -4,10 +4,11 @@ type EventType int32
 type EventFunc func() error
 
 const (
-	EventTypStarting EventType = iota
-	EventTypStarted
-	EventTypStopping
-	EventTypStopped
+	EventTypStart   EventType = iota //开始启动
+	EventTypLoader                   //(Init)加载完成
+	EventTypReady                    //启动完成
+	EventTypClosing                  //开始关闭
+	EventTypStopped                  //停止之后
 )
 
 var events map[EventType][]EventFunc

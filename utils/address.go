@@ -24,7 +24,7 @@ func (this *Address) Parse(address string) {
 	}
 	pair := strings.Split(address, ":")
 	this.Host = pair[0]
-	if len(pair) > 0 {
+	if len(pair) > 1 {
 		this.Port, _ = strconv.Atoi(pair[1])
 	}
 	return

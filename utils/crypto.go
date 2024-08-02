@@ -6,10 +6,12 @@ import (
 	"crypto/cipher"
 	"crypto/des"
 	"crypto/md5"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"io"
 )
 
 var Crypto *crypto
@@ -158,6 +160,67 @@ func (this *crypto) AESDecrypt(chipper, secret string, ivs ...string) (string, e
 		return "", err
 	}
 	return string(chipperByte), nil
+}
+
+// GCMEncrypt
+// AES-GCM（Galois/Counter Mode），因为它结合了AES的高强度加密和GCM的认证机制，能够提供很好的安全性并且生成的密文相对较短。
+func (this *crypto) GCMEncrypt(text string, secret string, encode *base64.Encoding) (string, error) {
+	//key := []byte("32-byte-long-key-here") // 应该是一个32字节的密钥
+	key := []byte(secret)
+	plaintext := []byte(text)
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+	aesgcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonce := make([]byte, aesgcm.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", err
+	}
+	ciphertext := aesgcm.Seal(nonce, nonce, plaintext, nil)
+	if encode == nil {
+		encode = base64.StdEncoding
+	}
+
+	return encode.EncodeToString(ciphertext), nil
+}
+
+func (this *crypto) GCMDecrypt(encryptedText string, secret string, encode *base64.Encoding) (string, error) {
+	key := []byte(secret) // 应该是一个32字节的密钥
+	if encode == nil {
+		encode = base64.StdEncoding
+	}
+	ciphertext, err := encode.DecodeString(encryptedText)
+	if err != nil {
+		return "", err
+	}
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+	aesgcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonceSize := aesgcm.NonceSize()
+	if len(ciphertext) < nonceSize {
+		return "", err
+	}
+
+	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+	plaintext, err := aesgcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(plaintext), nil
 }
 
 // PKCS7Padding 填充字节的函数

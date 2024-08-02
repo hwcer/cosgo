@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"math"
 	"runtime/debug"
 	"time"
 )
@@ -47,4 +48,40 @@ func Sprintf(format interface{}, args ...interface{}) (r string) {
 		r = fmt.Sprintf("%v", format)
 	}
 	return
+}
+
+func IncludeNotPrintableChar(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if v := s[i]; v < 32 || v == 127 { //空格32
+			return true
+		}
+	}
+	return false
+}
+
+func Promise(ps ...func() error) (err error) {
+	for _, p := range ps {
+		if err = p(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// FloatPrecision 四舍五入，保留到Precision位小数
+func FloatPrecision(value float64, precision float64) float64 {
+	x := math.Pow(10, precision)
+	return math.Round(value*x) / x
+}
+
+func UTF8StringLen(str string) int {
+	l := 0
+	for _, v := range str {
+		if v > 0xFF {
+			l += 2
+		} else {
+			l += 1
+		}
+	}
+	return l
 }

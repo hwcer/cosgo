@@ -1,8 +1,13 @@
 package binder
 
 import (
+	"bytes"
 	"errors"
+<<<<<<< HEAD
 <<<<<<< Updated upstream
+=======
+	"fmt"
+>>>>>>> 10498035c1bdbd2b68bf636e65a338021ebfcbd3
 	"github.com/hwcer/cosgo/values"
 =======
 	"fmt"
@@ -15,9 +20,10 @@ import (
 
 var formBindingSchema = schema.New()
 
+var Form = &formBinding{}
+
 func init() {
-	j := &formBinding{}
-	_ = Register(MIMEPOSTForm, j)
+	_ = Register(MIMEPOSTForm, Form)
 }
 
 type formBinding struct{}
@@ -27,11 +33,25 @@ func (*formBinding) String() string {
 }
 
 func (this *formBinding) Encode(w io.Writer, i interface{}) error {
-	return errors.New("url encoded not Encode")
+	b, e := this.Marshal(i)
+	if e != nil {
+		return e
+	}
+	buf := bytes.NewBuffer(b)
+	_, err := buf.WriteTo(w)
+	return err
 }
 
 func (this *formBinding) Marshal(i interface{}) ([]byte, error) {
-	return nil, errors.New("url encoded not Marshal")
+	vs := url.Values{}
+	m, err := this.ToMap(i)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range m {
+		vs.Set(k, v)
+	}
+	return []byte(vs.Encode()), nil
 }
 
 func (f *formBinding) Decode(r io.Reader, i interface{}) (err error) {
@@ -52,7 +72,11 @@ func (f *formBinding) Unmarshal(b []byte, i interface{}) (err error) {
 	if err != nil {
 		return
 	}
+<<<<<<< HEAD
 <<<<<<< Updated upstream
+=======
+
+>>>>>>> 10498035c1bdbd2b68bf636e65a338021ebfcbd3
 	//values.Values
 	if d, ok := i.(*values.Values); ok {
 		for k, _ := range vs {
@@ -97,24 +121,31 @@ func (f *formBinding) UnmarshalFromValues(vs url.Values, i interface{}) (err err
 <<<<<<< Updated upstream
 		switch field.IndirectFieldType.Kind() {
 		case reflect.String:
-			field.Set(vf, data.GetString(field.DBName))
+			field.Set(vf, data.GetString(field.Name))
 		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			field.Set(vf, data.GetInt64(field.DBName))
+			field.Set(vf, data.GetInt64(field.Name))
 		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			field.Set(vf, data.GetInt64(field.DBName))
+			field.Set(vf, data.GetInt64(field.Name))
 		case reflect.Float32, reflect.Float64:
+<<<<<<< HEAD
 			field.Set(vf, data.GetFloat64(field.DBName))
 =======
 		if err = field.Set(vf, vs.Get(field.JsonName())); err != nil {
 			return err
 >>>>>>> Stashed changes
+=======
+			field.Set(vf, data.GetFloat64(field.Name))
+>>>>>>> 10498035c1bdbd2b68bf636e65a338021ebfcbd3
 		}
 	}
 	return nil
 }
+<<<<<<< HEAD
 <<<<<<< Updated upstream
 =======
 
+=======
+>>>>>>> 10498035c1bdbd2b68bf636e65a338021ebfcbd3
 func (this *formBinding) ToMap(v any) (map[string]string, error) {
 	vf := reflect.Indirect(reflect.ValueOf(v))
 	switch vf.Kind() {
@@ -152,4 +183,7 @@ func (this *formBinding) fromStruct(i any) (map[string]string, error) {
 	}
 	return r, nil
 }
+<<<<<<< HEAD
 >>>>>>> Stashed changes
+=======
+>>>>>>> 10498035c1bdbd2b68bf636e65a338021ebfcbd3

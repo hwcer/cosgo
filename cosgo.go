@@ -52,7 +52,7 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	if err = writePidFile(); err != nil {
 		logger.Panic(err)
 	}
-	assert(emit(EventTypStarting))
+	assert(emit(EventTypStart))
 	logger.Trace("App Starting")
 	defer func() {
 		if err = deletePidFile(); err != nil {
@@ -72,7 +72,7 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	for _, v := range modules {
 		assert(v.Init(), fmt.Sprintf("mod[%v] init", v.ID()))
 	}
-	//assert(emit(EventTypInitialize))
+	assert(emit(EventTypLoader))
 	//自定义进程
 	if Options.Process != nil && !Options.Process() {
 		return
@@ -85,7 +85,7 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 		assert(v.Start(), fmt.Sprintf("mod[%v] start", v.ID()))
 	}
 	Options.Banner()
-	assert(emit(EventTypStarted))
+	assert(emit(EventTypReady))
 
 	if waitForSystemExit {
 		WaitForSystemExit()
@@ -132,7 +132,7 @@ func stop() (stopped bool) {
 	if !scc.Cancel() {
 		return true
 	}
-	assert(emit(EventTypStopping))
+	assert(emit(EventTypClosing))
 	logger.Alert("App will stop")
 	for i := len(modules) - 1; i >= 0; i-- {
 		closeModule(modules[i])

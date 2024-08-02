@@ -8,17 +8,33 @@ import (
 	"time"
 )
 
-func New(cap int) *Worker {
-	i := &Worker{}
-	i.c = make(chan *message, cap)
-	return i
+var ErrTimeout = values.Errorf(0, "timeout")
+
+func New() *Worker {
+	return &Worker{}
+}
+
+type Handle func(args any) error
+
+type message struct {
+	re     chan error
+	args   any
+	state  int32
+	handle Handle
+}
+
+func (this *message) write(r error) {
+	select {
+	case this.re <- r:
+	default:
+	}
 }
 
 type Worker struct {
 	c chan *message
 }
 
-func (this *Worker) Call(handle func(any) error, args any) error {
+func (this *Worker) Call(handle Handle, args any) error {
 	msg := &message{args: args, handle: handle, re: make(chan error)}
 	select {
 	case this.c <- msg:
@@ -28,7 +44,8 @@ func (this *Worker) Call(handle func(any) error, args any) error {
 	return this.wait(msg)
 }
 
-func (this *Worker) Start() {
+func (this *Worker) Start(cap int) {
+	this.c = make(chan *message, cap)
 	scc.CGO(this.process)
 }
 
@@ -45,6 +62,7 @@ func (this *Worker) process(ctx context.Context) {
 
 func (this *Worker) wait(msg *message) (re error) {
 	var wait int32
+	var doing bool
 	timer := time.NewTimer(time.Second)
 	defer timer.Stop()
 	for {
@@ -52,15 +70,19 @@ func (this *Worker) wait(msg *message) (re error) {
 		case re = <-msg.re:
 			return
 		case <-timer.C:
-			if msg.state > 0 && wait < 10 {
-				wait += 1
-				timer.Reset(time.Millisecond * 10)
+			if doing {
+				if wait < 100 {
+					wait += 1
+					timer.Reset(time.Millisecond * 10) //正在处理中
+				} else {
+					return ErrTimeout
+				}
 			} else if !atomic.CompareAndSwapInt32(&msg.state, 0, 1) {
 				wait += 1
+				doing = true
 				timer.Reset(time.Millisecond * 10) //正在处理中
 			} else {
-				re = values.Errorf(0, "timeout") //超时取消
-				return
+				return ErrTimeout
 			}
 		}
 	}
@@ -73,6 +95,11 @@ func (this *Worker) handle(msg *message) {
 	var err error
 	defer func() {
 		msg.write(err)
+	}()
+	defer func() {
+		if e := recover(); e != nil {
+			err = values.Errorf(0, e)
+		}
 	}()
 	err = msg.handle(msg.args)
 }
