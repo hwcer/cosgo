@@ -65,21 +65,7 @@ func (m Values) GetFloat64(k any) (r float64) {
 	if !ok {
 		return 0
 	}
-<<<<<<< Updated upstream
-	switch v.(type) {
-	case float32:
-		r = float64(v.(float32))
-	case float64:
-		r = v.(float64)
-	case string:
-		r, _ = strconv.ParseFloat(v.(string), 10)
-	default:
-		return float64(m.GetInt64(k))
-	}
-	return
-=======
 	return ParseFloat64(v)
->>>>>>> Stashed changes
 }
 func (m Values) GetString(k any) (r string) {
 	rk := m.rk(k)

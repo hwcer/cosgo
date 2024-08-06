@@ -3,15 +3,7 @@ package binder
 import (
 	"bytes"
 	"errors"
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
 	"fmt"
->>>>>>> 10498035c1bdbd2b68bf636e65a338021ebfcbd3
-	"github.com/hwcer/cosgo/values"
-=======
-	"fmt"
->>>>>>> Stashed changes
 	"github.com/hwcer/schema"
 	"io"
 	"net/url"
@@ -72,43 +64,17 @@ func (f *formBinding) Unmarshal(b []byte, i interface{}) (err error) {
 	if err != nil {
 		return
 	}
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
-
->>>>>>> 10498035c1bdbd2b68bf636e65a338021ebfcbd3
-	//values.Values
-	if d, ok := i.(*values.Values); ok {
-		for k, _ := range vs {
-			d.Set(k, vs.Get(k))
-		}
-		return
-	}
-	//map[string]interface{}
-	if d, ok := i.(*map[string]interface{}); ok {
-		ss := *d
-		for k, _ := range vs {
-			ss[k] = vs.Get(k)
-		}
-		return
-	}
-	//struct
-	data := values.Values{}
-	for k, _ := range vs {
-		data.Set(k, vs.Get(k))
-=======
 	return f.UnmarshalFromValues(vs, i)
 }
 
-func (f *formBinding) UnmarshalFromValues(vs url.Values, i interface{}) (err error) {
+func (f *formBinding) UnmarshalFromValues(vs url.Values, i any) (err error) {
 	if len(vs) == 0 {
 		return nil
->>>>>>> Stashed changes
 	}
 	vf := reflect.ValueOf(i)
 	if iv := reflect.Indirect(vf); iv.Kind() == reflect.Map {
-		for k, v := range vs {
-			iv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v))
+		for k, _ := range vs {
+			iv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(vs.Get(k)))
 		}
 		return nil
 	}
@@ -118,34 +84,13 @@ func (f *formBinding) UnmarshalFromValues(vs url.Values, i interface{}) (err err
 		return nil
 	}
 	for _, field := range s.Fields {
-<<<<<<< Updated upstream
-		switch field.IndirectFieldType.Kind() {
-		case reflect.String:
-			field.Set(vf, data.GetString(field.Name))
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			field.Set(vf, data.GetInt64(field.Name))
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			field.Set(vf, data.GetInt64(field.Name))
-		case reflect.Float32, reflect.Float64:
-<<<<<<< HEAD
-			field.Set(vf, data.GetFloat64(field.DBName))
-=======
 		if err = field.Set(vf, vs.Get(field.JsonName())); err != nil {
 			return err
->>>>>>> Stashed changes
-=======
-			field.Set(vf, data.GetFloat64(field.Name))
->>>>>>> 10498035c1bdbd2b68bf636e65a338021ebfcbd3
 		}
 	}
 	return nil
 }
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
 
-=======
->>>>>>> 10498035c1bdbd2b68bf636e65a338021ebfcbd3
 func (this *formBinding) ToMap(v any) (map[string]string, error) {
 	vf := reflect.Indirect(reflect.ValueOf(v))
 	switch vf.Kind() {
@@ -183,7 +128,3 @@ func (this *formBinding) fromStruct(i any) (map[string]string, error) {
 	}
 	return r, nil
 }
-<<<<<<< HEAD
->>>>>>> Stashed changes
-=======
->>>>>>> 10498035c1bdbd2b68bf636e65a338021ebfcbd3

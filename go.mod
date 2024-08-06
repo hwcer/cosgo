@@ -2,6 +2,8 @@ module github.com/hwcer/cosgo
 
 go 1.21.5
 
+replace github.com/hwcer/schema v0.0.4 => ../schema
+
 require (
 	github.com/coreos/etcd v3.3.27+incompatible
 	github.com/go-redis/redis/v8 v8.11.5
