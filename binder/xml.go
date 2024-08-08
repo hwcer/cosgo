@@ -5,10 +5,11 @@ import (
 	"io"
 )
 
+var Xml = &xmlBinding{}
+
 func init() {
-	b := xmlBinding{}
-	_ = Register(MIMEXML, b)
-	_ = Register(MIMEXML2, b)
+	_ = Register(MIMEXML, Xml)
+	_ = Register(MIMEXML2, Xml)
 }
 
 type xmlBinding struct{}
