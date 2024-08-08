@@ -33,7 +33,7 @@ func init() {
 	Config.Flags(AppDebug, "", false, "developer model")
 	Config.Flags(AppDir, "", "", "working directory")
 	Config.Flags(AppConfigNamePidFile, "", "", "pid file")
-	Config.Flags(AppConfigNameLogsPath, "", "", "logs dir")
+	//Config.Flags(AppConfigNameLogsPath, "", "", "logs dir")
 	Config.Flags(AppConfigNameConfigFileName, "c", "", "use config file")
 	Config.SetDefault(AppConfigNameConfigFileExt, "toml")
 	//var (

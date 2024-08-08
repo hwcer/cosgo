@@ -3,6 +3,7 @@ package cosgo
 import (
 	"fmt"
 	"github.com/hwcer/logger"
+	"github.com/hwcer/scc"
 	"os"
 	"os/signal"
 	"runtime"
@@ -19,18 +20,21 @@ var GCSummaryTime time.Duration = time.Second * 300
 func WaitForSystemExit() {
 	ch := make(chan os.Signal, 1)
 	timer := time.NewTimer(GCSummaryTime)
+	defer stop()
 	defer timer.Stop()
+	ctx, cancel := scc.WithCancel()
+	defer cancel()
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM, SignalReload)
 	for {
 		select {
 		case sig := <-ch:
-			if signalNotify(sig) {
+			if stopped := signalNotify(sig); stopped {
 				return
 			}
 		case <-timer.C:
 			gcSummaryLogs()
 			timer.Reset(GCSummaryTime)
-		case <-appStopChan:
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -50,7 +54,6 @@ func signalNotify(sig os.Signal) (stopped bool) {
 	case syscall.SIGHUP:
 		SIGHUP()
 	case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM:
-		stop()
 		stopped = true
 	default:
 		logger.Trace("receive signal:%v", sig)

@@ -129,8 +129,9 @@ func (this *OAuth) Verify(address string, header Header, body io.Reader) (r io.R
 		if _, err = b.ReadFrom(body); err != nil {
 			return nil, err
 		}
-		r = b
 		data = b.String()
+		b.Reset()
+		r = b
 	}
 	if signature != this.Signature(address, OAuthMap, data) {
 		return nil, errors.New("OAuth signature error")

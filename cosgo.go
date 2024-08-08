@@ -11,7 +11,8 @@ import (
 )
 
 var modules []IModule
-var appStopChan = make(chan struct{})
+
+//var appStopChan = make(chan struct{})
 
 func assert(err interface{}, s ...string) {
 	if err != nil {
@@ -93,15 +94,8 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 }
 
 // Close 外部关闭程序
-func Close(force bool) {
-	if !(stop() || force) {
-		return
-	}
-	select {
-	case <-appStopChan:
-	default:
-		close(appStopChan)
-	}
+func Close() bool {
+	return stop()
 }
 
 func showConfig() {

@@ -38,7 +38,8 @@ func ParseInt64(v any) int64 {
 		temp, _ := strconv.ParseInt(d, 10, 64)
 		return temp
 	default:
-		return 0
+		temp, _ := strconv.ParseInt(fmt.Sprintf("%v", d), 10, 64)
+		return temp
 	}
 }
 
