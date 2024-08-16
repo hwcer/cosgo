@@ -8,44 +8,49 @@ import (
 	"time"
 )
 
-var ErrTimeout = values.Errorf(0, "timeout")
+var (
+	ErrTimeout    = values.Errorf(0, "timeout")
+	ErrServerBusy = values.Errorf(1, "server busy,try again later")
+)
 
 func New() *Worker {
 	return &Worker{}
 }
 
-type Handle func(args any) error
-
-type message struct {
-	re     chan error
-	args   any
-	state  int32
-	handle Handle
-}
-
-func (this *message) write(r error) {
-	select {
-	case this.re <- r:
-	default:
-	}
-}
-
 type Worker struct {
-	c chan *message
+	c       chan *Message
+	Timeout time.Duration
 }
 
-func (this *Worker) Call(handle Handle, args any) error {
-	msg := &message{args: args, handle: handle, re: make(chan error)}
+// Try 如果通道已满，立即放弃执行
+func (this *Worker) Try(handle Handle, args any) (any, error) {
+	msg := &Message{args: args, handle: handle, done: make(chan struct{})}
 	select {
 	case this.c <- msg:
 	default:
-		return values.Errorf(0, "worker chan is full")
+		msg.err = ErrServerBusy
+		close(msg.done)
 	}
-	return this.wait(msg)
+	return msg.wait(this.Timeout)
 }
 
-func (this *Worker) Start(cap int) {
-	this.c = make(chan *message, cap)
+// Call 同步调用handle并返回结果
+func (this *Worker) Call(handle Handle, args any) (any, error) {
+	msg := this.Sync(handle, args)
+	return msg.wait(this.Timeout)
+}
+
+// Sync 异步执行，不关心执行结果
+// 也可以使用 Message.Done等待返回结果
+func (this *Worker) Sync(handle Handle, args any) *Message {
+	msg := &Message{args: args, handle: handle, done: make(chan struct{})}
+	this.c <- msg
+	return msg
+}
+
+func (this *Worker) Start(cap int, timeout time.Duration) {
+	this.c = make(chan *Message, cap)
+	this.Timeout = timeout
 	scc.CGO(this.process)
 }
 
@@ -60,46 +65,15 @@ func (this *Worker) process(ctx context.Context) {
 	}
 }
 
-func (this *Worker) wait(msg *message) (re error) {
-	var wait int32
-	var doing bool
-	timer := time.NewTimer(time.Second)
-	defer timer.Stop()
-	for {
-		select {
-		case re = <-msg.re:
-			return
-		case <-timer.C:
-			if doing {
-				if wait < 100 {
-					wait += 1
-					timer.Reset(time.Millisecond * 10) //正在处理中
-				} else {
-					return ErrTimeout
-				}
-			} else if !atomic.CompareAndSwapInt32(&msg.state, 0, 1) {
-				wait += 1
-				doing = true
-				timer.Reset(time.Millisecond * 10) //正在处理中
-			} else {
-				return ErrTimeout
-			}
-		}
-	}
-}
-
-func (this *Worker) handle(msg *message) {
+func (this *Worker) handle(msg *Message) {
 	if !atomic.CompareAndSwapInt32(&msg.state, 0, 1) {
 		return //对方等待超时已经放弃执行
 	}
-	var err error
-	defer func() {
-		msg.write(err)
-	}()
 	defer func() {
 		if e := recover(); e != nil {
-			err = values.Errorf(0, e)
+			msg.err = values.Errorf(0, e)
 		}
 	}()
-	err = msg.handle(msg.args)
+	msg.reply, msg.err = msg.handle(msg.args)
+	close(msg.done)
 }
