@@ -38,6 +38,14 @@ func (m Values) Set(k any, v any) {
 	m[rk] = v
 }
 
+func (m Values) Clone() Values {
+	r := make(Values, len(m))
+	for k, v := range m {
+		r[k] = v
+	}
+	return r
+}
+
 func (m Values) GetInt(k any) int {
 	return int(m.GetInt64(k))
 }
