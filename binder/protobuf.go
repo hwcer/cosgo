@@ -6,9 +6,10 @@ import (
 	"io"
 )
 
+var Protobuf = &protobufBinding{}
+
 func init() {
-	b := &protobufBinding{}
-	_ = Register(MIMEPROTOBUF, b)
+	_ = Register(MIMEPROTOBUF, Protobuf)
 }
 
 type protobufBinding struct{}
