@@ -92,22 +92,22 @@ func (this *OAuth) Signature(address string, oauth map[string]string, body strin
 
 // Verify http(s)验签
 // address  protocol://hostname/path
-func (this *OAuth) Verify(address string, header Header, body io.Reader) (r io.Reader, err error) {
+func (this *OAuth) Verify(address string, header Header, body *bytes.Buffer) (err error) {
 	signature := header.Get(OAuthSignatureName)
 	if signature == "" {
-		return nil, errors.New("OAuth Signature empty")
+		return errors.New("OAuth Signature empty")
 	}
 
 	OAuthMap := make(map[string]string)
 	for _, k := range oauthParams {
 		v := header.Get(k)
 		if v == "" {
-			return nil, errors.New("OAuth Params empty")
+			return errors.New("OAuth Params empty")
 		}
 		OAuthMap[k] = v
 	}
 	if OAuthMap["oauth_consumer_key"] != this.key {
-		return nil, errors.New("oauth_consumer_key error")
+		return errors.New("oauth_consumer_key error")
 	}
 
 	//验证时间
@@ -115,26 +115,20 @@ func (this *OAuth) Verify(address string, header Header, body io.Reader) (r io.R
 		var oauthTimeStamp int64
 		oauthTimeStamp, err = strconv.ParseInt(OAuthMap["oauth_timestamp"], 10, 64)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		requestTime := time.Now().Unix() - oauthTimeStamp
 		if requestTime < 0 || requestTime > int64(this.Timeout) {
-			return nil, errors.New("OAuth timeout")
+			return errors.New("OAuth timeout")
 		}
 	}
 
 	var data string
 	if this.Strict && body != nil {
-		b := bytes.NewBuffer(nil)
-		if _, err = b.ReadFrom(body); err != nil {
-			return nil, err
-		}
-		data = b.String()
-		b.Reset()
-		r = b
+		data = body.String()
 	}
 	if signature != this.Signature(address, OAuthMap, data) {
-		return nil, errors.New("OAuth signature error")
+		return errors.New("OAuth signature error")
 	}
 	return
 }
