@@ -44,27 +44,6 @@ type OAuth struct {
 
 var oauthParams = []string{"oauth_consumer_key", "oauth_nonce", "oauth_timestamp", "oauth_version", "oauth_signature_method"}
 
-// SetHeader 自动设置HTTP请求头
-func (this *OAuth) SetHeader(req *http.Request) (err error) {
-	header := this.NewOAuthParams()
-	var bodyBytes []byte
-	if this.Strict {
-		var body io.ReadCloser
-		if body, err = req.GetBody(); err != nil {
-			return
-		}
-		if bodyBytes, err = io.ReadAll(body); err != nil {
-			return
-		}
-	}
-	signature := this.Signature(Address(req), header, string(bodyBytes))
-	header[OAuthSignatureName] = signature
-	for k, v := range header {
-		req.Header.Add(k, v)
-	}
-	return nil
-}
-
 func (this *OAuth) NewOAuthParams() map[string]string {
 	args := make(map[string]string)
 	args["oauth_nonce"] = strconv.FormatInt(int64(rand.Int31n(8999)+1000), 10)
@@ -90,9 +69,31 @@ func (this *OAuth) Signature(address string, oauth map[string]string, body strin
 	return HMACSHA1(this.secret, str)
 }
 
+// Request 自动设置HTTP请求头
+func (this *OAuth) Request(req *http.Request) (err error) {
+	header := this.NewOAuthParams()
+	var bodyBytes []byte
+	if this.Strict {
+		var body io.ReadCloser
+		if body, err = req.GetBody(); err != nil {
+			return
+		}
+		if bodyBytes, err = io.ReadAll(body); err != nil {
+			return
+		}
+	}
+	signature := this.Signature(Address(req), header, string(bodyBytes))
+	header[OAuthSignatureName] = signature
+	for k, v := range header {
+		req.Header.Add(k, v)
+	}
+	return nil
+}
+
 // Verify http(s)验签
-// address  protocol://hostname/path
-func (this *OAuth) Verify(address string, header Header, body *bytes.Buffer) (err error) {
+func (this *OAuth) Verify(req *http.Request, body *bytes.Buffer) (err error) {
+	header := req.Header
+	address := Address(req)
 	signature := header.Get(OAuthSignatureName)
 	if signature == "" {
 		return errors.New("OAuth Signature empty")
@@ -124,7 +125,14 @@ func (this *OAuth) Verify(address string, header Header, body *bytes.Buffer) (er
 	}
 
 	var data string
-	if this.Strict && body != nil {
+	if this.Strict {
+		if body == nil {
+			body = bytes.NewBuffer(nil)
+			if _, err = body.ReadFrom(req.Body); err != nil {
+				return err
+			}
+			req.Body = io.NopCloser(body)
+		}
 		data = body.String()
 	}
 	if signature != this.Signature(address, OAuthMap, data) {
