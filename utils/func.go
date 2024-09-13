@@ -59,7 +59,7 @@ func IncludeNotPrintableChar(s string) bool {
 	return false
 }
 
-func Promise(ps ...func() error) (err error) {
+func Assert(ps ...func() error) (err error) {
 	for _, p := range ps {
 		if err = p(); err != nil {
 			return err
