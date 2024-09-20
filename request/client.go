@@ -38,12 +38,22 @@ func (this *Client) Request(method, url string, data interface{}) (reply []byte,
 		req *http.Request
 		res *http.Response
 	)
-	var buf []byte
-	if buf, err = this.Binder.Marshal(data); err != nil {
-		return
+	/*	var buf []byte
+		if data != nil {
+			buf, err = this.Binder.Marshal(data)
+		}
+		if err != nil {
+			return
+		}*/
+	if data != nil {
+		var buf []byte
+		if buf, err = this.Binder.Marshal(data); err != nil {
+			return
+		}
+		req, err = http.NewRequest(method, url, bytes.NewReader(buf))
+	} else {
+		req, err = http.NewRequest(method, url, nil)
 	}
-
-	req, err = http.NewRequest(method, url, bytes.NewReader(buf))
 	if err != nil {
 		return
 	}

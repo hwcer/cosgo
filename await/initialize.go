@@ -19,7 +19,7 @@ type Initialize struct {
 }
 
 func (i *Initialize) Verify() error {
-	if i.status > 1 {
+	if i.status >= 2 {
 		return nil
 	}
 	if !atomic.CompareAndSwapInt32(&i.status, 0, 1) {
@@ -31,4 +31,11 @@ func (i *Initialize) Verify() error {
 		close(i.initializing)
 	}()
 	return i.handle()
+}
+
+func (i *Initialize) Reload() {
+	if atomic.CompareAndSwapInt32(&i.status, 2, 3) {
+		i.initializing = make(chan struct{})
+		i.status = 0
+	}
 }
