@@ -44,6 +44,9 @@ func (this *Address) String(withScheme ...bool) string {
 	b.WriteString(strconv.Itoa(this.Port))
 	return b.String()
 }
+func (this *Address) Empty() bool {
+	return this.Host == "" || this.Host == "0.0.0.0" || this.Host == "127.0.0.1" || this.Host == "localhost"
+}
 
 func (this *Address) Handle(handle func(network, address string) error) (err error) {
 	address := this.String(false)
