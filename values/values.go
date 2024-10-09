@@ -1,85 +1,98 @@
 package values
 
 import (
+	"encoding/json"
 	"fmt"
-	"strconv"
+	"github.com/hwcer/logger"
 )
 
 type Values map[string]any
 
-func (m Values) rk(k any) string {
+func (vs Values) Key(k any) string {
 	switch r := k.(type) {
 	case string:
 		return r
-	case int:
-		return strconv.Itoa(r)
-	case int32:
-		return strconv.Itoa(int(r))
-	case int64:
-		return strconv.FormatInt(r, 10)
 	default:
 		return fmt.Sprint(r)
 	}
 }
 
-func (m Values) Has(k any) bool {
-	rk := m.rk(k)
-	_, ok := m[rk]
+func (vs Values) Has(k string) bool {
+	_, ok := vs[k]
 	return ok
 }
 
-func (m Values) Get(k any) any {
-	rk := m.rk(k)
-	return m[rk]
+func (vs Values) Get(k string) any {
+	return vs[k]
 }
 
-func (m Values) Set(k any, v any) {
-	rk := m.rk(k)
-	m[rk] = v
+// Set 保存数据，除了字符串和数字之外，一律转换成json字符串,Get时需要留意使用Unmarshal
+func (vs Values) Set(k string, v any) any {
+	switch v.(type) {
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, string:
+		vs[k] = v
+	default:
+		vs.Marshal(k, v)
+	}
+	return vs[k]
 }
 
-func (m Values) Clone() Values {
-	r := make(Values, len(m))
-	for k, v := range m {
+func (vs Values) Clone() Values {
+	r := make(Values, len(vs))
+	for k, v := range vs {
 		r[k] = v
 	}
 	return r
 }
 
-func (m Values) GetInt(k any) int {
-	return int(m.GetInt64(k))
+func (vs Values) GetInt(k string) int {
+	return int(vs.GetInt64(k))
 }
 
-func (m Values) GetInt32(k any) int32 {
-	return int32(m.GetInt64(k))
+func (vs Values) GetInt32(k string) int32 {
+	return int32(vs.GetInt64(k))
 }
 
-func (m Values) GetInt64(k any) int64 {
-	rk := m.rk(k)
-	v, ok := m[rk]
+func (vs Values) GetInt64(k string) int64 {
+	v, ok := vs[k]
 	if !ok {
 		return 0
 	}
 	return ParseInt64(v)
 }
 
-func (m Values) GetFloat32(k any) float32 {
-	return float32(m.GetInt64(k))
+func (vs Values) GetFloat32(k string) float32 {
+	return float32(vs.GetInt64(k))
 }
 
-func (m Values) GetFloat64(k any) (r float64) {
-	rk := m.rk(k)
-	v, ok := m[rk]
+func (vs Values) GetFloat64(k string) (r float64) {
+	v, ok := vs[k]
 	if !ok {
 		return 0
 	}
 	return ParseFloat64(v)
 }
-func (m Values) GetString(k any) (r string) {
-	rk := m.rk(k)
-	v, ok := m[rk]
+func (vs Values) GetString(k string) (r string) {
+	v, ok := vs[k]
 	if !ok {
 		return ""
 	}
 	return ParseString(v)
+}
+
+// Marshal 存入对象
+func (vs Values) Marshal(k string, v any) {
+	b, err := json.Marshal(v)
+	if err == nil {
+		vs[k] = string(b)
+	} else {
+		logger.Error("Values Marshal error,key:%v,val:%v,err:%v", k, v, err)
+	}
+}
+func (vs Values) Unmarshal(k string, v any) error {
+	s := vs.GetString(k)
+	if s == "" {
+		return nil
+	}
+	return json.Unmarshal([]byte(s), v)
 }
