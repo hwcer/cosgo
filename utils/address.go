@@ -40,8 +40,10 @@ func (this *Address) String(withScheme ...bool) string {
 	if this.Host != "" {
 		b.WriteString(this.Host)
 	}
-	b.WriteString(":")
-	b.WriteString(strconv.Itoa(this.Port))
+	if this.Port > 0 {
+		b.WriteString(":")
+		b.WriteString(strconv.Itoa(this.Port))
+	}
 	return b.String()
 }
 func (this *Address) Empty() bool {

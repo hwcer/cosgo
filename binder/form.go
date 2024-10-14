@@ -74,7 +74,9 @@ func (f *formBinding) UnmarshalFromValues(vs url.Values, i any) (err error) {
 	vf := reflect.ValueOf(i)
 	if iv := reflect.Indirect(vf); iv.Kind() == reflect.Map {
 		for k, _ := range vs {
-			iv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(vs.Get(k)))
+			if v := vs.Get(k); v != "" {
+				iv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v))
+			}
 		}
 		return nil
 	}
@@ -84,8 +86,11 @@ func (f *formBinding) UnmarshalFromValues(vs url.Values, i any) (err error) {
 		return nil
 	}
 	for _, field := range s.Fields {
-		if err = field.Set(vf, vs.Get(field.JsonName())); err != nil {
-			return err
+		k := field.JsonName()
+		if v := vs.Get(k); v != "" {
+			if err = field.Set(vf, v); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
