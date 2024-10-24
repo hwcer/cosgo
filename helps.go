@@ -11,7 +11,7 @@ var Version string = "unknown"
 
 func init() {
 	Config.Flags("help", "h", false, "Show App helps")
-	Config.Flags("version", "v", false, "Show build Version")
+	Config.Flags("version", "v", false, "Show build Branch")
 }
 
 func helps() error {
