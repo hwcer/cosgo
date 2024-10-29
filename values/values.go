@@ -39,6 +39,16 @@ func (vs Values) Clone() Values {
 	return r
 }
 
+func (vs Values) Merge(from map[string]any, replace bool) {
+	for k, v := range from {
+		if replace {
+			vs[k] = v
+		} else if _, ok := vs[k]; !ok {
+			vs[k] = v
+		}
+	}
+}
+
 func (vs Values) GetInt(k string) int {
 	return int(vs.GetInt64(k))
 }
