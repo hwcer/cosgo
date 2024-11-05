@@ -19,7 +19,6 @@ func (this *Data) GetVal() int32 {
 type Less func(a, b *Data) bool
 
 type Random struct {
-	less  Less
 	items []*Data //[id,Roll]
 	total int32
 }
@@ -28,22 +27,34 @@ func New(items map[int32]int32, less ...Less) *Random {
 	r := &Random{}
 	for k, v := range items {
 		r.items = append(r.items, &Data{Key: k, Val: v})
-		r.total += v
 	}
 	if len(less) > 0 {
-		r.less = less[0]
+		r.Sort(less[0])
 	} else {
-		r.less = func(i, j *Data) bool { return i.Val > j.Val }
+		r.Sort(nil)
 	}
-	r.Sort(r.less)
 	return r
 }
 
-func (this *Random) Sort(f Less) {
+// Add 添加备选项 全部添加完毕后需要手动调用Sort排序才能使用
+func (this *Random) Add(k, v int32) {
+	this.items = append(this.items, &Data{Key: k, Val: v})
+}
+
+func (this *Random) Sort(f Less) *Random {
+	for _, data := range this.items {
+		this.total += data.Val
+	}
+	if f == nil {
+		f = this.Less
+	}
 	sort.Slice(this.items, func(i, j int) bool {
 		return f(this.items[i], this.items[j])
 	})
+	return this
 }
+
+func (this *Random) Less(i, j *Data) bool { return i.Val > j.Val }
 
 // Roll 简单的权重算法，直接计算区间落点
 func (this *Random) Roll() int32 {
@@ -76,6 +87,9 @@ func (this *Random) Weight() (r int32) {
 
 // Multi 随机多个不重复
 func (this *Random) Multi(num int) (r []int32) {
+	if this.total == 0 {
+		return nil
+	}
 	if num >= len(this.items) {
 		for _, d := range this.items {
 			r = append(r, d.Key)
@@ -113,23 +127,23 @@ func (this *Random) Range(f func(k, v int32) bool) {
 }
 
 // Filter 根据 filter 剔除不符合规则的项目
-func (this *Random) Filter(filter func(k, v int32) bool) *Random {
+func (this *Random) Filter(filter func(k, v int32) bool, less ...Less) *Random {
 	items := make(map[int32]int32)
 	for _, d := range this.items {
 		if filter(d.Key, d.Val) {
 			items[d.Key] = d.Val
 		}
 	}
-	return New(items, this.less)
+	return New(items, less...)
 }
 
 // Reset 根据 filter 重新设定权重
-func (this *Random) Reset(filter func(k, v int32) int32) *Random {
+func (this *Random) Reset(filter func(k, v int32) int32, less ...Less) *Random {
 	items := make(map[int32]int32)
 	for _, d := range this.items {
 		if n := filter(d.Key, d.Val); n > 0 {
 			items[d.Key] = n
 		}
 	}
-	return New(items, this.less)
+	return New(items, less...)
 }
