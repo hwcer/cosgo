@@ -30,7 +30,13 @@ func (vs Values) Set(k string, v any) any {
 	vs[k] = v
 	return v
 }
-
+func (vs Values) Range(f func(k string, v any) bool) {
+	for k, v := range vs {
+		if !f(k, v) {
+			return
+		}
+	}
+}
 func (vs Values) Clone() Values {
 	r := make(Values, len(vs))
 	for k, v := range vs {
@@ -39,7 +45,7 @@ func (vs Values) Clone() Values {
 	return r
 }
 
-func (vs Values) Merge(from map[string]any, replace bool) {
+func (vs Values) Merge(from Values, replace bool) {
 	for k, v := range from {
 		if replace {
 			vs[k] = v
@@ -66,7 +72,7 @@ func (vs Values) GetInt64(k string) int64 {
 }
 
 func (vs Values) GetFloat32(k string) float32 {
-	return float32(vs.GetInt64(k))
+	return float32(vs.GetFloat64(k))
 }
 
 func (vs Values) GetFloat64(k string) (r float64) {
