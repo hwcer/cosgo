@@ -1,0 +1,37 @@
+#程序中所有参数都可以在这里配置并覆盖默认配置
+#参数列表可以在命令行模式下使用 -h 参数启动查看
+debug=true
+appid="test"              #服务器APPID,MASTAR中创建的游戏ID
+secret="12345678"           #平台服务器秘钥,MASTAR中创建的游戏秘钥
+#master="172.23.233.25:8090/api"   #master服务器地址
+config="../tools/data"  #静态数据地址
+#pid="pid"            #生产环境创建pid目录，并打开这个
+logs.level=0               #日志等级
+#logs.path=""              #日志路径
+[rpcx]
+#redis="172.23.233.25:6379?db=0"
+address="127.0.0.1:8100"  #RPC服务地址,一般使用默认值,使用内网IP
+protocol=4    #1-websocket，2-长连接，4-短链接
+#################以下配置按服务器取舍#######################
+[gate]
+address=":8000"
+#游戏服务器
+[game]
+sid=11 #服务器ID
+name="老黄的电脑" #服务器名字
+time="2024-05-01 15:04:05+0800"                 #开服时间
+notify="0.0.0.0:80"                             #运营回调地址
+#address=""                                     #网关地址
+#redis="127.0.0.1:6379?password=123456&db=0"     #排行榜
+mongodb="127.0.0.1:27017"                       #服务器分区数据库
+alpha=false
+developer=true
+
+
+#网关转发规则，默认使用服务发现
+#local:使用本地服务
+#process : 进程内调用
+#discovery ：服务器发现,必须配置rpcx.redis
+[service]
+game="local"
+
