@@ -1,7 +1,7 @@
 package cosgo
 
 import (
-	"github.com/hwcer/logger"
+	"github.com/hwcer/cosgo/logger"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"os"
@@ -130,7 +130,7 @@ func (this *config) init() (err error) {
 			return
 		}
 		//启动结束时取消控制台
-		On(EventTypReady, func() error {
+		On(EventTypStarted, func() error {
 			logger.DelOutput(logger.DefaultConsoleName)
 			return nil
 		})

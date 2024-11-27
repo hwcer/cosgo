@@ -2,8 +2,8 @@ package cosgo
 
 import (
 	"fmt"
-	"github.com/hwcer/logger"
-	"github.com/hwcer/scc"
+	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/cosgo/scc"
 	"os"
 	"runtime"
 	"strings"
@@ -35,10 +35,10 @@ func Range(f func(IModule) bool) {
 	}
 }
 
-/**
- * 应用程序启动
- * @param mods 需注册的模块
- */
+// Start 应用程序启动
+// @param waitForSystemExit 阻塞模式等待系统关闭系统，程序不会直接退出
+// @param mods 需注册的模块
+
 func Start(waitForSystemExit bool, mods ...IModule) {
 	for _, mod := range mods {
 		modules = append(modules, mod)
@@ -53,7 +53,7 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	if err = writePidFile(); err != nil {
 		logger.Panic(err)
 	}
-	assert(emit(EventTypStart))
+	assert(emit(EventTypBegin))
 	logger.Trace("App Starting")
 	defer func() {
 		if err = deletePidFile(); err != nil {
@@ -73,7 +73,7 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	for _, v := range modules {
 		assert(v.Init(), fmt.Sprintf("mod[%v] init", v.ID()))
 	}
-	assert(emit(EventTypLoader))
+	assert(emit(EventTypLoaded))
 	//自定义进程
 	if Options.Process != nil && !Options.Process() {
 		return
@@ -86,7 +86,7 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 		assert(v.Start(), fmt.Sprintf("mod[%v] start", v.ID()))
 	}
 	Options.Banner()
-	assert(emit(EventTypReady))
+	assert(emit(EventTypStarted))
 
 	if waitForSystemExit {
 		WaitForSystemExit()

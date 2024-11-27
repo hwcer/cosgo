@@ -4,9 +4,9 @@ type EventType int32
 type EventFunc func() error
 
 const (
-	EventTypStart   EventType = iota //开始启动
-	EventTypLoader                   //(Init)加载完成
-	EventTypReady                    //启动完成
+	EventTypBegin   EventType = iota //开始启动
+	EventTypLoaded                   //(Init)加载完成
+	EventTypStarted                  //启动完成
 	EventTypClosing                  //开始关闭
 	EventTypStopped                  //停止之后
 )

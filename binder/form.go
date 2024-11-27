@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/hwcer/schema"
+	"github.com/hwcer/cosgo/schema"
 	"io"
 	"net/url"
 	"reflect"

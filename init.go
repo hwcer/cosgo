@@ -1,6 +1,7 @@
 package cosgo
 
 import (
+	"github.com/hwcer/cosgo/logger"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -28,6 +29,9 @@ const (
 //)
 
 func init() {
+	logger.SetCallDepth(4)
+	logger.SetPathTrim("cosgo")
+
 	Config.Flags(AppName, "", "", "app name")
 	Config.Flags(AppPprof, "", "", "pprof server address")
 	Config.Flags(AppDebug, "", false, "developer model")

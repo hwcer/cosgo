@@ -2,8 +2,8 @@ package await
 
 import (
 	"context"
+	"github.com/hwcer/cosgo/scc"
 	"github.com/hwcer/cosgo/values"
-	"github.com/hwcer/scc"
 	"sync/atomic"
 	"time"
 )

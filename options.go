@@ -1,7 +1,7 @@
 package cosgo
 
 import (
-	"github.com/hwcer/logger"
+	"github.com/hwcer/cosgo/logger"
 )
 
 var Options = &struct {
