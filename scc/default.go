@@ -41,6 +41,9 @@ func Wait(timeout time.Duration) (err error) {
 func Cancel() bool {
 	return Default.Cancel()
 }
+func Release(f func()) {
+	Default.Release(f)
+}
 
 // Stopped 判断是否已经关闭
 func Stopped() bool {
