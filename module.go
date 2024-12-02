@@ -1,7 +1,7 @@
 package cosgo
 
 type IModule interface {
-	ID() string
+	Id() string
 	Init() error
 	Start() error
 	Close() error
@@ -9,15 +9,15 @@ type IModule interface {
 }
 
 func NewModule(id string) *Module {
-	return &Module{Id: id}
+	return &Module{id: id}
 }
 
 type Module struct {
-	Id string
+	id string
 }
 
-func (m *Module) ID() string {
-	return m.Id
+func (m *Module) Id() string {
+	return m.id
 }
 
 func (m *Module) Init() error {

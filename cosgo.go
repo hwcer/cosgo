@@ -71,7 +71,7 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	}()
 	//assert(emit(EventTypInitBefore))
 	for _, v := range modules {
-		assert(v.Init(), fmt.Sprintf("mod[%v] init", v.ID()))
+		assert(v.Init(), fmt.Sprintf("mod[%v] init", v.Id()))
 	}
 	assert(emit(EventTypLoaded))
 	//自定义进程
@@ -83,7 +83,7 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 	//=========================启动模块=============================
 	for _, v := range modules {
 		scc.Add(1)
-		assert(v.Start(), fmt.Sprintf("mod[%v] start", v.ID()))
+		assert(v.Start(), fmt.Sprintf("mod[%v] start", v.Id()))
 	}
 	Options.Banner()
 	assert(emit(EventTypStarted))
@@ -144,5 +144,5 @@ func closeModule(m IModule) {
 			logger.Error(err)
 		}
 	}()
-	assert(m.Close(), fmt.Sprintf("mod [%v] stop", m.ID()))
+	assert(m.Close(), fmt.Sprintf("mod [%v] stop", m.Id()))
 }

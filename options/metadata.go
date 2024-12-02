@@ -6,9 +6,9 @@ import (
 )
 
 const (
-	ServicesSelectorAverage       = "_rpc_srv_avg"
-	ServicesSelectorServerId      = "_rpc_srv_sid"  //服务器编号
-	ServicesSelectorServerAddress = "_rpc_srv_addr" //rpc服务器ID,selector 中固定转发地址
+	ServiceSelectorAverage       = "_rpc_srv_avg"
+	ServiceSelectorServerId      = "_rpc_srv_sid"  //服务器编号
+	ServiceSelectorServerAddress = "_rpc_srv_addr" //rpc服务器ID,selector 中固定转发地址
 
 	ServiceMetadataUID       = "uid"
 	ServiceMetadataGUID      = "guid"
@@ -45,11 +45,11 @@ func (this Metadata) Set(k string, v any) {
 }
 
 func (this Metadata) SetAddress(v string) {
-	this[ServicesSelectorServerAddress] = v
+	this[ServiceSelectorServerAddress] = v
 }
 
 func (this Metadata) SetServerId(v int32) {
-	this[ServicesSelectorServerId] = strconv.Itoa(int(v))
+	this[ServiceSelectorServerId] = strconv.Itoa(int(v))
 }
 func (this Metadata) SetContentType(v string) {
 	this["Content-Type"] = v
