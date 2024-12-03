@@ -41,8 +41,10 @@ func Wait(timeout time.Duration) (err error) {
 func Cancel() bool {
 	return Default.Cancel()
 }
-func Release(f func()) {
-	Default.Release(f)
+
+// Trigger 服务器关闭时触发
+func Trigger(handle func()) {
+	Default.Trigger(handle)
 }
 
 // Stopped 判断是否已经关闭

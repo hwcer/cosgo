@@ -14,7 +14,7 @@ func Reload() {
 	logger.Trace("Start reload Config")
 	for _, m := range modules {
 		if err := m.Reload(); err != nil {
-			logger.Alert("[%v]reload error:%v", m.ID(), err)
+			logger.Alert("[%v]reload error:%v", m.Id(), err)
 		}
 	}
 }

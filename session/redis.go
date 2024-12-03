@@ -11,8 +11,6 @@ import (
 
 const redisSessionKeyTokenName = "_cookie_key_token"
 
-//const redisSessionKeyLock = "_sess_lock"
-
 type Redis struct {
 	prefix []string
 	client *redis.Client
@@ -43,7 +41,7 @@ func (this *Redis) init(address string) (err error) {
 	if err != nil {
 		return err
 	}
-	scc.Release(func() {
+	scc.Trigger(func() {
 		_ = this.client.Close()
 	})
 	return

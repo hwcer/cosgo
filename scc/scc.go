@@ -32,7 +32,7 @@ type SCC struct {
 	cancel  context.CancelFunc
 	Catch   func(error) //异常捕获,默认控制台打印
 	Context context.Context
-	release []func() //服务器关闭时
+	handle  []func() //服务器关闭时
 }
 
 // GO 普通的GO
@@ -97,14 +97,14 @@ func (s *SCC) Cancel() bool {
 	}
 	s.WaitGroup.Done()
 	s.cancel()
-	for _, fn := range s.release {
+	for _, fn := range s.handle {
 		fn()
 	}
 	return true
 }
 
-func (s *SCC) Release(f func()) {
-	s.release = append(s.release, f)
+func (s *SCC) Trigger(f func()) {
+	s.handle = append(s.handle, f)
 }
 
 // Stopped 判断是否已经关闭
