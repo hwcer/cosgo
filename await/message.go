@@ -16,7 +16,7 @@ type Message struct {
 	handle Handle
 }
 
-func (this *Message) wait(t time.Duration) (any, error) {
+func (this *Message) Wait(t time.Duration) (any, error) {
 	timer := time.NewTimer(t)
 	defer timer.Stop()
 	for {
@@ -35,6 +35,6 @@ func (this *Message) wait(t time.Duration) (any, error) {
 
 // Done 等待完成请求
 // timeout 等待超时时间,实际超时时间最大为 timeout * 2
-func (this *Message) Done(timeout time.Duration) (any, error) {
-	return this.wait(timeout)
-}
+//func (this *Message) Done(timeout time.Duration) (any, error) {
+//	return this.Wait(timeout)
+//}

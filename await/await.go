@@ -31,13 +31,13 @@ func (this *Await) Try(handle Handle, args any) (any, error) {
 		msg.err = ErrServerBusy
 		close(msg.done)
 	}
-	return msg.wait(this.Timeout)
+	return msg.Wait(this.Timeout)
 }
 
 // Call 同步调用handle并返回结果
 func (this *Await) Call(handle Handle, args any) (any, error) {
 	msg := this.Sync(handle, args)
-	return msg.wait(this.Timeout)
+	return msg.Wait(this.Timeout)
 }
 
 // Sync 异步执行，不关心执行结果
