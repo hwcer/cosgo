@@ -23,9 +23,12 @@ type Data struct {
 	values.Values
 }
 
-func (this *Data) Set(key string, value any) any {
-	this.Lock()
-	defer this.Unlock()
+func (this *Data) Set(key string, value any, locked ...bool) any {
+	if !(len(locked) > 0 && locked[0]) {
+		this.Lock()
+		defer this.Unlock()
+	}
+
 	vs := this.Values.Clone()
 	vs.Set(key, value)
 	this.Values = vs
