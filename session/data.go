@@ -21,6 +21,17 @@ type Data struct {
 	token string
 	sync.Mutex
 	values.Values
+	heartbeat int32
+}
+
+func (this *Data) KeepAlive() {
+	this.heartbeat = 0
+}
+func (this *Data) Heartbeat(v ...int32) int32 {
+	if len(v) > 0 {
+		this.heartbeat = v[0]
+	}
+	return this.heartbeat
 }
 
 func (this *Data) Set(key string, value any, locked ...bool) any {
