@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"strings"
 )
 
 var binderMap = make(map[string]Interface)
@@ -22,6 +23,9 @@ func New(t string) (b Interface) {
 }
 
 func Get(t string) (h Interface) {
+	if st, ok := mimeTypes[strings.ToUpper(t)]; ok {
+		return binderMap[st]
+	}
 	ct, _, err := mime.ParseMediaType(t)
 	if err == nil {
 		h = binderMap[ct]

@@ -3,6 +3,7 @@ package session
 import (
 	"github.com/hwcer/cosgo/values"
 	"sync"
+	"sync/atomic"
 )
 
 func NewData(uuid string, token string, vs map[string]any) *Data {
@@ -19,6 +20,7 @@ func NewData(uuid string, token string, vs map[string]any) *Data {
 type Data struct {
 	uuid  string //GUID
 	token string
+	index uint32
 	sync.Mutex
 	values.Values
 	heartbeat int32
@@ -46,12 +48,14 @@ func (this *Data) Set(key string, value any, locked ...bool) any {
 	return value
 }
 
-func (this *Data) Merge(p *Data) {
+func (this *Data) Merge(p *Data, locked ...bool) {
 	if this.token == p.token {
 		return
 	}
-	this.Lock()
-	defer this.Unlock()
+	if !(len(locked) > 0 && locked[0]) {
+		this.Lock()
+		defer this.Unlock()
+	}
 	this.uuid = p.uuid
 	this.token = p.token
 	vs := this.Values.Clone()
@@ -60,9 +64,11 @@ func (this *Data) Merge(p *Data) {
 }
 
 // Update 批量设置Cookie信息
-func (this *Data) Update(data map[string]any) {
-	this.Lock()
-	defer this.Unlock()
+func (this *Data) Update(data map[string]any, locked ...bool) {
+	if !(len(locked) > 0 && locked[0]) {
+		this.Lock()
+		defer this.Unlock()
+	}
 	vs := this.Values.Clone()
 	for k, v := range data {
 		vs.Set(k, v)
@@ -82,4 +88,12 @@ func (this *Data) Token() string {
 		return ""
 	}
 	return this.token
+}
+
+// Index 生成一个自增的包序列号
+func (this *Data) Index() uint32 {
+	return atomic.AddUint32(&this.index, 1)
+}
+func (this *Data) Reset() {
+	this.index = 0
 }
