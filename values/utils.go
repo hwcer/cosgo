@@ -72,3 +72,18 @@ func ParseString(v any) (r string) {
 	}
 	return
 }
+
+func Sprintf(format any, args ...any) (text string) {
+	switch v := format.(type) {
+	case string:
+		text = v
+	case error:
+		text = v.Error()
+	default:
+		text = fmt.Sprintf("%v", format)
+	}
+	if len(args) > 0 {
+		text = fmt.Sprintf(text, args...)
+	}
+	return
+}
