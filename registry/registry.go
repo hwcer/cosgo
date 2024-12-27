@@ -90,7 +90,8 @@ func (this *Registry) Range(f func(service *Service) bool) {
 // Nodes 遍历所有节点
 func (this *Registry) Nodes(f func(node *Node) bool) {
 	for _, service := range this.dict {
-		for _, node := range service.nodes {
+		nodes := service.nodes
+		for _, node := range nodes {
 			if !f(node) {
 				return
 			}
