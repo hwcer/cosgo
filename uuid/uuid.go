@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const BaseSize = 32
+
 type UUID struct {
 	share  uint16
 	prefix uint32
