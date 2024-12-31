@@ -85,9 +85,8 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 		scc.Add(1)
 		assert(v.Start(), fmt.Sprintf("mod[%v] start", v.Id()))
 	}
-	Options.Banner()
 	assert(emit(EventTypStarted))
-
+	Options.Banner()
 	if waitForSystemExit {
 		WaitForSystemExit()
 	}
