@@ -17,18 +17,9 @@ func NewSetter(id storage.MID, data interface{}) storage.Setter {
 }
 
 type Setter struct {
-	storage.Data //数据接口
-	//uuid         string
-	expire int64 //过期时间
-	//locked       int32 //SESSION锁
+	storage.Data       //数据接口
+	expire       int64 //过期时间
 }
-
-//func (this *Setter) Lock() bool {
-//	return atomic.CompareAndSwapInt32(&this.locked, 0, 1)
-//}
-//func (this *Setter) UnLock() bool {
-//	return atomic.CompareAndSwapInt32(&this.locked, 1, 0)
-//}
 
 // Expire 设置有效期(s)
 func (this *Setter) Expire(s int64) {

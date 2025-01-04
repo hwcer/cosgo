@@ -71,7 +71,7 @@ func (this *Session) Delete() (err error) {
 
 // Release 释放 session 由HTTP SERVER 自动调用
 func (this *Session) Release() {
-	if this.Data == nil || len(this.dirty) == 0 {
+	if this.Data == nil {
 		return
 	}
 	dirty := map[string]any{}

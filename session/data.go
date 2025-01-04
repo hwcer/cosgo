@@ -31,7 +31,7 @@ func (this *Data) KeepAlive() {
 }
 func (this *Data) Heartbeat(v ...int32) int32 {
 	if len(v) > 0 {
-		this.heartbeat = v[0]
+		this.heartbeat += v[0]
 	}
 	return this.heartbeat
 }
