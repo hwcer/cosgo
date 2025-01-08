@@ -99,7 +99,7 @@ func (vs Values) Marshal(k string, v any) (r any, err error) {
 		var b []byte
 		if b, err = json.Marshal(v); err == nil {
 			r = b
-			vs[k] = base64.RawURLEncoding.EncodeToString(b)
+			vs[k] = base64.StdEncoding.EncodeToString(b)
 		}
 	}
 	return
@@ -109,7 +109,7 @@ func (vs Values) Unmarshal(k string, v any) error {
 	if s == "" {
 		return nil
 	}
-	if b, err := base64.RawURLEncoding.DecodeString(s); err == nil {
+	if b, err := base64.StdEncoding.DecodeString(s); err == nil {
 		return json.Unmarshal(b, v)
 	} else {
 		return err

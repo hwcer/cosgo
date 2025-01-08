@@ -23,9 +23,9 @@ func Int32SliceIndexOf(s []int32, tar int32) int {
 }
 
 func SliceStringToInt32(s []string) []int32 {
-	ret := make([]int32,0)
+	ret := make([]int32, 0)
 	for _, v := range s {
-		in,err := strconv.Atoi(v)
+		in, err := strconv.Atoi(v)
 		if err != nil {
 			return nil
 		}
@@ -34,10 +34,21 @@ func SliceStringToInt32(s []string) []int32 {
 	return ret
 }
 
-func ConditionalOperator(op bool,a,b interface{}) interface{}  {
-	if op{
+func ConditionalOperator(op bool, a, b interface{}) interface{} {
+	if op {
 		return a
-	}else {
+	} else {
 		return b
 	}
+}
+
+type ArrInt32 []int32
+
+func (a ArrInt32) Has(i int32) bool {
+	for _, v := range a {
+		if i == v {
+			return true
+		}
+	}
+	return false
 }
