@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/hwcer/cosgo/scc"
 	"github.com/hwcer/cosgo/values"
+	"github.com/hwcer/cosmo/cache"
 	"sync/atomic"
 	"time"
 )
@@ -23,7 +24,7 @@ type Await struct {
 }
 
 // Try 如果通道已满，立即放弃执行
-func (this *Await) Try(handle Handle, args any) (any, error) {
+func (this *Await) Try(handle cache.Handle, args any) (any, error) {
 	msg := &Message{args: args, handle: handle, done: make(chan struct{})}
 	select {
 	case this.c <- msg:
@@ -35,14 +36,14 @@ func (this *Await) Try(handle Handle, args any) (any, error) {
 }
 
 // Call 同步调用handle并返回结果
-func (this *Await) Call(handle Handle, args any) (any, error) {
+func (this *Await) Call(handle cache.Handle, args any) (any, error) {
 	msg := this.Sync(handle, args)
 	return msg.Wait(this.Timeout)
 }
 
 // Sync 异步执行，不关心执行结果
 // 也可以使用 Message.Done等待返回结果
-func (this *Await) Sync(handle Handle, args any) *Message {
+func (this *Await) Sync(handle cache.Handle, args any) *Message {
 	msg := &Message{args: args, handle: handle, done: make(chan struct{})}
 	this.c <- msg
 	return msg
