@@ -1,6 +1,7 @@
 package values
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 )
@@ -97,8 +98,8 @@ func (vs Values) Marshal(k string, v any) (r any, err error) {
 	default:
 		var b []byte
 		if b, err = json.Marshal(v); err == nil {
-			r = string(b)
-			vs[k] = r
+			r = b
+			vs[k] = base64.RawURLEncoding.EncodeToString(b)
 		}
 	}
 	return
@@ -108,5 +109,10 @@ func (vs Values) Unmarshal(k string, v any) error {
 	if s == "" {
 		return nil
 	}
-	return json.Unmarshal([]byte(s), v)
+	if b, err := base64.RawURLEncoding.DecodeString(s); err == nil {
+		return json.Unmarshal(b, v)
+	} else {
+		return err
+	}
+
 }
