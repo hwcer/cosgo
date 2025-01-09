@@ -90,10 +90,14 @@ func (this *Data) Token() string {
 	return this.token
 }
 
-// Index 生成一个自增的包序列号
-func (this *Data) Index() uint32 {
-	return atomic.AddUint32(&this.index, 1)
-}
 func (this *Data) Reset() {
 	this.index = 0
+}
+
+// Atomic 生成一个自增的包序列号
+func (this *Data) Atomic() uint32 {
+	return atomic.AddUint32(&this.index, 1)
+}
+func (this *Data) Index() uint32 {
+	return this.index
 }
