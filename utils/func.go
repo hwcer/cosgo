@@ -23,6 +23,15 @@ func Try(f func(), handle ...TryHandle) {
 	f()
 }
 
+// Floor 除法向下取整
+func Floor(a, b int32) int32 {
+	r := a / b
+	if a%b != 0 {
+		r += 1
+	}
+	return r
+}
+
 func Timeout(d time.Duration, fn func() error) error {
 	cher := make(chan error)
 	go func() {
