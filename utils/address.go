@@ -10,10 +10,11 @@ import (
 )
 
 type Address struct {
-	Port   int    `json:"port"`
-	Host   string `json:"host"`
-	Retry  int    `json:"retry"`
-	Scheme string `json:"scheme"`
+	Port      int    `json:"port"`
+	Host      string `json:"host"`
+	Retry     int    `json:"retry"`
+	Scheme    string `json:"scheme"`
+	localIpv4 string
 }
 
 func (this *Address) Parse(address string) {
@@ -48,6 +49,35 @@ func (this *Address) String(withScheme ...bool) string {
 }
 func (this *Address) Empty() bool {
 	return this.Host == "" || this.Host == "0.0.0.0" || this.Host == "127.0.0.1" || this.Host == "localhost"
+}
+func (this *Address) LocalIPv4() string {
+	if this.localIpv4 == "" {
+		var err error
+		if this.localIpv4, err = LocalIpv4(); err != nil {
+			this.localIpv4 = "0.0.0.0"
+		}
+	}
+	return this.localIpv4
+}
+
+func (this *Address) Encode() uint64 {
+	ip := strings.TrimSpace(this.Host)
+	if ip == "" || ip == "0.0.0.0" {
+		ip = this.LocalIPv4()
+	}
+
+	ips := strings.Split(ip, ".")
+	var ipCode uint64 = 0
+	var pos uint = 24
+	for _, ipSeg := range ips {
+		tempInt, _ := strconv.Atoi(ipSeg)
+		tempInt = tempInt << pos
+		ipCode = ipCode | uint64(tempInt)
+		pos -= 8
+	}
+	r := ipCode << 32
+	r += uint64(this.Port)
+	return r
 }
 
 func (this *Address) Handle(handle func(network, address string) error) (err error) {
@@ -93,7 +123,26 @@ func NewUrl(address, scheme string) (*url.URL, error) {
 	return url.Parse(address)
 }
 
-// LocalIPs return all non-loopback IPv4 addresses
+func LocalIpv4() (ip string, err error) {
+	var ipv4 []string
+	if ipv4, err = LocalIPv4s(); err != nil {
+		return
+	}
+	for _, s := range ipv4 {
+		i := strings.Index(s, ".")
+		if k := s[:i]; k == "192" || k == "10" || k == "172" {
+			return s, nil
+		}
+	}
+	if len(ipv4) == 0 {
+		err = fmt.Errorf("无法获取服务器的内网IP")
+	} else {
+		ip = ipv4[0]
+	}
+	return
+}
+
+// LocalIPv4s return all non-loopback IPv4 addresses
 func LocalIPv4s() ([]string, error) {
 	var ips []string
 	addrs, err := net.InterfaceAddrs()
