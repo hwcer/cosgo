@@ -10,7 +10,7 @@ import (
 
 var binderMap = make(map[string]Binder)
 
-type Interface = Binder
+//type Interface = Binder
 
 type Binder interface {
 	String() string

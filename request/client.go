@@ -18,7 +18,7 @@ func New() *Client {
 type middleware func(req *http.Request) error
 
 type Client struct {
-	Binder     binder.Interface
+	Binder     binder.Binder
 	middleware []middleware
 }
 

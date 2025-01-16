@@ -61,23 +61,9 @@ func (this *Address) LocalIPv4() string {
 }
 
 func (this *Address) Encode() uint64 {
-	ip := strings.TrimSpace(this.Host)
-	if ip == "" || ip == "0.0.0.0" {
-		ip = this.LocalIPv4()
-	}
+	addr := this.String(false)
+	return Ipv4Encode(addr)
 
-	ips := strings.Split(ip, ".")
-	var ipCode uint64 = 0
-	var pos uint = 24
-	for _, ipSeg := range ips {
-		tempInt, _ := strconv.Atoi(ipSeg)
-		tempInt = tempInt << pos
-		ipCode = ipCode | uint64(tempInt)
-		pos -= 8
-	}
-	r := ipCode << 32
-	r += uint64(this.Port)
-	return r
 }
 
 func (this *Address) Handle(handle func(network, address string) error) (err error) {
@@ -184,24 +170,23 @@ func Ipv4Encode(address string) uint64 {
 
 	ip = strings.TrimSpace(ip)
 	ips := strings.Split(ip, ".")
-	var ipCode uint64 = 0
-	var pos uint = 24
+	var r uint64 = 0
+	var pos uint64 = 24
 	for _, ipSeg := range ips {
 		tempInt, _ := strconv.Atoi(ipSeg)
 		tempInt = tempInt << pos
-		ipCode = ipCode | uint64(tempInt)
+		r = r | uint64(tempInt)
 		pos -= 8
 	}
-	r := ipCode << 32
 	if port != "" {
 		p, _ := strconv.Atoi(port)
-		r += uint64(p)
+		r += uint64(p << 32)
 	}
 	return r
 }
 
 func Ipv4Decode(code uint64) string {
-	ip := uint32(code >> 32)
+	ip := uint32(code & 0xffffffff)
 	ips := make([]string, 4)
 	ips[0] = fmt.Sprintf("%v", ip>>24)
 	ips[1] = fmt.Sprintf("%v", (ip&0x00ff0000)>>16)
@@ -209,10 +194,8 @@ func Ipv4Decode(code uint64) string {
 	ips[3] = fmt.Sprintf("%v", ip&0x000000ff)
 	var arr []string
 	arr = append(arr, strings.Join(ips, "."))
-	port := code & 0xffffffff
-	if port > 0 {
-		arr = append(arr, strconv.Itoa(int(port)))
-	}
+	port := code >> 32
+	arr = append(arr, strconv.Itoa(int(port)))
 	return strings.Join(arr, ":")
 }
 
