@@ -11,15 +11,17 @@ import (
 func ZlibCompress(data []byte) []byte {
 	var in bytes.Buffer
 	w := zlib.NewWriter(&in)
-	w.Write(data)
-	w.Close()
+	_, _ = w.Write(data)
+	_ = w.Close()
 	return in.Bytes()
 }
 
 func ZlibUnCompress(data []byte) ([]byte, error) {
 	b := bytes.NewReader(data)
 	r, _ := zlib.NewReader(b)
-	defer r.Close()
+	defer func() {
+		_ = r.Close()
+	}()
 	undatas, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -46,7 +48,7 @@ func GZipUnCompress(data []byte) ([]byte, error) {
 	return undatas, nil
 }
 
-//IntToBytes 整形转换成字节
+// IntToBytes 整形转换成字节
 func IntToBytes(n interface{}) ([]byte, error) {
 	var err error
 	bytesBuffer := bytes.NewBuffer([]byte{})
@@ -65,7 +67,7 @@ func IntToBytes(n interface{}) ([]byte, error) {
 
 }
 
-//IntToBuffer 将数字写入BUFFER, buffer := bytes.NewBuffer([]byte{})
+// IntToBuffer 将数字写入BUFFER, buffer := bytes.NewBuffer([]byte{})
 func IntToBuffer(buffer *bytes.Buffer, n interface{}) error {
 	if v, ok := n.(int); ok {
 		return binary.Write(buffer, binary.BigEndian, int32(v))
@@ -76,7 +78,7 @@ func IntToBuffer(buffer *bytes.Buffer, n interface{}) error {
 	}
 }
 
-//BytesToInt 字节转换成整形,n 必须是指针
+// BytesToInt 字节转换成整形,n 必须是指针
 // var a int32
 // BytesToInt([]byte{1},&a)
 func BytesToInt(b []byte, n interface{}) error {
