@@ -118,6 +118,19 @@ func (this *Router) Match(paths ...string) (nodes []*Router) {
 	return
 }
 
+// Replace 批量替换静态路由，主要用于热更
+func (this *Router) Replace(nodes map[string]any) {
+	static := make(map[string]*Router)
+	for k, v := range this.static {
+		static[k] = v
+	}
+	for k, v := range nodes {
+		arr := strings.Split(k, "/")
+		static[k] = newStatic(arr, v)
+	}
+	this.static = static
+}
+
 // Register 注册协议
 func (this *Router) Register(handle interface{}, paths ...string) (err error) {
 	route := Join(paths...)

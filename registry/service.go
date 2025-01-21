@@ -89,6 +89,33 @@ func (this *Service) Merge(s *Service) (err error) {
 	return
 }
 
+// Replace 覆盖原协议主要用于热更
+func (this *Service) Replace(fs map[string]any) error {
+	nodes := make(map[string]*Node)
+	static := make(map[string]any)
+	for k, i := range fs {
+		v := ValueOf(i)
+		if v.Kind() != reflect.Func {
+			return fmt.Errorf("replace fn type must be reflect.Func:%v", k)
+		}
+		name := this.format("", FuncName(v), k)
+		node := &Node{name: name, value: v, Service: this}
+		if !this.filter(node) {
+			return fmt.Errorf("replace filter return false:%v", name)
+		}
+		nodes[name] = node
+		static[node.Route()] = node
+	}
+	for k, n := range this.nodes {
+		if _, ok := nodes[k]; !ok {
+			nodes[k] = n
+		}
+	}
+	this.nodes = nodes
+	this.router.Replace(static)
+	return nil
+}
+
 // Register 服务注册
 func (this *Service) Register(i interface{}, prefix ...string) error {
 	v := reflect.ValueOf(i)
