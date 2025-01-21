@@ -12,7 +12,7 @@ import (
 )
 
 // SignalReload 重新加载系统信号 kill -10 pid
-var SignalReload syscall.Signal = 10
+var SignalReload syscall.Signal = 0xa
 
 // GCSummaryTime 报告性能摘要时间间隔
 var GCSummaryTime time.Duration = time.Second * 300
@@ -56,7 +56,7 @@ func signalNotify(sig os.Signal) (stopped bool) {
 	case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM:
 		stopped = true
 	default:
-		logger.Trace("receive signal:%v", sig)
+		fmt.Printf("receive signal:%v", sig)
 	}
 	return
 }

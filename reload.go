@@ -1,6 +1,7 @@
 package cosgo
 
 import (
+	"fmt"
 	"github.com/hwcer/cosgo/logger"
 )
 
@@ -9,12 +10,12 @@ func Reload() {
 		if err := recover(); err != nil {
 			logger.Error(err)
 		}
-		logger.Trace("Reload Config Finish")
+		fmt.Printf("Reload Config Finish\n")
 	}()
-	logger.Trace("Start reload Config")
+	fmt.Printf("Start reload Config\n")
 	for _, m := range modules {
 		if err := m.Reload(); err != nil {
-			logger.Alert("[%v]reload error:%v", m.Id(), err)
+			fmt.Printf("[%v]reload error:%v\n", m.Id(), err)
 		}
 	}
 }
