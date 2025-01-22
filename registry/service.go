@@ -162,13 +162,18 @@ func (this *Service) format(serviceName, methodName string, prefix ...string) st
 	return p
 }
 
+// Format 格式化方法路径
+func (this *Service) Format(i any, prefix ...string) string {
+	v := ValueOf(i)
+	return this.format("", FuncName(v), prefix...)
+}
+
 func (this *Service) RegisterFun(i interface{}, prefix ...string) error {
 	v := ValueOf(i)
 	if v.Kind() != reflect.Func {
 		return errors.New("RegisterFun fn type must be reflect.Func")
 	}
-
-	name := this.format("", FuncName(v), prefix...)
+	name := this.Format(v, prefix...)
 	//if name == "" {
 	//	return errors.New("RegisterFun name empty")
 	//}

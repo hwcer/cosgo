@@ -63,6 +63,7 @@ func signalNotify(sig os.Signal) (stopped bool) {
 
 // SIGHUP 关闭控制台
 func SIGHUP() {
+	logger.Trace("停止控制台输出")
 	logger.DelOutput(logger.DefaultConsoleName)
 }
 

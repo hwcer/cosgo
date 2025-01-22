@@ -131,7 +131,6 @@ func (this *config) init() (err error) {
 		}
 		//启动结束时取消控制台
 		On(EventTypStarted, func() error {
-			logger.DelOutput(logger.DefaultConsoleName)
 			return nil
 		})
 	}
