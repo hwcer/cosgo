@@ -123,3 +123,10 @@ func (s *SCC) WithCancel() (context.Context, context.CancelFunc) {
 func (s *SCC) WithTimeout(t time.Duration) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(s.Context, t)
 }
+func (s *SCC) WithValue(parent context.Context, key, val any) context.Context {
+	if parent == nil {
+		return context.WithValue(s.Context, key, val)
+	} else {
+		return context.WithValue(parent, key, val)
+	}
+}

@@ -59,3 +59,6 @@ func WithCancel() (context.Context, context.CancelFunc) {
 func WithTimeout(t time.Duration) (context.Context, context.CancelFunc) {
 	return Default.WithTimeout(t)
 }
+func WithValue(parent context.Context, key, val any) context.Context {
+	return Default.WithValue(parent, key, val)
+}
