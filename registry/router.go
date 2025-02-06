@@ -118,8 +118,8 @@ func (this *Router) Match(paths ...string) (nodes []*Router) {
 	return
 }
 
-// Replace 批量替换静态路由，主要用于热更
-func (this *Router) Replace(nodes map[string]any) {
+// Reload 批量替换静态路由，主要用于热更
+func (this *Router) Reload(nodes map[string]any) {
 	static := make(map[string]*Router)
 	for k, v := range this.static {
 		static[k] = v

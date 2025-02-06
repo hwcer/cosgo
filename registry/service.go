@@ -41,32 +41,12 @@ func NewService(name string, router *Router) *Service {
 }
 
 type Service struct {
-	name   string // a/b
-	prefix string //  /a/b
-	nodes  map[string]*Node
-	//events    map[FilterEventType]func(*Node) bool
+	name    string // a/b
+	prefix  string //  /a/b
+	nodes   map[string]*Node
 	router  *Router
 	Handler Handler //自定义 Filter等方法
-	//Formatter func(string) string //格式化对象和方法名，默认强制小写
 }
-
-//func (this *Service) On(t FilterEventType, l func(*Node) bool) {
-//	if this.events == nil {
-//		this.events = make(map[FilterEventType]func(*Node) bool)
-//	}
-//	this.events[t] = l
-//}
-//
-//func (this *Service) Emit(t FilterEventType, node *Node) bool {
-//	if this.events == nil {
-//		return true
-//	}
-//	filter := this.events[t]
-//	if filter != nil && !filter(node) {
-//		return false
-//	}
-//	return true
-//}
 
 func (this *Service) Name() string {
 	return this.name
@@ -89,30 +69,20 @@ func (this *Service) Merge(s *Service) (err error) {
 	return
 }
 
-// Replace 覆盖原协议主要用于热更
-func (this *Service) Replace(fs map[string]any) error {
+// Reload 覆盖原协议主要用于热更
+func (this *Service) Reload(vs map[string]*Node) error {
 	nodes := make(map[string]*Node)
 	static := make(map[string]any)
-	for k, i := range fs {
-		v := ValueOf(i)
-		if v.Kind() != reflect.Func {
-			return fmt.Errorf("replace fn type must be reflect.Func:%v", k)
-		}
-		name := this.format("", FuncName(v), k)
-		node := &Node{name: name, value: v, Service: this}
-		if !this.filter(node) {
-			return fmt.Errorf("replace filter return false:%v", name)
-		}
-		nodes[name] = node
+	for k, n := range this.nodes {
+		nodes[k] = n
+	}
+	for _, node := range vs {
+		k := node.Name()
+		nodes[k] = node
 		static[node.Route()] = node
 	}
-	for k, n := range this.nodes {
-		if _, ok := nodes[k]; !ok {
-			nodes[k] = n
-		}
-	}
 	this.nodes = nodes
-	this.router.Replace(static)
+	this.router.Reload(static)
 	return nil
 }
 
@@ -162,30 +132,47 @@ func (this *Service) format(serviceName, methodName string, prefix ...string) st
 	return p
 }
 
-// Format 格式化方法路径
-func (this *Service) Format(i any, prefix ...string) string {
-	v := ValueOf(i)
-	return this.format("", FuncName(v), prefix...)
-}
-
-func (this *Service) RegisterFun(i interface{}, prefix ...string) error {
+// Node 创建Node
+func (this *Service) Node(i any, prefix ...string) (*Node, error) {
 	v := ValueOf(i)
 	if v.Kind() != reflect.Func {
-		return errors.New("RegisterFun fn type must be reflect.Func")
+		return nil, errors.New("RegisterFun fn type must be reflect.Func")
 	}
-	name := this.Format(v, prefix...)
-	//if name == "" {
-	//	return errors.New("RegisterFun name empty")
-	//}
+	name := this.format("", FuncName(v), prefix...)
 	node := &Node{name: name, value: v, Service: this}
 	if !this.filter(node) {
-		return fmt.Errorf("RegisterFun filter return false:%v", name)
+		return nil, fmt.Errorf("service filter error:%v", name)
 	}
+	return node, nil
+}
 
-	if _, ok := this.nodes[name]; ok {
-		return fmt.Errorf("RegisterFun exist:%v", name)
+// Format 格式化方法路径
+//func (this *Service) Format(i any, prefix ...string) string {
+//	v := ValueOf(i)
+//	return this.format("", FuncName(v), prefix...)
+//}
+
+func (this *Service) RegisterFun(i interface{}, prefix ...string) error {
+	//v := ValueOf(i)
+	//if v.Kind() != reflect.Func {
+	//	return errors.New("RegisterFun fn type must be reflect.Func")
+	//}
+	//name := this.Format(v, prefix...)
+	////if name == "" {
+	////	return errors.New("RegisterFun name empty")
+	////}
+	//node := &Node{name: name, value: v, Service: this}
+	//if !this.filter(node) {
+	//	return fmt.Errorf("RegisterFun filter return false:%v", name)
+	//}
+	node, err := this.Node(i, prefix...)
+	if err != nil {
+		return err
 	}
-	this.nodes[name] = node
+	if _, ok := this.nodes[node.name]; ok {
+		return fmt.Errorf("RegisterFun exist:%v", node.name)
+	}
+	this.nodes[node.name] = node
 	return this.router.Register(node, node.Route())
 }
 

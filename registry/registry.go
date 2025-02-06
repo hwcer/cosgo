@@ -1,5 +1,9 @@
 package registry
 
+import (
+	"fmt"
+)
+
 type Registry struct {
 	dict   map[string]*Service
 	router *Router
@@ -30,20 +34,43 @@ func (this *Registry) Has(name string) (ok bool) {
 	return
 }
 
-func (this *Registry) Merge(r *Registry) (err error) {
-	this.Range(func(s *Service) bool {
-		prefix := s.prefix
-		if _, ok := this.dict[prefix]; !ok {
-			this.dict[prefix] = NewService(prefix, this.router)
+//	func (this *Registry) Merge(r *Registry) (err error) {
+//		this.Range(func(s *Service) bool {
+//			prefix := s.prefix
+//			if _, ok := this.dict[prefix]; !ok {
+//				this.dict[prefix] = NewService(prefix, this.router)
+//			}
+//			if err = this.dict[prefix].Merge(s); err != nil {
+//				return false
+//			}
+//			return true
+//		})
+//		return
+//	}
+type ssr map[string]*Node
+
+func (this *Registry) Reload(nodes map[string]*Node) (err error) {
+	ssc := make(map[string]ssr)
+	for _, v := range nodes {
+		sr := ssc[v.Service.Name()]
+		if sr == nil {
+			sr = make(ssr)
+			ssc[v.Service.Name()] = sr
 		}
-		if err = this.dict[prefix].Merge(s); err != nil {
-			return false
+		sr[v.Name()] = v
+	}
+	for k, v := range ssc {
+		service, ok := this.Get(k)
+		if !ok {
+			return fmt.Errorf("service not found:%v", k)
 		}
-		return true
-	})
+		if err = service.Reload(v); err != nil {
+			return err
+		}
+	}
+
 	return
 }
-
 func (this *Registry) Router() *Router {
 	return this.router
 }
@@ -69,14 +96,6 @@ func (this *Registry) Service(name string) *Service {
 	this.dict[prefix] = srv
 	return srv
 }
-
-// Services 获取所有ServicePath
-//func (this *Registry) Services() (r []*Service) {
-//	for _, s := range this.dict {
-//		r = append(r, s)
-//	}
-//	return
-//}
 
 // Range 遍历所有服务
 func (this *Registry) Range(f func(service *Service) bool) {
