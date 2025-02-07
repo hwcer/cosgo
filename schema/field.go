@@ -103,52 +103,52 @@ func (field *Field) Set(value reflect.Value, v interface{}) error {
 func (field *Field) fallbackSetter(value reflect.Value, v interface{}, setter func(reflect.Value, interface{}) error) (err error) {
 	if v == nil {
 		field.ReflectValueOf(value).Set(reflect.New(field.FieldType).Elem())
-	} else {
-		reflectV := reflect.ValueOf(v)
-		// Optimal value type acquisition for v
-		reflectValType := reflectV.Type()
+		return nil
+	}
+	reflectV := reflect.ValueOf(v)
+	// Optimal value type acquisition for v
+	reflectValType := reflectV.Type()
 
-		if reflectValType.AssignableTo(field.FieldType) {
-			field.ReflectValueOf(value).Set(reflectV)
-			return
-		} else if reflectValType.ConvertibleTo(field.FieldType) {
-			field.ReflectValueOf(value).Set(reflectV.Convert(field.FieldType))
-			return
-		} else if field.FieldType.Kind() == reflect.Ptr {
-			fieldValue := field.ReflectValueOf(value)
-			fieldType := field.FieldType.Elem()
+	if reflectValType.AssignableTo(field.FieldType) {
+		field.ReflectValueOf(value).Set(reflectV)
+		return
+	} else if reflectValType.ConvertibleTo(field.FieldType) {
+		field.ReflectValueOf(value).Set(reflectV.Convert(field.FieldType))
+		return
+	} else if field.FieldType.Kind() == reflect.Ptr {
+		fieldValue := field.ReflectValueOf(value)
+		fieldType := field.FieldType.Elem()
 
-			if reflectValType.AssignableTo(fieldType) {
-				if !fieldValue.IsValid() {
-					fieldValue = reflect.New(fieldType)
-				} else if fieldValue.IsNil() {
-					fieldValue.Set(reflect.New(fieldType))
-				}
-				fieldValue.Elem().Set(reflectV)
-				return
-			} else if reflectValType.ConvertibleTo(fieldType) {
-				if fieldValue.IsNil() {
-					fieldValue.Set(reflect.New(fieldType))
-				}
-
-				fieldValue.Elem().Set(reflectV.Convert(fieldType))
-				return
+		if reflectValType.AssignableTo(fieldType) {
+			if !fieldValue.IsValid() {
+				fieldValue = reflect.New(fieldType)
+			} else if fieldValue.IsNil() {
+				fieldValue.Set(reflect.New(fieldType))
 			}
+			fieldValue.Elem().Set(reflectV)
+			return
+		} else if reflectValType.ConvertibleTo(fieldType) {
+			if fieldValue.IsNil() {
+				fieldValue.Set(reflect.New(fieldType))
+			}
+
+			fieldValue.Elem().Set(reflectV.Convert(fieldType))
+			return
 		}
+	}
 
-		if reflectV.Kind() == reflect.Ptr {
-			if reflectV.IsNil() {
-				field.ReflectValueOf(value).Set(reflect.New(field.FieldType).Elem())
-			} else {
-				err = setter(value, reflectV.Elem().Interface())
-			}
-		} else if valuer, ok := v.(driver.Valuer); ok {
-			if v, err = valuer.Value(); err == nil {
-				err = setter(value, v)
-			}
+	if reflectV.Kind() == reflect.Ptr {
+		if reflectV.IsNil() {
+			field.ReflectValueOf(value).Set(reflect.New(field.FieldType).Elem())
 		} else {
-			return fmt.Errorf("failed to set value %+v to field %s", v, field.Name)
+			err = setter(value, reflectV.Elem().Interface())
 		}
+	} else if valuer, ok := v.(driver.Valuer); ok {
+		if v, err = valuer.Value(); err == nil {
+			err = setter(value, v)
+		}
+	} else {
+		return fmt.Errorf("failed to set value %+v to field %s", v, field.Name)
 	}
 
 	return

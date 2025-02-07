@@ -122,20 +122,12 @@ func (schema *Schema) SetValue(obj any, val any, key string, keys ...any) (err e
 		}
 		if i < n {
 			vf = field.Get(vf)
-
-			//if v := field.Get(vf); v.IsZero() {
-			//	v = reflect.New(field.FieldType)
-			//	if err = field.Set(vf, v.Interface()); err != nil {
-			//		return
-			//	}
-			//	vf = v
-			//} else {
-			//	vf = v
-			//}
-
 		}
 	}
-	return field.Set(vf, val)
+	if field != nil {
+		err = field.Set(vf, val)
+	}
+	return
 
 }
 
@@ -169,10 +161,8 @@ func (schema *Schema) ParseField(fieldStruct reflect.StructField) *Field {
 		//初始化子结构
 	case reflect.Invalid, reflect.Uintptr, reflect.Chan, reflect.Func, reflect.Interface, reflect.UnsafePointer, reflect.Complex64, reflect.Complex128:
 		schema.err = fmt.Errorf("invalid embedded struct for %s's field %s, should be struct, but got %v", field.Schema.Name, field.Name, field.FieldType)
+	default:
+		fmt.Printf("Schema ParseField unhandled default case")
 	}
-
-	//if fieldStruct.Anonymous {
-	//
-	//}
 	return field
 }
