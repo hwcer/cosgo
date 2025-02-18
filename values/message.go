@@ -78,6 +78,8 @@ func Parse(v any) *Message {
 	switch d := v.(type) {
 	case *Message:
 		return d
+	case Message:
+		return &d
 	default:
 		r := &Message{}
 		return r.Parse(v)

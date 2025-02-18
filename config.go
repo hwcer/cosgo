@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -23,6 +24,7 @@ var Config = &config{Viper: viper.New()}
 
 type config struct {
 	*viper.Viper
+	init int32
 }
 
 func (this *config) Flags(name, shorthand string, value interface{}, usage string) interface{} {
@@ -61,7 +63,10 @@ func (this *config) Flags(name, shorthand string, value interface{}, usage strin
 	return nil
 }
 
-func (this *config) init() (err error) {
+func (this *config) Init() (err error) {
+	if !atomic.CompareAndSwapInt32(&this.init, 0, 1) {
+		return nil
+	}
 	pflag.Parse()
 	appName := Name()
 	if err = this.BindPFlags(pflag.CommandLine); err != nil {

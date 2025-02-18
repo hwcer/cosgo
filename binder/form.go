@@ -83,7 +83,7 @@ func (f *formBinding) UnmarshalFromValues(vs url.Values, i any) (err error) {
 
 	s, err := formBindingSchema.Parse(vf)
 	if err != nil {
-		return nil
+		return err
 	}
 	for _, field := range s.Fields {
 		k := field.JsonName()

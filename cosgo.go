@@ -44,7 +44,7 @@ func Start(waitForSystemExit bool, mods ...IModule) {
 		modules = append(modules, mod)
 	}
 	var err error
-	if err = Config.init(); err != nil {
+	if err = Config.Init(); err != nil {
 		logger.Panic(err)
 	}
 	if err = helps(); err != nil {
