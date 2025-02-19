@@ -18,6 +18,7 @@ func New() *Client {
 type middleware func(req *http.Request) error
 
 type Client struct {
+	oauth      *OAuth
 	Binder     binder.Binder
 	middleware []middleware
 }
@@ -26,6 +27,11 @@ type Client struct {
 // 使用 OAuth.SetHeader 作为中间件自动签名
 func (c *Client) Use(m middleware) {
 	c.middleware = append(c.middleware, m)
+}
+
+func (c *Client) OAuth(key, secret string) *OAuth {
+	c.oauth = NewOAuth(key, secret)
+	return c.oauth
 }
 
 func (this *Client) Request(method, url string, data interface{}) (reply []byte, err error) {
@@ -38,13 +44,6 @@ func (this *Client) Request(method, url string, data interface{}) (reply []byte,
 		req *http.Request
 		res *http.Response
 	)
-	/*	var buf []byte
-		if data != nil {
-			buf, err = this.Binder.Marshal(data)
-		}
-		if err != nil {
-			return
-		}*/
 	if data != nil {
 		var buf []byte
 		if buf, err = this.Binder.Marshal(data); err != nil {
@@ -69,6 +68,12 @@ func (this *Client) Request(method, url string, data interface{}) (reply []byte,
 			return
 		}
 	}
+	if this.oauth != nil {
+		if err = this.oauth.Request(req); err != nil {
+			return
+		}
+	}
+
 	res, err = http.DefaultClient.Do(req)
 	if err != nil {
 		return
