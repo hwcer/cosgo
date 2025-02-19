@@ -87,19 +87,30 @@ func (this *Client) Get(url string, reply interface{}) (err error) {
 	if err != nil {
 		return
 	}
-	if reply != nil {
+	switch v := reply.(type) {
+	case *[]byte:
+		*v = body
+	case *string:
+		*v = string(body)
+	default:
 		err = this.Binder.Unmarshal(body, reply)
 	}
+
 	return
 }
 
 func (this *Client) Post(url string, data interface{}, reply interface{}) (err error) {
 	var body []byte
 	body, err = this.Request(http.MethodPost, url, data)
-	if err != nil {
+	if err != nil || reply == nil {
 		return
 	}
-	if reply != nil {
+	switch v := reply.(type) {
+	case *[]byte:
+		*v = body
+	case *string:
+		*v = string(body)
+	default:
 		err = this.Binder.Unmarshal(body, reply)
 	}
 	return
