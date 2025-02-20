@@ -7,17 +7,19 @@ import (
 )
 
 func TestName(t *testing.T) {
-	init := NewInitialize(func() error {
+	handle := func() error {
 		time.Sleep(3 * time.Second)
 		t.Logf("初始化完成")
 		return nil
-	})
+	}
+
+	init := NewInitialize()
 	wg := sync.WaitGroup{}
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func(n int) {
 			t.Logf("goroutine start %d", n)
-			_ = init.Verify()
+			_ = init.Reload(handle)
 			t.Logf("goroutine finish %d", n)
 			wg.Done()
 		}(i)

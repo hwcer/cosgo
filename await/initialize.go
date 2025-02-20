@@ -4,9 +4,8 @@ import (
 	"sync/atomic"
 )
 
-func NewInitialize(handle func() error) *Initialize {
+func NewInitialize() *Initialize {
 	i := new(Initialize)
-	i.handle = handle
 	i.initializing = make(chan struct{})
 	return i
 }
@@ -14,11 +13,10 @@ func NewInitialize(handle func() error) *Initialize {
 // Initialize 并发模式下初始化控制器
 type Initialize struct {
 	status       int32
-	handle       func() error //如果没有初始化则进行初始化
 	initializing chan struct{}
 }
 
-func (i *Initialize) Verify() error {
+func (i *Initialize) Reload(handle func() error) error {
 	if i.status >= 2 {
 		return nil
 	}
@@ -30,10 +28,10 @@ func (i *Initialize) Verify() error {
 		i.status = 2
 		close(i.initializing)
 	}()
-	return i.handle()
+	return handle()
 }
 
-func (i *Initialize) Reload() {
+func (i *Initialize) Reset() {
 	if atomic.CompareAndSwapInt32(&i.status, 2, 3) {
 		i.initializing = make(chan struct{})
 		i.status = 0

@@ -13,8 +13,10 @@ var (
 	ErrServerBusy = values.Errorf(1, "server busy,try again later")
 )
 
-func New() *Await {
-	return &Await{}
+func New(cap int, timeout time.Duration) *Await {
+	r := &Await{}
+	r.init(cap, timeout)
+	return r
 }
 
 type Await struct {
@@ -48,7 +50,7 @@ func (this *Await) Sync(handle Handle, args any) *Message {
 	return msg
 }
 
-func (this *Await) Start(cap int, timeout time.Duration) {
+func (this *Await) init(cap int, timeout time.Duration) {
 	this.c = make(chan *Message, cap)
 	this.Timeout = timeout
 	scc.CGO(this.process)

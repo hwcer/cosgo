@@ -1,3 +1,2 @@
 # cosgo
- go game
-开发中
+一堆脚手架
