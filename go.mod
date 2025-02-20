@@ -1,8 +1,8 @@
 module github.com/hwcer/cosgo
 
-go 1.22.0
+go 1.23
 
-toolchain go1.23.2
+toolchain go1.23.4
 
 require (
 	github.com/coreos/etcd v3.3.27+incompatible
