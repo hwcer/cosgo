@@ -8,6 +8,7 @@ import (
 
 const (
 	signLayout       = "20060102"
+	DateLayout       = "2006-01-02"
 	DaySecond  int64 = 24 * 60 * 60
 	WeekSecond int64 = DaySecond * 7
 )
