@@ -9,12 +9,27 @@ import (
 	"strings"
 )
 
+func NewUrl(address, scheme string) (*url.URL, error) {
+	if !strings.Contains(address, "://") {
+		address = scheme + "://" + address
+	}
+	return url.Parse(address)
+}
+
+// NewAddress 解析url,scheme:默认协议
+func NewAddress(address ...string) (r *Address) {
+	r = &Address{}
+	if len(address) > 0 {
+		r.Parse(address[0])
+	}
+	return
+}
+
 type Address struct {
-	Port      int    `json:"port"`
-	Host      string `json:"host"`
-	Retry     int    `json:"retry"`
-	Scheme    string `json:"scheme"`
-	localIpv4 string
+	Port   int    `json:"port"`
+	Host   string `json:"host"`
+	Retry  int    `json:"retry"`
+	Scheme string `json:"scheme"`
 }
 
 func (this *Address) Parse(address string) {
@@ -47,22 +62,30 @@ func (this *Address) String(withScheme ...bool) string {
 	}
 	return b.String()
 }
-func (this *Address) Empty() bool {
-	return this.Host == "" || this.Host == "0.0.0.0" || this.Host == "127.0.0.1" || this.Host == "localhost"
-}
-func (this *Address) LocalIPv4() string {
-	if this.localIpv4 == "" {
-		var err error
-		if this.localIpv4, err = LocalIpv4(); err != nil {
-			this.localIpv4 = "0.0.0.0"
-		}
+
+func (this *Address) Local(withPort ...bool) string {
+	ip, err := LocalIPv4()
+	if err != nil {
+		return "0.0.0.0"
 	}
-	return this.localIpv4
+	if len(withPort) > 0 && withPort[0] {
+		ip = ip + ":" + strconv.Itoa(this.Port)
+	}
+
+	return ip
+}
+
+// Valid 是否有效的IP（非本机IP）
+func (this *Address) Valid() bool {
+	if this.Host == "" {
+		return false
+	}
+	return !LocalValid(this.Host)
 }
 
 func (this *Address) Encode() uint64 {
 	addr := this.String(false)
-	return Ipv4Encode(addr)
+	return IPv4Encode(addr)
 
 }
 
@@ -93,23 +116,7 @@ func (this *Address) HandleWithNetwork(handle func(address string) error) (err e
 	return this.HandleWithNetwork(handle)
 }
 
-// NewAddress 解析url,scheme:默认协议
-func NewAddress(address ...string) (r *Address) {
-	r = &Address{}
-	if len(address) > 0 {
-		r.Parse(address[0])
-	}
-	return
-}
-
-func NewUrl(address, scheme string) (*url.URL, error) {
-	if !strings.Contains(address, "://") {
-		address = scheme + "://" + address
-	}
-	return url.Parse(address)
-}
-
-func LocalIpv4() (ip string, err error) {
+func LocalIPv4() (ip string, err error) {
 	var ipv4 []string
 	if ipv4, err = LocalIPv4s(); err != nil {
 		return
@@ -136,7 +143,7 @@ func LocalIPv4s() ([]string, error) {
 		return ips, err
 	}
 	for _, a := range addrs {
-		if ip, ok := isLocalIpv4(a); ok {
+		if ip, ok := isLocalIPv4(a); ok {
 			ips = append(ips, ip)
 		}
 	}
@@ -144,7 +151,15 @@ func LocalIPv4s() ([]string, error) {
 	return ips, nil
 }
 
-func isLocalIpv4(a net.Addr) (string, bool) {
+// LocalValid 是否本机IP
+func LocalValid(ip string) bool {
+	if i := strings.Index(ip, ":"); i >= 0 {
+		ip = ip[:i]
+	}
+	return ip == "0.0.0.0" || ip == "127.0.0.1" || ip == "localhost"
+}
+
+func isLocalIPv4(a net.Addr) (string, bool) {
 	if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() && ipnet.IP.To4() != nil {
 		ip := ipnet.IP.String()
 		if strings.HasSuffix(ip, ".1") || strings.HasSuffix(ip, ".255") {
@@ -156,8 +171,8 @@ func isLocalIpv4(a net.Addr) (string, bool) {
 	return "", false
 }
 
-// Ipv4Encode  Ip2Int Ipv4 转uint64
-func Ipv4Encode(address string) uint64 {
+// IPv4Encode  Ip2Int Ipv4 转uint64
+func IPv4Encode(address string) uint64 {
 	var ip string
 	var port string
 	i := strings.Index(address, ":")
@@ -185,7 +200,7 @@ func Ipv4Encode(address string) uint64 {
 	return r
 }
 
-func Ipv4Decode(code uint64) string {
+func IPv4Decode(code uint64) string {
 	ip := uint32(code & 0xffffffff)
 	ips := make([]string, 4)
 	ips[0] = fmt.Sprintf("%v", ip>>24)
