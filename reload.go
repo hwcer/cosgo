@@ -14,8 +14,10 @@ func Reload() {
 	}()
 	fmt.Printf("Start reload Config\n")
 	for _, m := range modules {
-		if err := m.Reload(); err != nil {
-			fmt.Printf("[%v]reload error:%v\n", m.Id(), err)
+		if reload, ok := m.(ModuleReload); ok {
+			if err := reload.Reload(); err != nil {
+				fmt.Printf("[%v]reload error:%v\n", m.Id(), err)
+			}
 		}
 	}
 }

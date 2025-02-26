@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-var modules []IModule
+var modules []Module
 
 //var appStopChan = make(chan struct{})
 
@@ -22,12 +22,12 @@ func assert(err interface{}, s ...string) {
 	}
 }
 
-func Use(mods ...IModule) {
+func Use(mods ...Module) {
 	for _, mod := range mods {
 		modules = append(modules, mod)
 	}
 }
-func Range(f func(IModule) bool) {
+func Range(f func(Module) bool) {
 	for _, mod := range modules {
 		if !f(mod) {
 			return
@@ -39,7 +39,7 @@ func Range(f func(IModule) bool) {
 // @param waitForSystemExit 阻塞模式等待系统关闭系统，程序不会直接退出
 // @param mods 需注册的模块
 
-func Start(waitForSystemExit bool, mods ...IModule) {
+func Start(waitForSystemExit bool, mods ...Module) {
 	for _, mod := range mods {
 		modules = append(modules, mod)
 	}
@@ -136,7 +136,7 @@ func stop() (stopped bool) {
 	return true
 }
 
-func closeModule(m IModule) {
+func closeModule(m Module) {
 	defer scc.Done()
 	defer func() {
 		if err := recover(); err != nil {
