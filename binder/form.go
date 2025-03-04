@@ -20,6 +20,10 @@ func init() {
 
 type formBinding struct{}
 
+func (*formBinding) Name() string {
+	return GetMimeName(MIMEPOSTForm)
+}
+
 func (*formBinding) String() string {
 	return MIMEPOSTForm
 }

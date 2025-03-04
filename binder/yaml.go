@@ -12,6 +12,9 @@ func init() {
 
 type yamlBinding struct{}
 
+func (yamlBinding) Name() string {
+	return GetMimeName(MIMEYAML)
+}
 func (yamlBinding) String() string {
 	return MIMEYAML
 }

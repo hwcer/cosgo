@@ -13,7 +13,8 @@ var binderMap = make(map[string]Binder)
 //type Interface = Binder
 
 type Binder interface {
-	String() string
+	Name() string                        //JSON
+	String() string                      // application/json
 	Encode(io.Writer, interface{}) error //同Marshal
 	Decode(io.Reader, interface{}) error //同Unmarshal
 	Marshal(interface{}) ([]byte, error)
@@ -26,6 +27,9 @@ func New(t string) (b Binder) {
 
 func Get(t string) (h Binder) {
 	if st, ok := mimeTypes[strings.ToUpper(t)]; ok {
+		return binderMap[st]
+	}
+	if st, ok := mimeNames[strings.ToLower(t)]; ok {
 		return binderMap[st]
 	}
 	ct, _, err := mime.ParseMediaType(t)

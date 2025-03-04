@@ -5,6 +5,44 @@ import (
 	"strconv"
 )
 
+func ParseInt32(v any) int32 {
+	if v == nil {
+		return 0
+	}
+	switch d := v.(type) {
+	case int:
+		return int32(d)
+	case uint:
+		return int32(d)
+	case int8:
+		return int32(d)
+	case uint8:
+		return int32(d)
+	case int16:
+		return int32(d)
+	case uint16:
+		return int32(d)
+	case int32:
+		return int32(d)
+	case uint32:
+		return int32(d)
+	case int64:
+		return int32(d)
+	case uint64:
+		return int32(d)
+	case float32:
+		return int32(d)
+	case float64:
+		return int32(d)
+	case string:
+		temp, _ := strconv.ParseInt(d, 10, 64)
+		return int32(temp)
+	default:
+		temp, _ := strconv.ParseInt(fmt.Sprintf("%v", d), 10, 64)
+		return int32(temp)
+	}
+}
+
 func ParseInt64(v any) int64 {
 	if v == nil {
 		return 0

@@ -13,6 +13,10 @@ func init() {
 
 type jsonBinding struct{}
 
+func (jsonBinding) Name() string {
+	return GetMimeName(MIMEJSON)
+}
+
 func (jsonBinding) String() string {
 	return MIMEJSON
 }

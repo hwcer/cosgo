@@ -69,3 +69,11 @@ func (meta Metadata) GetFloat64(k string) (r float64) {
 func (meta Metadata) GetString(k string) (r string) {
 	return meta[k]
 }
+
+func (meta Metadata) Clone() Metadata {
+	r := make(Metadata)
+	for k, v := range meta {
+		r[k] = v
+	}
+	return r
+}

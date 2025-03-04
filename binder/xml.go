@@ -14,6 +14,9 @@ func init() {
 
 type xmlBinding struct{}
 
+func (xmlBinding) Name() string {
+	return GetMimeName(MIMEXML)
+}
 func (xmlBinding) String() string {
 	return MIMEXML
 }
