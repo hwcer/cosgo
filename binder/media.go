@@ -2,34 +2,24 @@ package binder
 
 import "strings"
 
-const (
-	HeaderAccept      = "Accept"
-	HeaderContentType = "Content-Type"
-)
-
-var mimeTypes = map[string]string{} // JSON --> application/json
-var mimeNames = map[string]string{} //  application/json  --> JSON
-
-func GetMimeName(t string) string {
-	s := strings.ToLower(t)
-	if v, ok := mimeNames[s]; ok {
-		return v
-	}
-	return t
+type T struct {
+	Id   uint8
+	Name string
+	Type string
 }
 
-func GetMimeType(t string) string {
-	s := strings.ToUpper(t)
-	if v, ok := mimeTypes[s]; ok {
-		return v
-	}
-	return t
-}
+var mimeIds = map[uint8]*T{}
+var mimeTypes = map[string]*T{} // application/json
+var mimeNames = map[string]*T{} // JSON
 
-func SetMimeType(name string, typ string) {
-	name = strings.ToUpper(name)
-	mimeTypes[name] = typ
-	mimeNames[typ] = name
+func SetMimeType(id uint8, name string, typ string) {
+	v := &T{}
+	v.Id = id
+	v.Name = strings.ToUpper(name)
+	v.Type = strings.ToLower(typ)
+	mimeIds[id] = v
+	mimeTypes[v.Type] = v
+	mimeNames[v.Name] = v
 }
 
 // Content-Type MIME of the most common data formats.
@@ -46,11 +36,11 @@ const (
 )
 
 func init() {
-	SetMimeType("JSON", MIMEJSON)
-	SetMimeType("XML", MIMEXML)
-	SetMimeType("XML2", MIMEXML2)
-	SetMimeType("PROTOBUF", MIMEPROTOBUF)
-	SetMimeType("MSGPACK", MIMEMSGPACK)
-	SetMimeType("MSGPACK2", MIMEMSGPACK2)
-	SetMimeType("YAML", MIMEYAML)
+	SetMimeType(1, "JSON", MIMEJSON)
+	SetMimeType(2, "XML", MIMEXML)
+	SetMimeType(3, "XML2", MIMEXML2)
+	SetMimeType(4, "PROTOBUF", MIMEPROTOBUF)
+	SetMimeType(5, "MSGPACK", MIMEMSGPACK)
+	SetMimeType(6, "MSGPACK2", MIMEMSGPACK2)
+	SetMimeType(7, "YAML", MIMEYAML)
 }

@@ -20,14 +20,16 @@ func init() {
 
 type formBinding struct{}
 
-func (*formBinding) Name() string {
-	return GetMimeName(MIMEPOSTForm)
+func (*formBinding) Id() uint8 {
+	return Type(MIMEPOSTForm).Id
 }
 
+func (*formBinding) Name() string {
+	return Type(MIMEPOSTForm).Name
+}
 func (*formBinding) String() string {
 	return MIMEPOSTForm
 }
-
 func (this *formBinding) Encode(w io.Writer, i interface{}) error {
 	b, e := this.Marshal(i)
 	if e != nil {

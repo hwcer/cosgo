@@ -14,10 +14,13 @@ func init() {
 
 type protobufBinding struct{}
 
-func (*protobufBinding) Name() string {
-	return GetMimeName(MIMEPROTOBUF)
+func (*protobufBinding) Id() uint8 {
+	return Type(MIMEPROTOBUF).Id
 }
 
+func (*protobufBinding) Name() string {
+	return Type(MIMEPROTOBUF).Name
+}
 func (*protobufBinding) String() string {
 	return MIMEPROTOBUF
 }

@@ -4,17 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime"
 	"strings"
 )
 
 var binderMap = make(map[string]Binder)
 
-//type Interface = Binder
-
 type Binder interface {
+	Id() uint8                           // 1
 	Name() string                        //JSON
-	String() string                      // application/json
+	String() string                      //application/json
 	Encode(io.Writer, interface{}) error //同Marshal
 	Decode(io.Reader, interface{}) error //同Unmarshal
 	Marshal(interface{}) ([]byte, error)
@@ -25,16 +23,27 @@ func New(t string) (b Binder) {
 	return Get(t)
 }
 
-func Get(t string) (h Binder) {
-	if st, ok := mimeTypes[strings.ToUpper(t)]; ok {
-		return binderMap[st]
+func Type(i any) *T {
+	switch v := i.(type) {
+	case string:
+		if strings.Contains(v, "/") {
+			return mimeTypes[strings.ToLower(v)]
+		} else {
+			return mimeNames[strings.ToUpper(v)]
+		}
+	case int:
+		return mimeIds[uint8(v)]
+	case uint8:
+		return mimeIds[v]
+	default:
+		return nil
 	}
-	if st, ok := mimeNames[strings.ToLower(t)]; ok {
-		return binderMap[st]
-	}
-	ct, _, err := mime.ParseMediaType(t)
-	if err == nil {
-		h = binderMap[ct]
+}
+
+// Get 获取 string(name/type) uint8(id)
+func Get(i any) (h Binder) {
+	if t := Type(i); t != nil {
+		h = binderMap[t.Type]
 	}
 	return
 }
@@ -47,7 +56,7 @@ func Register(t string, handle Binder) error {
 	return nil
 }
 
-func Encode(w io.Writer, i interface{}, t string) error {
+func Encode(w io.Writer, i any, t any) error {
 	handle := Get(t)
 	if handle == nil {
 		return errors.New("name not exist")
@@ -55,7 +64,7 @@ func Encode(w io.Writer, i interface{}, t string) error {
 	return handle.Encode(w, i)
 }
 
-func Decode(r io.Reader, i interface{}, t string) error {
+func Decode(r io.Reader, i any, t any) error {
 	handle := Get(t)
 	if handle == nil {
 		return errors.New("name not exist")
@@ -63,14 +72,14 @@ func Decode(r io.Reader, i interface{}, t string) error {
 	return handle.Decode(r, i)
 }
 
-func Marshal(i interface{}, t string) ([]byte, error) {
+func Marshal(i any, t any) ([]byte, error) {
 	handle := Get(t)
 	if handle == nil {
 		return nil, errors.New("type not exist")
 	}
 	return handle.Marshal(i)
 }
-func Unmarshal(b []byte, i interface{}, t string) error {
+func Unmarshal(b []byte, i any, t any) error {
 	handle := Get(t)
 	if handle == nil {
 		return errors.New("type not exist")
