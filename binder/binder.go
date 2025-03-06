@@ -23,21 +23,30 @@ func New(t string) (b Binder) {
 	return Get(t)
 }
 
-func Type(i any) *T {
+func ContentTypeFormat(c string) string {
+	c = strings.ToLower(c)
+	if i := strings.Index(c, ";"); i >= 0 {
+		c = c[:i]
+	}
+	return strings.TrimSpace(c)
+}
+
+func Type(i any) (r *T) {
 	switch v := i.(type) {
 	case string:
 		if strings.Contains(v, "/") {
-			return mimeTypes[strings.ToLower(v)]
+			r = mimeTypes[ContentTypeFormat(v)]
 		} else {
-			return mimeNames[strings.ToUpper(v)]
+			r = mimeNames[strings.ToUpper(v)]
 		}
 	case int:
-		return mimeIds[uint8(v)]
+		r = mimeIds[uint8(v)]
 	case uint8:
-		return mimeIds[v]
+		r = mimeIds[v]
 	default:
-		return nil
+		r = nil
 	}
+	return
 }
 
 // Get 获取 string(name/type) uint8(id)

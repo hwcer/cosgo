@@ -43,4 +43,5 @@ func init() {
 	SetMimeType(5, "MSGPACK", MIMEMSGPACK)
 	SetMimeType(6, "MSGPACK2", MIMEMSGPACK2)
 	SetMimeType(7, "YAML", MIMEYAML)
+	SetMimeType(8, "FORM", MIMEPOSTForm)
 }
