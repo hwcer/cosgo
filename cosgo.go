@@ -115,7 +115,7 @@ func showConfig() {
 		logsDir = "Console"
 	}
 	log = append(log, fmt.Sprintf(">> Logs : %v", logsDir))
-	log = append(log, fmt.Sprintf(">> Branch : %v", Version))
+	log = append(log, fmt.Sprintf(">> Version : %v", Version))
 	log = append(log, fmt.Sprintf(">> Runtime GO:%v  CPU:%v  Pid:%v", runtime.Version(), runtime.NumCPU(), os.Getpid()))
 	log = append(log, "========================================================================")
 	logger.Trace(strings.Join(log, "\n"))
