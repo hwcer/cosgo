@@ -2,6 +2,7 @@ package session
 
 import (
 	"github.com/hwcer/cosgo/values"
+	"math"
 	"sync"
 	"sync/atomic"
 )
@@ -16,11 +17,13 @@ func NewData(uuid string, token string, vs map[string]any) *Data {
 	return p
 }
 
+var MaxDataIndex = int32(math.MaxInt32 - 1000)
+
 // Data 用户登录信息,不要直接修改 Player.Values 信息
 type Data struct {
 	uuid  string //GUID
 	token string
-	index uint32
+	index int32
 	sync.Mutex
 	values.Values
 	heartbeat int32
@@ -95,9 +98,21 @@ func (this *Data) Reset() {
 }
 
 // Atomic 生成一个自增的包序列号
-func (this *Data) Atomic() uint32 {
-	return atomic.AddUint32(&this.index, 1)
+func (this *Data) Atomic() int32 {
+	if this.index >= MaxDataIndex {
+		this.TryResetIndex()
+	}
+	r := atomic.AddInt32(&this.index, 1)
+	return r
 }
-func (this *Data) Index() uint32 {
+func (this *Data) Index() int32 {
 	return this.index
+}
+
+func (this *Data) TryResetIndex() {
+	this.Lock()
+	defer this.Unlock()
+	if this.index >= MaxDataIndex {
+		this.index = 0
+	}
 }
