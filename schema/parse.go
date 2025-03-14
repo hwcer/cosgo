@@ -71,6 +71,7 @@ func ParseWithSpecialTableName(dest interface{}, specialTableName string, opts *
 	schema.ModelType = modelType
 	schema.Table = tableName
 	schema.Fields = map[string]*Field{}
+	schema.fieldsJson = map[string]*Field{}
 	schema.fieldsDatabase = map[string]*Field{}
 
 	//var embeddedField []*Field
@@ -108,6 +109,9 @@ func ParseWithSpecialTableName(dest interface{}, specialTableName string, opts *
 			} else {
 				return nil, fmt.Errorf("struct(%v) DBName repeat: %v,%v", schema.Name, f.Name, field.Name)
 			}
+		}
+		if jsName := field.JSName; jsName != "" {
+			schema.fieldsJson[jsName] = field
 		}
 	}
 

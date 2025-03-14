@@ -20,6 +20,7 @@ type Schema struct {
 	ModelType      reflect.Type
 	Fields         map[string]*Field
 	fieldsPrivate  []*Field          //不包含内嵌结构的字段,需要使用所有字段，请使用Schema.Range 或者遍历 FieldsByName FieldsByDBName
+	fieldsJson     map[string]*Field //JSON字段索引
 	fieldsDatabase map[string]*Field //数据库字段索引
 }
 
@@ -61,6 +62,9 @@ func (schema *Schema) LookUpField(name string) *Field {
 		return field
 	}
 	if field, ok := schema.fieldsDatabase[name]; ok {
+		return field
+	}
+	if field, ok := schema.fieldsJson[name]; ok {
 		return field
 	}
 	return nil
@@ -152,6 +156,8 @@ func (schema *Schema) ParseField(fieldStruct reflect.StructField) *Field {
 	} else {
 		field.DBName = schema.options.ColumnName(schema.Table, field.Name)
 	}
+	field.JSName = field.GetTagName("json")
+
 	field.Index = field.StructField.Index
 	kind := reflect.Indirect(fieldValue).Kind()
 	switch kind {

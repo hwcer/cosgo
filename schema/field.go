@@ -11,6 +11,7 @@ import (
 type Field struct {
 	Name              string
 	Index             []int
+	JSName            string
 	DBName            string
 	Schema            *Schema //所在的父对象
 	Embedded          *Schema //嵌入子对象
@@ -19,13 +20,24 @@ type Field struct {
 	IndirectFieldType reflect.Type
 }
 
-func (field *Field) JsonName() string {
-	jsName := field.StructField.Tag.Get("json")
+// GetName json,form,....
+// 按照ks 指定的顺寻找以名字，所有TAG 都无法匹配时返回字段名
+func (field *Field) GetName(ks ...string) string {
+	for _, k := range ks {
+		if v := field.GetTagName(k); v != "" {
+			return v
+		}
+	}
+	return field.Name
+}
+
+func (field *Field) GetTagName(k string) string {
+	jsName := field.StructField.Tag.Get(k)
 	if i := strings.Index(jsName, ","); i >= 0 {
 		jsName = jsName[0:i]
 	}
-	if jsName == "" {
-		return field.Name
+	if jsName == "-" {
+		return ""
 	}
 	return jsName
 }

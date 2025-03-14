@@ -14,7 +14,7 @@ import (
 	"io"
 )
 
-var Crypto *crypto
+var Crypto = crypto{}
 
 type CryptoType int
 
@@ -29,11 +29,7 @@ type crypto struct {
 }
 
 func init() {
-	Crypto = NewCrypto(base64.RawURLEncoding)
-}
-
-func NewCrypto(encoding *base64.Encoding) *crypto {
-	return &crypto{base64: encoding}
+	Crypto.base64 = base64.RawURLEncoding
 }
 
 // Encrypt DES加密

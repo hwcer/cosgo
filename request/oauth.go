@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"io"
@@ -66,7 +67,7 @@ func (this *OAuth) Signature(address string, oauth map[string]string, body strin
 	}
 	arr = append(arr, body)
 	str := strings.Join(arr, "&")
-	return HMACSHA1(this.secret, str)
+	return HMACSHA256(this.secret, str)
 }
 
 // Request 自动设置HTTP请求头
@@ -143,6 +144,11 @@ func (this *OAuth) Verify(req *http.Request, body *bytes.Buffer) (err error) {
 
 func HMACSHA1(key, data string) string {
 	mac := hmac.New(sha1.New, []byte(key))
+	mac.Write([]byte(data))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+func HMACSHA256(key, data string) string {
+	mac := hmac.New(sha256.New, []byte(key))
 	mac.Write([]byte(data))
 	return hex.EncodeToString(mac.Sum(nil))
 }
