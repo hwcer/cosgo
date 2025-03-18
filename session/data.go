@@ -22,13 +22,19 @@ var MaxDataIndex = int32(math.MaxInt32 - 1000)
 // Data 用户登录信息,不要直接修改 Player.Values 信息
 type Data struct {
 	uuid  string //GUID
-	token string
-	index int32
+	token string //token
+	index int32  //socket server id
 	sync.Mutex
 	values.Values
 	heartbeat int32
 }
 
+func (this *Data) Is(v *Data) bool {
+	if v == nil {
+		return false
+	}
+	return this.token == v.token
+}
 func (this *Data) KeepAlive() {
 	this.heartbeat = 0
 }

@@ -14,4 +14,6 @@ var (
 	ErrorSessionIllegal    = values.Errorf(207, "session illegal")
 	ErrorSessionUnknown    = values.Errorf(208, "session unknown error")
 	ErrorSessionReplaced   = values.Errorf(209, "session replaced")
+
+	ErrorSessionSecretIllegal = values.Errorf(210, "session secret illegal")
 )
