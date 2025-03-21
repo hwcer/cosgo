@@ -8,23 +8,23 @@ import (
 const BaseSize = 32
 
 type UUID struct {
-	share  uint16
-	prefix uint32
-	suffix uint32
+	share  uint64
+	prefix uint64
+	suffix uint64
 }
 
-func (u *UUID) GetShard() uint16 {
+func (u *UUID) GetShard() uint64 {
 	return u.share
 }
-func (u *UUID) GetPrefix() uint32 {
+func (u *UUID) GetPrefix() uint64 {
 	return u.prefix
 }
-func (u *UUID) GetSuffix() uint32 {
+func (u *UUID) GetSuffix() uint64 {
 	return u.suffix
 }
 
 // New 通过改变 prefix 生成新UUID
-func (u *UUID) New(prefix uint32) *UUID {
+func (u *UUID) New(prefix uint64) *UUID {
 	n := *u
 	n.prefix = prefix
 	return &n
@@ -32,7 +32,7 @@ func (u *UUID) New(prefix uint32) *UUID {
 
 func (u *UUID) String(base int) string {
 	var build strings.Builder
-	build.WriteString(Pack(uint32(u.share), base))
+	build.WriteString(Pack(u.share, base))
 	build.WriteString(Pack(u.prefix, base))
 	build.WriteString(Pack(u.suffix, base))
 	return build.String()
@@ -46,13 +46,13 @@ func (u *UUID) Uint64() (r uint64, err error) {
 }
 
 func (u *UUID) Parse(id string, base int) (err error) {
-	var i uint32
+	var i uint64
 	suffix := id
 
 	if i, suffix, err = Split(suffix, base, 0); err != nil {
 		return
 	} else {
-		u.share = uint16(i)
+		u.share = i
 	}
 
 	if i, suffix, err = Split(suffix, base, 0); err != nil {

@@ -1,35 +1,15 @@
 package storage
 
-import (
-	"math"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
-)
-
-func New(cap int) *Array {
-	return &Array{
-		seed:      seedDefaultValue,
-		dirty:     newDirty(cap),
-		values:    make([]Setter, cap),
-		prefix:    strconv.FormatInt(time.Now().Unix(), datasetKeyBitSize),
-		NewSetter: NewSetter,
-	}
-}
-
-// Array 一维数组存储器
-type Array struct {
-	seed      uint64       //Index 生成种子
+type Cache struct {
+	cap       int
+	bucket    []*Array
 	mutex     sync.RWMutex //仅写操作需要锁
-	dirty     *dirty
-	values    []Setter
 	prefix    string
 	NewSetter func(id MID, val interface{}) Setter //创建新数据结构
 }
 
 // createSocketId 使用index生成ID
-func (this *Array) createId(index int) MID {
+func (this *Cache) createId(index int) MID {
 	this.seed++
 	if this.seed >= math.MaxUint64 {
 		this.seed = seedDefaultValue
@@ -45,7 +25,7 @@ func (this *Array) createId(index int) MID {
 }
 
 // parseSocketId 返回idPack中的index
-func (this *Array) parseId(id MID) int {
+func (this *Cache) parseId(id MID) int {
 	s := string(id)
 	index := strings.Index(s, datasetKeySplit)
 	if index < 0 {
@@ -58,7 +38,7 @@ func (this *Array) parseId(id MID) int {
 	return int(i)
 }
 
-func (this *Array) get(id MID) (Setter, bool) {
+func (this *Cache) get(id MID) (Setter, bool) {
 	index := this.parseId(id)
 	if index < 0 || index >= len(this.values) || this.values[index] == nil || this.values[index].Id() != id {
 		return nil, false
@@ -66,7 +46,7 @@ func (this *Array) get(id MID) (Setter, bool) {
 	return this.values[index], true
 }
 
-func (this *Array) set(index int, val interface{}) (setter Setter) {
+func (this *Cache) set(index int, val interface{}) (setter Setter) {
 	size := len(this.values)
 	if index < 0 || index > size {
 		index = size
@@ -80,14 +60,14 @@ func (this *Array) set(index int, val interface{}) (setter Setter) {
 	}
 	return
 }
-func (this *Array) push(v interface{}) Setter {
+func (this *Cache) push(v interface{}) Setter {
 	if index := this.dirty.Acquire(); index >= 0 && index < len(this.values) && (this.values[index] == nil || this.values[index].Id() == "") {
 		return this.set(index, v)
 	}
 	return this.set(-1, v)
 }
 
-func (this *Array) remove(id MID) Setter {
+func (this *Cache) remove(id MID) Setter {
 	index := this.parseId(id)
 	if index < 0 || index >= len(this.values) || this.values[index].Id() != id {
 		return nil
@@ -98,11 +78,11 @@ func (this *Array) remove(id MID) Setter {
 	return val
 }
 
-func (this *Array) Get(id MID) (Setter, bool) {
+func (this *Cache) Get(id MID) (Setter, bool) {
 	return this.get(id)
 }
 
-func (this *Array) Set(id MID, v interface{}) bool {
+func (this *Cache) Set(id MID, v interface{}) bool {
 	setter, ok := this.get(id)
 	if !ok {
 		return ok
@@ -112,12 +92,12 @@ func (this *Array) Set(id MID, v interface{}) bool {
 }
 
 // Size 当前数量
-func (this *Array) Size() int {
+func (this *Cache) Size() int {
 	return len(this.values) - this.dirty.Size()
 }
 
 // Range 遍历
-func (this *Array) Range(f func(Setter) bool) {
+func (this *Cache) Range(f func(Setter) bool) {
 	for _, val := range this.values {
 		if val != nil && val.Id() != "" && !f(val) {
 			break
@@ -126,21 +106,21 @@ func (this *Array) Range(f func(Setter) bool) {
 }
 
 // Mutex 获取操作锁
-func (this *Array) Mutex(f func()) {
+func (this *Cache) Mutex(f func()) {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 	f()
 }
 
 // Create 创建一个新数据
-func (this *Array) Create(v interface{}) Setter {
+func (this *Cache) Create(v interface{}) Setter {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 	return this.push(v)
 }
 
 // Remove 批量移除
-func (this *Array) Remove(ids ...MID) {
+func (this *Cache) Remove(ids ...MID) {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 	for _, id := range ids {
@@ -150,7 +130,7 @@ func (this *Array) Remove(ids ...MID) {
 }
 
 // Delete 删除并返回已删除的数据
-func (this *Array) Delete(id MID) Setter {
+func (this *Cache) Delete(id MID) Setter {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 	return this.remove(id)

@@ -12,21 +12,25 @@ import (
 type Unique struct {
 	base   int
 	shard  string
-	index  uint32
+	index  uint64
 	suffix string
 }
 
-func NewUnique(shard uint32, base int) *Unique {
+func NewUnique(shard uint64, base int) *Unique {
 	u := &Unique{base: base}
 	u.shard = Pack(shard, base)
 	t, _ := time.Parse("2006-01-02 15:04:05-0700", "2024-04-11 12:00:00+0800")
 	v := time.Now().Unix() - t.Unix()
-	u.suffix = Pack(uint32(v), base)
+	u.suffix = Pack(uint64(v), base)
 	return u
 }
 
-func (u *Unique) New(prefix uint32) string {
-	i := atomic.AddUint32(&u.index, 1)
+func (u *Unique) init() {
+
+}
+
+func (u *Unique) New(prefix uint64) string {
+	i := atomic.AddUint64(&u.index, 1)
 	var build strings.Builder
 	build.WriteString(u.shard)
 	build.WriteString(Pack(prefix, u.base))
@@ -36,7 +40,7 @@ func (u *Unique) New(prefix uint32) string {
 }
 
 func (u *Unique) Simple() string {
-	i := atomic.AddUint32(&u.index, 1)
+	i := atomic.AddUint64(&u.index, 1)
 	var build strings.Builder
 	build.WriteString(u.suffix)
 	build.WriteString(Pack(i, u.base))

@@ -10,9 +10,15 @@ import (
 
 var Heartbeat int32 = 10 //心跳(S)
 
-func NewMemory() *Memory {
+func NewMemory(cap ...int) *Memory {
+	var c int
+	if len(cap) > 0 && cap[0] > 0 {
+		c = cap[0]
+	} else {
+		c = 2048
+	}
 	s := &Memory{
-		Array: *storage.New(1024),
+		Array: *storage.New(c),
 	}
 	s.Array.NewSetter = NewSetter
 	s.init()

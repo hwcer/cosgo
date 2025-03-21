@@ -2,7 +2,7 @@ package storage
 
 func newDirty(cap int) *dirty {
 	d := &dirty{
-		list:  make([]int, cap, cap),
+		list:  make([]int, cap),
 		index: -1,
 	}
 	for i := cap - 1; i >= 0; i-- {

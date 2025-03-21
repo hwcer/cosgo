@@ -6,10 +6,10 @@ import (
 	"strings"
 )
 
-func Pack(id uint32, base int) string {
+func Pack(id uint64, base int) string {
 	arr := make([]string, 2)
 	if id != 0 {
-		arr[1] = strconv.FormatUint(uint64(id), base)
+		arr[1] = strconv.FormatUint(id, base)
 	}
 	arr[0] = strconv.FormatUint(uint64(len(arr[1])), base)
 	return strings.Join(arr, "")
@@ -17,7 +17,7 @@ func Pack(id uint32, base int) string {
 
 // Split 分割uuid
 // index 取出第几段， 0开始
-func Split(s string, base int, index int) (uint32, string, error) {
+func Split(s string, base int, index int) (uint64, string, error) {
 	var v string
 	var p string
 	p = s
@@ -35,7 +35,7 @@ func Split(s string, base int, index int) (uint32, string, error) {
 	if r, err := strconv.ParseUint(v, base, 63); err != nil {
 		return 0, "", err
 	} else {
-		return uint32(r), p, nil
+		return r, p, nil
 	}
 }
 

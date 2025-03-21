@@ -69,7 +69,16 @@ func (schema *Schema) LookUpField(name string) *Field {
 	}
 	return nil
 }
-
+func (schema *Schema) JSName(k string) (r string) {
+	if field := schema.LookUpField(k); field != nil {
+		if field.JSName != "" {
+			r = field.JSName
+		} else {
+			r = field.Name
+		}
+	}
+	return
+}
 func (schema *Schema) GetValue(obj any, key string, keys ...any) (r any) {
 	keys = append([]any{key}, keys...)
 	vf := ValueOf(obj)
