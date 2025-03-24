@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"encoding/json"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -9,29 +10,32 @@ import (
 	"strings"
 )
 
+// https://www.mongodb.com/zh-cn/docs/manual/core/index-partial/#std-label-index-type-partial
 const (
 	IndexTag      = "index"
 	IndexName     = "NAME"
 	IndexSort     = "SORT"
 	IndexUnique   = "UNIQUE"
 	IndexSparse   = "SPARSE"
+	IndexPartial  = "PARTIAL" //部分索引 index:"PARTIAL:{\"invite\":{\"$gt\":0}}"`
 	IndexPriority = "PRIORITY"
 )
 
 type Index struct {
-	Name   string
-	Unique bool //唯一
-	Sparse bool //稀疏索引
-	Fields []*IndexField
+	Name    string
+	Unique  bool //唯一
+	Sparse  bool //稀疏索引
+	Partial []string
+	Fields  []*IndexField
 }
 
 type IndexField struct {
-	//*Field
 	Sort     string   // DESC, ASC
 	Name     string   // index name
 	DBName   []string // a.b.c
 	Unique   bool     //唯一
 	Sparse   bool     //稀疏索引
+	Partial  string   //{ rating: { $gt: 5 } }
 	Priority int      //排序字段之间的排序ASC
 }
 
@@ -39,7 +43,7 @@ func (this *IndexField) GetDBName() string {
 	return strings.Join(this.DBName, ".")
 }
 
-func (this *Index) Build() (index mongo.IndexModel) {
+func (this *Index) Build() (index mongo.IndexModel, err error) {
 	index = mongo.IndexModel{}
 	var keys []bson.E
 	for _, field := range this.Fields {
@@ -60,7 +64,16 @@ func (this *Index) Build() (index mongo.IndexModel) {
 	if this.Sparse {
 		index.Options.SetSparse(true)
 	}
-	return index
+	if len(this.Partial) > 0 {
+		s := bson.M{}
+		for _, partial := range this.Partial {
+			if err = json.Unmarshal([]byte(partial), &s); err != nil {
+				return mongo.IndexModel{}, err
+			}
+		}
+		index.Options.SetPartialFilterExpression(s)
+	}
+	return
 }
 
 func (schema *Schema) LookIndex(name string) *Index {
@@ -97,6 +110,9 @@ func (schema *Schema) ParseIndexes() map[string]*Index {
 			if indexField.Sparse {
 				idx.Sparse = indexField.Sparse
 			}
+			if indexField.Partial != "" {
+				idx.Partial = append(idx.Partial, indexField.Partial)
+			}
 		}
 	}
 
@@ -131,6 +147,10 @@ func (schema *Schema) parseTagIndex(table, field, value string) *IndexField {
 	if _, ok := settings[IndexSparse]; ok {
 		indexField.Sparse = true
 	}
+	if s, ok := settings[IndexPartial]; ok {
+		indexField.Partial = s
+	}
+
 	return indexField
 }
 
@@ -154,23 +174,5 @@ func (schema *Schema) parseFieldIndexes(field *Field, table string) (indexes []*
 			}
 		}
 	}
-	//递归子对象
-	//if field.IndirectFieldType.Kind() != reflect.Struct {
-	//	return
-	//}
-	//fieldValue := reflect.New(field.IndirectFieldType)
-	//fieldSchema, err := GetOrParse(fieldValue.Interface(), schema.options)
-	//if err != nil {
-	//	fmt.Printf("Schema parseFieldIndexes:%v", err)
-	//	return
-	//}
-	//fieldTable := strings.Join([]string{table, field.DBName}, "_")
-	//for _, v := range fieldSchema.fieldsPrivate {
-	//	for _, index := range fieldSchema.parseFieldIndexes(v, fieldTable) {
-	//		index.DBName = append([]string{field.DBName}, index.DBName...)
-	//		indexes = append(indexes, index)
-	//	}
-	//}
-
 	return
 }

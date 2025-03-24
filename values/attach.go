@@ -31,7 +31,7 @@ func (a *Attach) GetString() (r string) {
 	return
 }
 
-// Marshal 将一个对象放入Attach TODO len(*a) == 0
+// Marshal 将一个对象放入Attach
 func (a *Attach) Marshal(v interface{}) error {
 	d, err := json.Marshal(v)
 	if err == nil {
