@@ -1,7 +1,9 @@
 package storage
 
 import (
+	"github.com/hwcer/cosgo/logger"
 	"github.com/hwcer/cosgo/uuid"
+	"runtime/debug"
 )
 
 func NewBucket(id int, cap int) *Bucket {
@@ -57,7 +59,7 @@ func (this *Bucket) push(v any) Setter {
 	if index < 0 {
 		return nil
 	}
-	if s := this.values[index]; s == nil {
+	if s := this.values[index]; s != nil {
 		return this.push(v)
 	}
 	id := this.createId(index)
@@ -109,10 +111,14 @@ func (this *Bucket) Delete(id string) Setter {
 	if err != nil {
 		return nil
 	}
-	if index < 0 || index >= len(this.values) || this.values[index].Id() != id {
+	if index < 0 || index >= len(this.values) {
 		return nil
 	}
 	val := this.values[index]
+	if val == nil {
+		logger.Alert("Bucket Delete error, index:%d,Stack:%s", index, string(debug.Stack()))
+		return nil
+	}
 	if val.Id() != id {
 		return nil
 	}

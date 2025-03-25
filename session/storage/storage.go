@@ -6,14 +6,24 @@ import (
 	"github.com/hwcer/cosgo/uuid"
 )
 
-type Cache struct {
+func New(cap int, creator ...NewSetter) *Storage {
+	r := &Storage{cap: cap, initialize: await.NewInitialize()}
+	if len(creator) > 0 {
+		r.NewSetter = creator[0]
+	} else {
+		r.NewSetter = NewSetterDefault
+	}
+	return r
+}
+
+type Storage struct {
 	cap        int
 	bucket     []*Bucket
 	initialize *await.Initialize
 	NewSetter  NewSetter //创建新数据结构
 }
 
-func (this *Cache) Share(id string) (int, error) {
+func (this *Storage) Share(id string) (int, error) {
 	i, _, err := uuid.Split(id, uuid.BaseSize, 0)
 	if err != nil {
 		return 0, nil
@@ -24,7 +34,7 @@ func (this *Cache) Share(id string) (int, error) {
 	}
 	return r, nil
 }
-func (this *Cache) Get(id string) (Setter, bool) {
+func (this *Storage) Get(id string) (Setter, bool) {
 	share, err := this.Share(id)
 	if err != nil {
 		return nil, false
@@ -36,7 +46,7 @@ func (this *Cache) Get(id string) (Setter, bool) {
 	return bucket.Get(id)
 }
 
-func (this *Cache) Set(id string, v any) bool {
+func (this *Storage) Set(id string, v any) bool {
 	share, err := this.Share(id)
 	if err != nil {
 		return false
@@ -49,15 +59,23 @@ func (this *Cache) Set(id string, v any) bool {
 }
 
 // Size 当前数量
-func (this *Cache) Size() (r int) {
+func (this *Storage) Size() (r int) {
 	for _, bucket := range this.bucket {
 		r += bucket.Size()
 	}
 	return
 }
 
+// Free 当前空闲
+func (this *Storage) Free() (r int) {
+	for _, bucket := range this.bucket {
+		r += bucket.Free()
+	}
+	return
+}
+
 // Range 遍历
-func (this *Cache) Range(f func(Setter) bool) bool {
+func (this *Storage) Range(f func(Setter) bool) bool {
 	for _, bucket := range this.bucket {
 		if !bucket.Range(f) {
 			return false
@@ -67,7 +85,7 @@ func (this *Cache) Range(f func(Setter) bool) bool {
 }
 
 // Create 创建一个新数据
-func (this *Cache) Create(v any) Setter {
+func (this *Storage) Create(v any) Setter {
 	for _, bucket := range this.bucket {
 		if r := bucket.Create(v); r != nil {
 			return r
@@ -75,17 +93,12 @@ func (this *Cache) Create(v any) Setter {
 	}
 	return this.expansion(v)
 }
-func (this *Cache) expansion(v any) Setter {
-	i := len(this.bucket)
-	_ = this.initialize.Reload(this.append)
-	bucket := this.bucket[i]
-	if r := bucket.Create(v); r != nil {
-		return r
-	}
-	return this.expansion(v)
+func (this *Storage) expansion(v any) Setter {
+	_ = this.initialize.Reload(this.newBucket)
+	return this.Create(v)
 }
 
-func (this *Cache) append() error {
+func (this *Storage) newBucket() error {
 	bucket := NewBucket(len(this.bucket), this.cap)
 	bucket.NewSetter = this.NewSetter
 	this.bucket = append(this.bucket, bucket)
@@ -94,7 +107,7 @@ func (this *Cache) append() error {
 }
 
 // Delete 删除并返回已删除的数据
-func (this *Cache) Delete(id string) Setter {
+func (this *Storage) Delete(id string) Setter {
 	share, err := this.Share(id)
 	if err != nil {
 		return nil
