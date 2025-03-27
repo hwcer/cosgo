@@ -7,12 +7,13 @@ import (
 )
 
 func New(cap int, creator ...NewSetter) *Storage {
-	r := &Storage{cap: cap, initialize: await.NewInitialize()}
+	r := &Storage{cap: cap}
 	if len(creator) > 0 {
 		r.NewSetter = creator[0]
 	} else {
 		r.NewSetter = NewSetterDefault
 	}
+	_ = r.createBucket()
 	return r
 }
 
@@ -94,11 +95,11 @@ func (this *Storage) Create(v any) Setter {
 	return this.expansion(v)
 }
 func (this *Storage) expansion(v any) Setter {
-	_ = this.initialize.Reload(this.newBucket)
+	_ = this.initialize.Reload(this.createBucket)
 	return this.Create(v)
 }
 
-func (this *Storage) newBucket() error {
+func (this *Storage) createBucket() error {
 	bucket := NewBucket(len(this.bucket), this.cap)
 	bucket.NewSetter = this.NewSetter
 	this.bucket = append(this.bucket, bucket)
@@ -117,4 +118,9 @@ func (this *Storage) Delete(id string) Setter {
 		return nil
 	}
 	return bucket.Delete(id)
+}
+func (this *Storage) Remove(id []string) {
+	for _, v := range id {
+		this.Delete(v)
+	}
 }

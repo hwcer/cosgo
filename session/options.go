@@ -20,9 +20,9 @@ var Options = struct {
 	Secret  string //16位秘钥
 	Storage Storage
 }{
-	Name:   "_cosweb_cookie_vars",
+	Name:   "_cookie_vars",
 	MaxAge: 3600,
-	Secret: "UVFGHIJABCopqDNO",
+	Secret: "UVFGHIJABCopqDNO", //redis 存储时生成TOKEN的密钥
 }
 
 func Decode(sid string) (uid string, err error) {

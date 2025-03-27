@@ -1,11 +1,11 @@
 package session
 
 import (
-	"github.com/hwcer/cosgo/storage"
+	"github.com/hwcer/cosgo/session/storage"
 	"time"
 )
 
-func NewSetter(id storage.MID, data interface{}) storage.Setter {
+func NewSetter(id string, data interface{}) storage.Setter {
 	d := &Setter{
 		Data: *storage.NewData(id, data),
 		//locked: 1,

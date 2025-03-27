@@ -8,8 +8,6 @@ import (
 	"time"
 )
 
-var Strings = random.NewBytes([]byte("0123456789abcdefghijklmnopqrstuv"))
-
 // Unique 不需要设置自增种子
 // 比Builder使用简单
 // 但是只能生成比较长的字符串
@@ -30,10 +28,6 @@ func NewUnique(shard uint64, base int) *Unique {
 	return u
 }
 
-func (u *Unique) init() {
-
-}
-
 func (u *Unique) New(prefix uint64) string {
 	i := atomic.AddUint64(&u.index, 1)
 	var build strings.Builder
@@ -43,7 +37,7 @@ func (u *Unique) New(prefix uint64) string {
 	build.WriteString(Pack(i, u.base))
 	if u.Garbled > 0 {
 		build.WriteString(fmt.Sprintf("%d", u.Garbled))
-		build.WriteString(Strings.String(u.Garbled))
+		build.WriteString(random.Strings.String(u.Garbled))
 	}
 	return build.String()
 }

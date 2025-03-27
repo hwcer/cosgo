@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/hwcer/cosgo/logger"
 	"github.com/hwcer/cosgo/scc"
-	"github.com/hwcer/cosgo/storage"
+	"github.com/hwcer/cosgo/session/storage"
 	"time"
 )
 
@@ -15,18 +15,18 @@ func NewMemory(cap ...int) *Memory {
 	if len(cap) > 0 && cap[0] > 0 {
 		c = cap[0]
 	} else {
-		c = 2048
+		c = 10240
 	}
 	s := &Memory{
-		Array: *storage.New(c),
+		Storage: *storage.New(c, NewSetter),
 	}
-	s.Array.NewSetter = NewSetter
+	//s.Array.NewSetter = NewSetter
 	s.init()
 	return s
 }
 
 type Memory struct {
-	storage.Array
+	storage.Storage
 }
 
 func (this *Memory) init() {
@@ -36,8 +36,7 @@ func (this *Memory) init() {
 }
 
 func (this *Memory) get(token string) (*Setter, error) {
-	mid := storage.MID(token)
-	if v, ok := this.Array.Get(mid); !ok {
+	if v, ok := this.Storage.Get(token); !ok {
 		return nil, ErrorSessionIllegal
 	} else {
 		return v.(*Setter), nil
@@ -68,8 +67,7 @@ func (this *Memory) Update(p *Data, data map[string]any, ttl int64) (err error) 
 	return
 }
 func (this *Memory) Delete(p *Data) error {
-	mid := storage.MID(p.token)
-	this.Array.Delete(mid)
+	this.Storage.Delete(p.token)
 	return nil
 }
 
@@ -77,10 +75,10 @@ func (this *Memory) Delete(p *Data) error {
 // Create会自动设置有效期
 // Create新数据为锁定状态
 func (this *Memory) Create(uuid string, data map[string]any, ttl int64) (p *Data, err error) {
-	d := this.Array.Create(nil)
+	d := this.Storage.Create(nil)
 	setter, _ := d.(*Setter)
-	st := string(setter.Id())
-	p = NewData(uuid, st, data)
+	id := setter.Id()
+	p = NewData(uuid, id, data)
 	setter.Set(p)
 	if ttl > 0 {
 		setter.Expire(ttl)
@@ -108,14 +106,15 @@ func (this *Memory) clean() {
 		}
 	}()
 	nowTime := time.Now().Unix()
-	var keys []storage.MID
-	this.Array.Range(func(item storage.Setter) bool {
+	var keys []string
+	this.Storage.Range(func(item storage.Setter) bool {
 		if data, ok := item.(*Setter); ok && data.expire < nowTime {
 			keys = append(keys, data.Id())
 		}
 		return true
 	})
+
 	if len(keys) > 0 {
-		this.Remove(keys...)
+		this.Remove(keys)
 	}
 }

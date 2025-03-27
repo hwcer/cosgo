@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-const BaseSize = 32
+const BaseSize = 36
 
 type UUID struct {
 	share  uint64
