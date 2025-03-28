@@ -119,7 +119,7 @@ func (this *Service) format(serviceName, methodName string, prefix ...string) st
 		return Join(serviceName, methodName)
 	}
 
-	p := Join(prefix...)
+	p := Formatter(Join(prefix...))
 	var name string
 	if serviceName == "" {
 		name = methodName

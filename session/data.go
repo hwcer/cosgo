@@ -65,10 +65,8 @@ func (this *Data) Merge(p *Data, locked ...bool) {
 		this.Lock()
 		defer this.Unlock()
 	}
-	this.uuid = p.uuid
-	this.token = p.token
 	vs := this.Values.Clone()
-	vs.Merge(p.Values, true)
+	vs.Merge(p.Values, false)
 	this.Values = vs
 }
 
