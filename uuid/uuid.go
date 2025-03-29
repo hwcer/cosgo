@@ -10,7 +10,7 @@ const BaseSize = 36
 type UUID struct {
 	share  uint64
 	prefix uint64
-	suffix uint64
+	index  uint64
 }
 
 func (u *UUID) GetShard() uint64 {
@@ -19,8 +19,8 @@ func (u *UUID) GetShard() uint64 {
 func (u *UUID) GetPrefix() uint64 {
 	return u.prefix
 }
-func (u *UUID) GetSuffix() uint64 {
-	return u.suffix
+func (u *UUID) GetIndex() uint64 {
+	return u.index
 }
 
 // New 通过改变 prefix 生成新UUID
@@ -34,7 +34,7 @@ func (u *UUID) String(base int) string {
 	var build strings.Builder
 	build.WriteString(Pack(u.share, base))
 	build.WriteString(Pack(u.prefix, base))
-	build.WriteString(Pack(u.suffix, base))
+	build.WriteString(Pack(u.index, base))
 	return build.String()
 }
 
@@ -63,7 +63,7 @@ func (u *UUID) Parse(id string, base int) (err error) {
 	if i, suffix, err = Split(suffix, base, 0); err != nil {
 		return
 	} else {
-		u.suffix = i
+		u.index = i
 	}
 	return nil
 }

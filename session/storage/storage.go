@@ -95,7 +95,7 @@ func (this *Storage) Create(v any) Setter {
 	return this.expansion(v)
 }
 func (this *Storage) expansion(v any) Setter {
-	_ = this.initialize.Reload(this.createBucket)
+	_ = this.initialize.Try(this.createBucket)
 	return this.Create(v)
 }
 

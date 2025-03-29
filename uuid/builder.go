@@ -31,7 +31,7 @@ func Create(id any, base int) (*Builder, error) {
 	if err := u.Parse(s, base); err != nil {
 		return nil, err
 	}
-	return New(u.share, u.suffix), nil
+	return New(u.share, u.index), nil
 }
 
 func (u *Builder) Shard() uint64 {
@@ -47,6 +47,6 @@ func (u *Builder) New(prefix uint64) *UUID {
 	r := &UUID{}
 	r.share = u.shard
 	r.prefix = prefix
-	r.suffix = atomic.AddUint64(&u.index, 1)
+	r.index = atomic.AddUint64(&u.index, 1)
 	return r
 }

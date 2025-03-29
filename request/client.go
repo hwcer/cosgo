@@ -29,12 +29,19 @@ func (c *Client) Use(m middleware) {
 	c.middleware = append(c.middleware, m)
 }
 
-func (c *Client) OAuth(key, secret string) *OAuth {
-	c.oauth = NewOAuth(key, secret)
+func (c *Client) OAuth(key, secret string, strict ...bool) *OAuth {
+	c.oauth = NewOAuth(key, secret, strict...)
 	return c.oauth
 }
 
-func (this *Client) Request(method, url string, data interface{}) (reply []byte, err error) {
+func (c *Client) Verify(req *http.Request, body *bytes.Buffer) (err error) {
+	if c.oauth == nil {
+		return nil
+	}
+	return c.oauth.Verify(req, body)
+}
+
+func (c *Client) Request(method, url string, data interface{}) (reply []byte, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("%v", e)
@@ -46,7 +53,7 @@ func (this *Client) Request(method, url string, data interface{}) (reply []byte,
 	)
 	if data != nil {
 		var buf []byte
-		if buf, err = this.Binder.Marshal(data); err != nil {
+		if buf, err = c.Binder.Marshal(data); err != nil {
 			return
 		}
 		req, err = http.NewRequest(method, url, bytes.NewReader(buf))
@@ -60,16 +67,16 @@ func (this *Client) Request(method, url string, data interface{}) (reply []byte,
 		defer req.Body.Close()
 	}
 
-	if contentType := this.Binder.String(); contentType != "" {
+	if contentType := c.Binder.String(); contentType != "" {
 		req.Header.Add("Content-Type", FormatContentTypeAndCharset(contentType))
 	}
-	for _, m := range this.middleware {
+	for _, m := range c.middleware {
 		if err = m(req); err != nil {
 			return
 		}
 	}
-	if this.oauth != nil {
-		if err = this.oauth.Request(req); err != nil {
+	if c.oauth != nil {
+		if err = c.oauth.Request(req); err != nil {
 			return
 		}
 	}
@@ -86,9 +93,9 @@ func (this *Client) Request(method, url string, data interface{}) (reply []byte,
 	return
 }
 
-func (this *Client) Get(url string, reply interface{}) (err error) {
+func (c *Client) Get(url string, reply interface{}) (err error) {
 	var body []byte
-	body, err = this.Request(http.MethodGet, url, nil)
+	body, err = c.Request(http.MethodGet, url, nil)
 	if err != nil {
 		return
 	}
@@ -98,15 +105,15 @@ func (this *Client) Get(url string, reply interface{}) (err error) {
 	case *string:
 		*v = string(body)
 	default:
-		err = this.Binder.Unmarshal(body, reply)
+		err = c.Binder.Unmarshal(body, reply)
 	}
 
 	return
 }
 
-func (this *Client) Post(url string, data interface{}, reply interface{}) (err error) {
+func (c *Client) Post(url string, data interface{}, reply interface{}) (err error) {
 	var body []byte
-	body, err = this.Request(http.MethodPost, url, data)
+	body, err = c.Request(http.MethodPost, url, data)
 	if err != nil || reply == nil {
 		return
 	}
@@ -116,7 +123,7 @@ func (this *Client) Post(url string, data interface{}, reply interface{}) (err e
 	case *string:
 		*v = string(body)
 	default:
-		err = this.Binder.Unmarshal(body, reply)
+		err = c.Binder.Unmarshal(body, reply)
 	}
 	return
 }

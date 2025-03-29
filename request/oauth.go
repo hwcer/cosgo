@@ -27,8 +27,11 @@ const (
 	HeaderXUrlScheme         = "X-Url-Protocol"
 )
 
-func NewOAuth(key, secret string) *OAuth {
+func NewOAuth(key, secret string, strict ...bool) *OAuth {
 	oauth := &OAuth{key: key, secret: secret, Strict: false, Timeout: 30}
+	if len(strict) > 0 {
+		oauth.Strict = strict[0]
+	}
 	return oauth
 }
 
