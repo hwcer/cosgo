@@ -35,54 +35,45 @@ func (this *Memory) init() {
 	}
 }
 
-func (this *Memory) get(token string) (*Setter, error) {
-	if v, ok := this.Storage.Get(token); !ok {
+func (this *Memory) get(id string) (*Setter, error) {
+	if v, ok := this.Storage.Get(id); !ok {
 		return nil, ErrorSessionIllegal
 	} else {
 		return v.(*Setter), nil
 	}
 }
-
+func (this *Memory) New(p *Data) error {
+	_ = this.Storage.Create(p)
+	return nil
+}
 func (this *Memory) Verify(token string) (p *Data, err error) {
 	var setter *Setter
 	if setter, err = this.get(token); err == nil {
-		p, _ = setter.Get().(*Data)
+		p = setter.Data
+		setter.KeepAlive()
 	}
+
 	return
 }
 
 // Update 更新信息，内存没事，共享Player信息已经更新过，仅仅设置过去时间
 // 内存模式 data已经更新过，不需要再次更新
 
-func (this *Memory) Update(p *Data, data map[string]any, ttl int64) (err error) {
-	var setter *Setter
-	setter, err = this.get(p.token)
-	if err != nil {
-		return
-	}
-
-	if ttl > 0 {
-		setter.Expire(ttl)
-	}
+func (this *Memory) Update(p *Data, data map[string]any) (err error) {
+	p.Update(data)
 	return
 }
 func (this *Memory) Delete(p *Data) error {
-	this.Storage.Delete(p.token)
+	this.Storage.Delete(p.id)
 	return nil
 }
 
 // Create 创建新SESSION,返回SESSION Index
 // Create会自动设置有效期
 // Create新数据为锁定状态
-func (this *Memory) Create(uuid string, data map[string]any, ttl int64) (p *Data, err error) {
-	d := this.Storage.Create(nil)
-	setter, _ := d.(*Setter)
-	id := setter.Id()
-	p = NewData(uuid, id, data)
-	setter.Set(p)
-	if ttl > 0 {
-		setter.Expire(ttl)
-	}
+func (this *Memory) Create(uuid string, data map[string]any) (p *Data, err error) {
+	p = NewData(uuid, data)
+	_ = this.Storage.Create(p)
 	return
 }
 

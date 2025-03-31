@@ -71,35 +71,41 @@ func (this *Redis) Verify(token string) (p *Data, err error) {
 	for k, v := range val {
 		data[k] = v
 	}
-	p = NewData(uuid, token, data)
+	//续约
+	if Options.MaxAge > 0 {
+		this.client.Expire(context.Background(), rk, time.Duration(Options.MaxAge)*time.Second)
+	}
+	p = NewData(uuid, data, token)
 	return
 }
 
+func (this *Redis) New(p *Data) error {
+	_, err := this.Create(p.uuid, p.Values)
+	return err
+}
+
 // Create ttl过期时间(s)
-func (this *Redis) Create(uuid string, data map[string]any, ttl int64) (p *Data, err error) {
+func (this *Redis) Create(uuid string, data map[string]any) (p *Data, err error) {
 	rk := this.rkey(uuid)
-	var st string
-	if st, err = Encode(uuid); err != nil {
+	var id string
+	if id, err = Encode(uuid); err != nil {
 		return
 	}
-	data[redisSessionKeyTokenName] = st
 	var args []any
 	for k, v := range data {
 		args = append(args, k, v)
 	}
+	args = append(args, redisSessionKeyTokenName, id)
 	if err = this.client.HMSet(context.Background(), rk, args...).Err(); err != nil {
 		return
 	}
-	if ttl > 0 {
-		this.client.Expire(context.Background(), rk, time.Duration(ttl)*time.Second)
-	}
-	p = NewData(uuid, st, data)
+	p = NewData(uuid, data, id)
 	return
 }
 
-func (this *Redis) Update(p *Data, data map[string]any, ttl int64) (err error) {
+func (this *Redis) Update(p *Data, data map[string]any) (err error) {
 	var uuid string
-	if uuid, err = Decode(p.token); err != nil {
+	if uuid, err = Decode(p.id); err != nil {
 		return
 	}
 	rk := this.rkey(uuid)
@@ -113,10 +119,6 @@ func (this *Redis) Update(p *Data, data map[string]any, ttl int64) (err error) {
 			return
 		}
 	}
-	if ttl > 0 {
-		this.client.Expire(context.Background(), rk, time.Duration(ttl)*time.Second)
-	}
-
 	return
 }
 

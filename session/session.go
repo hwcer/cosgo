@@ -22,7 +22,7 @@ func (this *Session) Verify(token string) (err error) {
 	} else if this.Data == nil {
 		return ErrorSessionNotExist
 	}
-	if this.token != token {
+	if this.id != token {
 		return ErrorSessionReplaced
 	}
 	return nil
@@ -52,8 +52,8 @@ func (this *Session) Create(uuid string, data map[string]any) (token string, err
 	if Options.Storage == nil {
 		return "", ErrorStorageNotSet
 	}
-	if this.Data, err = Options.Storage.Create(uuid, data, Options.MaxAge); err == nil {
-		token = this.Data.token
+	if this.Data, err = Options.Storage.Create(uuid, data); err == nil {
+		token = this.Data.id
 	}
 	return
 }
@@ -78,7 +78,7 @@ func (this *Session) Release() {
 	for _, k := range this.dirty {
 		dirty[k] = this.Data.Get(k)
 	}
-	_ = Options.Storage.Update(this.Data, dirty, Options.MaxAge)
+	_ = Options.Storage.Update(this.Data, dirty)
 	this.release()
 }
 

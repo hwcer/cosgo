@@ -51,7 +51,7 @@ func (this *Bucket) get(id string) (Setter, bool) {
 	if r.Id() != id {
 		return nil, false
 	}
-	return this.values[index], true
+	return r, true
 }
 
 func (this *Bucket) push(v any) Setter {

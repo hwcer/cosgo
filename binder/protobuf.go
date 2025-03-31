@@ -42,6 +42,9 @@ func (this *protobufBinding) Decode(body io.Reader, obj interface{}) error {
 }
 
 func (*protobufBinding) Marshal(i interface{}) ([]byte, error) {
+	if i == nil {
+		return []byte{}, nil
+	}
 	pb, ok := i.(proto.Message)
 	if !ok {
 		return nil, errors.New("not proto.Message")

@@ -1,27 +1,59 @@
 package session
 
 import (
+	"github.com/hwcer/cosgo/logger"
 	"github.com/hwcer/cosgo/session/storage"
+	"github.com/hwcer/cosgo/values"
 	"time"
 )
 
-func NewSetter(id string, data interface{}) storage.Setter {
-	d := &Setter{
-		Data: *storage.NewData(id, data),
-		//locked: 1,
+func NewSetter(id string, data any) storage.Setter {
+	d := &Setter{}
+	switch v := data.(type) {
+	case *Data:
+		d.Data = v
+	case Data:
+		d.Data = &v
+	case map[string]any:
+		d.Data = NewData("", v)
+	case values.Values:
+		d.Data = NewData(id, v)
+	default:
+		d.Data = NewData("", nil)
+		logger.Alert("NewSetter Data Type Error:%v", data)
 	}
-	if Options.MaxAge > 0 {
-		d.Expire(Options.MaxAge)
-	}
+	d.Data.id = id
+	d.KeepAlive()
 	return d
 }
 
 type Setter struct {
-	storage.Data       //数据接口
-	expire       int64 //过期时间
+	*Data        //数据接口
+	expire int64 //过期时间
 }
 
-// Expire 设置有效期(s)
-func (this *Setter) Expire(s int64) {
-	this.expire = time.Now().Unix() + s
+func (this *Setter) Get() interface{} {
+	return this.Values
+}
+
+func (this *Setter) Set(data interface{}) {
+	var v map[string]any
+	switch i := data.(type) {
+	case map[string]any:
+		v = i
+	case values.Values:
+		v = i
+	default:
+		logger.Alert("Setter Set Args Data Type Error:%v", data)
+	}
+	if v != nil {
+		this.Data.Update(v)
+	}
+}
+
+// KeepAlive 设置有效期(s)
+func (this *Setter) KeepAlive() {
+	if Options.MaxAge > 0 {
+		this.expire = time.Now().Unix() + Options.MaxAge
+	}
 }
