@@ -85,6 +85,20 @@ func (this *Random) Weight() (r int32) {
 	return
 }
 
+// Probability 按独立概率计算每一组的命中
+func (this *Random) Probability(args ...int32) (r []int32) {
+	var unit = int32(10000)
+	if len(args) > 0 && args[0] != 0 {
+		unit = args[0]
+	}
+	for _, v := range this.items {
+		if Probability(v.Val, unit) {
+			r = append(r, v.Key)
+		}
+	}
+	return
+}
+
 // Multi 随机多个不重复
 func (this *Random) Multi(num int) (r []int32) {
 	if this.total == 0 {
