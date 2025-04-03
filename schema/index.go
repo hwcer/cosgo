@@ -11,6 +11,7 @@ import (
 )
 
 // https://www.mongodb.com/zh-cn/docs/manual/core/index-partial/#std-label-index-type-partial
+// 部分索引 使用一条查询语句
 const (
 	IndexTag      = "index"
 	IndexName     = "NAME"
@@ -22,6 +23,7 @@ const (
 )
 
 type Index struct {
+	sch     *Schema
 	Name    string
 	Unique  bool //唯一
 	Sparse  bool //稀疏索引
@@ -43,8 +45,10 @@ func (this *IndexField) GetDBName() string {
 	return strings.Join(this.DBName, ".")
 }
 
-func (this *Index) Build() (index mongo.IndexModel, err error) {
-	index = mongo.IndexModel{}
+type IndexPartialParse func(*Schema, []string) (any, error)
+
+func (this *Index) Build(whereParser ...IndexPartialParse) (index *mongo.IndexModel, err error) {
+	index = &mongo.IndexModel{}
 	var keys []bson.E
 	for _, field := range this.Fields {
 		k := field.GetDBName()
@@ -65,15 +69,30 @@ func (this *Index) Build() (index mongo.IndexModel, err error) {
 		index.Options.SetSparse(true)
 	}
 	if len(this.Partial) > 0 {
-		s := bson.M{}
-		for _, partial := range this.Partial {
-			if err = json.Unmarshal([]byte(partial), &s); err != nil {
-				return mongo.IndexModel{}, err
-			}
+		var parser IndexPartialParse
+		if len(whereParser) > 0 {
+			parser = whereParser[0]
+		} else {
+			parser = this.partialParser
 		}
-		index.Options.SetPartialFilterExpression(s)
+		var q any
+		if q, err = parser(this.sch, this.Partial); err != nil {
+			return nil, err
+		} else {
+			index.Options.SetPartialFilterExpression(q)
+		}
 	}
 	return
+}
+
+func (this *Index) partialParser(_ *Schema, s []string) (any, error) {
+	q := bson.M{}
+	for _, partial := range s {
+		if err := json.Unmarshal([]byte(partial), &s); err != nil {
+			return nil, err
+		}
+	}
+	return q, nil
 }
 
 func (schema *Schema) LookIndex(name string) *Index {
@@ -100,7 +119,7 @@ func (schema *Schema) ParseIndexes() map[string]*Index {
 		for _, indexField := range schema.parseFieldIndexes(field, "") {
 			idx := indexes[indexField.Name]
 			if idx == nil {
-				idx = &Index{Name: indexField.Name}
+				idx = &Index{sch: schema, Name: indexField.Name}
 				indexes[indexField.Name] = idx
 			}
 			idx.Fields = append(idx.Fields, indexField)
