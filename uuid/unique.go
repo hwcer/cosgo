@@ -45,6 +45,7 @@ func (u *Unique) New(prefix uint64) string {
 func (u *Unique) Simple() string {
 	i := atomic.AddUint64(&u.index, 1)
 	var build strings.Builder
+	build.WriteString(u.shard)
 	build.WriteString(u.suffix)
 	build.WriteString(Pack(i, u.base))
 	return build.String()
