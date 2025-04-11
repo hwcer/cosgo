@@ -2,7 +2,7 @@ package cosgo
 
 import (
 	"fmt"
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/logger"
 )
 
 func Reload() {

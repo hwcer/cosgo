@@ -2,7 +2,6 @@ package cosgo
 
 import (
 	"fmt"
-	"github.com/coreos/etcd/pkg/fileutil"
 	"github.com/shirou/gopsutil/process"
 	"os"
 	"strconv"
@@ -57,7 +56,7 @@ func deletePidFile() error {
 }
 
 func checkPidFile(pidFile string) (error, int) {
-	if !fileutil.Exist(pidFile) {
+	if !Exist(pidFile) {
 		return nil, 0
 	}
 	fhdl, err := os.Open(pidFile)

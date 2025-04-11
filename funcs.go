@@ -1,6 +1,7 @@
 package cosgo
 
 import (
+	"os"
 	"path/filepath"
 )
 
@@ -25,4 +26,9 @@ func Dir() string {
 // Name 项目内部获取appName
 func Name() string {
 	return Config.GetString(AppName)
+}
+
+func Exist(name string) bool {
+	_, err := os.Stat(name)
+	return err == nil
 }

@@ -1,7 +1,7 @@
 package cosgo
 
 import (
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/logger"
 	"os"
 	"os/exec"
 	"path/filepath"

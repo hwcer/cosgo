@@ -2,8 +2,8 @@ package cosgo
 
 import (
 	"fmt"
-	"github.com/hwcer/cosgo/logger"
 	"github.com/hwcer/cosgo/scc"
+	"github.com/hwcer/logger"
 	"os"
 	"os/signal"
 	"runtime"
@@ -64,10 +64,10 @@ func signalNotify(sig os.Signal) (stopped bool) {
 // SIGHUP 关闭控制台
 func SIGHUP() {
 	logger.Trace("停止控制台输出")
-	logger.DelOutput(logger.DefaultConsoleName)
+	logger.Console.Disable = true
 }
 
 func gcSummaryLogs() {
 	runtime.GC()
-	logger.Trace("GOROUTINE:%v", runtime.NumGoroutine())
+	logger.Debug("GOROUTINE:%v", runtime.NumGoroutine())
 }

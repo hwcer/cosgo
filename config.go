@@ -1,14 +1,14 @@
 package cosgo
 
 import (
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/logger"
+	"github.com/hwcer/logger/file"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
-	"time"
 )
 
 // 其他模块可以使用pflag设置额外的参数
@@ -74,14 +74,14 @@ func (this *config) Init() (err error) {
 	}
 	ext := Config.GetString(AppConfigNameConfigFileExt)
 	//通过基础配置读取  config.toml
-	if f, exist := fileExist(Abs("config"), ext); exist {
+	if f, exist := configExist(Abs("config"), ext); exist {
 		this.SetConfigFile(f)
 		if err = this.MergeInConfig(); err != nil {
 			return err
 		}
 	}
 	//通过程序名称读取 ${appName}.toml
-	if f, exist := fileExist(appName, ext); exist {
+	if f, exist := configExist(appName, ext); exist {
 		this.SetConfigFile(f)
 		if err = this.MergeInConfig(); err != nil {
 			return err
@@ -131,6 +131,10 @@ func (this *config) Init() (err error) {
 		this.Set(AppConfigNameLogsPath, logsPath)
 		logsFile := logger.NewFile(logsPath)
 		logsFile.SetFileName(logsFileNameFormatter)
+		logsFile.SetFileSize(100)
+		if err = logsFile.MayBackup(); err != nil {
+			return
+		}
 		if err = logger.SetOutput("file", logsFile); err != nil {
 			return
 		}
@@ -142,14 +146,13 @@ func (this *config) Init() (err error) {
 	return
 }
 
-func fileExist(name, ext string) (f string, exist bool) {
-	var file string
+func configExist(name, ext string) (f string, exist bool) {
 	if strings.Contains(name, ".") {
-		file = name
+		f = name
 	} else {
-		file = strings.Join([]string{name, ext}, ".")
+		f = strings.Join([]string{name, ext}, ".")
 	}
-	f = Abs(file)
+	f = Abs(f)
 	stat, err := os.Stat(f)
 	if err == nil && !stat.IsDir() {
 		exist = true
@@ -157,8 +160,8 @@ func fileExist(name, ext string) (f string, exist bool) {
 	return
 }
 
-func logsFileNameFormatter() (name string, expire time.Duration) {
-	name, expire = logger.DefaultFileNameFormatter()
-	name = strings.Join([]string{Name(), name, "log"}, ".")
+func logsFileNameFormatter() (name string, expire int64) {
+	name, expire = file.NameFormatterDefault()
+	name = strings.Join([]string{Name(), name}, ".")
 	return
 }

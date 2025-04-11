@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"github.com/hwcer/cosgo/logger"
+	"github.com/hwcer/logger"
 	"runtime/debug"
 	"sync"
 )

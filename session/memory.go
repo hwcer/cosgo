@@ -2,9 +2,9 @@ package session
 
 import (
 	"context"
-	"github.com/hwcer/cosgo/logger"
 	"github.com/hwcer/cosgo/scc"
 	"github.com/hwcer/cosgo/session/storage"
+	"github.com/hwcer/logger"
 	"time"
 )
 
