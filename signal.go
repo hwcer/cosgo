@@ -1,7 +1,6 @@
 package cosgo
 
 import (
-	"fmt"
 	"github.com/hwcer/cosgo/scc"
 	"github.com/hwcer/logger"
 	"os"
@@ -47,7 +46,7 @@ func WaitForSystemExit() {
 // syscall.SIGKILL  kill -9 系统强制退出程序
 // syscall.SIGTERM  kill 无参数时默认信号
 func signalNotify(sig os.Signal) (stopped bool) {
-	fmt.Printf("收到信号：%v\n", sig)
+	logger.Trace("收到信号：%v\n", sig)
 	switch sig {
 	case SignalReload:
 		Reload()
@@ -56,7 +55,7 @@ func signalNotify(sig os.Signal) (stopped bool) {
 	case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM:
 		stopped = true
 	default:
-		fmt.Printf("receive signal:%v", sig)
+		logger.Trace("receive signal:%v", sig)
 	}
 	return
 }
