@@ -40,6 +40,27 @@ func (c *Client) Verify(req *http.Request, body *bytes.Buffer) (err error) {
 	}
 	return c.oauth.Verify(req, body)
 }
+func (c *Client) Marshal(data any) (b *bytes.Buffer, err error) {
+	b = bytes.NewBuffer(nil)
+	if data == nil {
+		return
+	}
+	switch v := data.(type) {
+	case []byte:
+		b.Write(v)
+	case *[]byte:
+		b.Write(*v)
+	case string:
+		b.WriteString(v)
+	case *string:
+		b.WriteString(*v)
+	case io.Reader:
+		_, err = b.ReadFrom(v)
+	default:
+		err = c.Binder.Encode(b, data)
+	}
+	return
+}
 
 func (c *Client) Request(method, url string, data interface{}) (reply []byte, err error) {
 	defer func() {
@@ -51,18 +72,26 @@ func (c *Client) Request(method, url string, data interface{}) (reply []byte, er
 		req *http.Request
 		res *http.Response
 	)
-	if data != nil {
-		var buf []byte
-		if buf, err = c.Binder.Marshal(data); err != nil {
-			return
-		}
-		req, err = http.NewRequest(method, url, bytes.NewReader(buf))
-	} else {
-		req, err = http.NewRequest(method, url, nil)
-	}
-	if err != nil {
+	var b *bytes.Buffer
+	if b, err = c.Marshal(data); err != nil {
 		return
 	}
+	if req, err = http.NewRequest(method, url, b); err != nil {
+		return
+	}
+
+	//if data != nil {
+	//	var buf []byte
+	//	if buf, err = c.Binder.Marshal(data); err != nil {
+	//		return
+	//	}
+	//	req, err = http.NewRequest(method, url, bytes.NewReader(buf))
+	//} else {
+	//	req, err = http.NewRequest(method, url, nil)
+	//}
+	//if err != nil {
+	//	return
+	//}
 	if req.Body != nil {
 		defer req.Body.Close()
 	}

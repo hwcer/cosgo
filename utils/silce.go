@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 )
 
 func StringSliceIndexOf(s []string, tar string) int {
@@ -51,4 +53,12 @@ func (a ArrInt32) Has(i int32) bool {
 		}
 	}
 	return false
+}
+
+func (a ArrInt32) String() string {
+	var s []string
+	for _, v := range a {
+		s = append(s, fmt.Sprintf("%d", v))
+	}
+	return strings.Join(s, ",")
 }
