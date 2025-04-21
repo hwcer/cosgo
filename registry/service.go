@@ -8,22 +8,8 @@ import (
 	"strings"
 )
 
-/*
-所有接口都必须已经登录
-*/
-
-//NewService name: /x/y
-//文件加载init()中调用
-
-//type FilterEventType int8
-//
-//const (
-//	FilterEventTypeFunc FilterEventType = iota
-//	FilterEventTypeMethod
-//	FilterEventTypeStruct
-//)
-
 type Handler interface {
+	Use(i any) //注册中间件
 	Filter(*Node) bool
 }
 
@@ -46,6 +32,10 @@ type Service struct {
 	nodes   map[string]*Node
 	router  *Router
 	Handler Handler //自定义 Filter等方法
+}
+
+func (this *Service) Use(i any) {
+	this.Handler.Use(i)
 }
 
 func (this *Service) Name() string {
@@ -146,25 +136,7 @@ func (this *Service) Node(i any, prefix ...string) (*Node, error) {
 	return node, nil
 }
 
-// Format 格式化方法路径
-//func (this *Service) Format(i any, prefix ...string) string {
-//	v := ValueOf(i)
-//	return this.format("", FuncName(v), prefix...)
-//}
-
 func (this *Service) RegisterFun(i interface{}, prefix ...string) error {
-	//v := ValueOf(i)
-	//if v.Kind() != reflect.Func {
-	//	return errors.New("RegisterFun fn type must be reflect.Func")
-	//}
-	//name := this.Format(v, prefix...)
-	////if name == "" {
-	////	return errors.New("RegisterFun name empty")
-	////}
-	//node := &Node{name: name, value: v, Service: this}
-	//if !this.filter(node) {
-	//	return fmt.Errorf("RegisterFun filter return false:%v", name)
-	//}
 	node, err := this.Node(i, prefix...)
 	if err != nil {
 		return err
