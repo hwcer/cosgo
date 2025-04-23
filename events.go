@@ -9,6 +9,7 @@ const (
 	EventTypStarted                  //启动完成
 	EventTypClosing                  //开始关闭
 	EventTypStopped                  //停止之后
+	EventTypReload                   //reload
 )
 
 var events map[EventType][]EventFunc
