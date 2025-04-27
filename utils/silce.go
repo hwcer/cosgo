@@ -35,6 +35,37 @@ func SliceStringToInt32(s []string) []int32 {
 	}
 	return ret
 }
+func String2Slice(src string, split ...string) (r []int32) {
+	if src == "" {
+		return
+	}
+	var s string
+	if len(split) > 0 {
+		s = split[0]
+	} else {
+		s = ","
+	}
+	arr := strings.Split(src, s)
+	for _, v := range arr {
+		in, _ := strconv.Atoi(v)
+		r = append(r, int32(in))
+	}
+	return r
+}
+
+// 切割2维数组
+func String2Slice2(src string, split1, split2 string) (r [][]int32) {
+	if src == "" {
+		return
+	}
+	arr := strings.Split(src, split1)
+	for _, s := range arr {
+		if v := String2Slice(s, split2); len(v) > 0 {
+			r = append(r, v)
+		}
+	}
+	return r
+}
 
 func ConditionalOperator(op bool, a, b interface{}) interface{} {
 	if op {
