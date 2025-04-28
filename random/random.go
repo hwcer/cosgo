@@ -39,6 +39,7 @@ func New(items map[int32]int32, less ...Less) *Random {
 // Add 添加备选项 全部添加完毕后需要手动调用Sort排序才能使用
 func (this *Random) Add(k, v int32) {
 	this.items = append(this.items, &Data{Key: k, Val: v})
+	this.total += v
 }
 
 func (this *Random) Sort(f Less) *Random {
