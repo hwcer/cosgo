@@ -24,6 +24,19 @@ func IndexOf[T comparable](arr []T, tar T) int {
 	return -1
 }
 
+// Unrepeated 去重
+func Unrepeated[T comparable](arr []T) []T {
+	r := make([]T, 0)
+	s := make(map[T]struct{})
+	for _, v := range arr {
+		if _, ok := s[v]; !ok {
+			r = append(r, v)
+			s[v] = struct{}{}
+		}
+	}
+	return r
+}
+
 // String 转换成,分割的字符串
 func String[T comparable](arr []T, split ...string) string {
 	var s string
@@ -39,14 +52,38 @@ func String[T comparable](arr []T, split ...string) string {
 	return strings.Join(str, s)
 }
 
-func Cover(s []string) []int32 {
+func ParseInt32(v string) (int32, error) {
+	if v == "" {
+		return 0, nil
+	}
+	in, err := strconv.Atoi(v)
+	if err != nil {
+		return 0, err
+	}
+	return int32(in), nil
+}
+
+// Cover 字符串切片转int32切片
+// clean 去重
+func Cover(s []string, unrepeated ...bool) []int32 {
 	ret := make([]int32, 0)
+	flag := false
+	if len(unrepeated) > 0 {
+		flag = unrepeated[0]
+	}
+	exist := make(map[string]struct{})
+
 	for _, v := range s {
-		in, err := strconv.Atoi(v)
+		if _, ok := exist[v]; ok && flag {
+			continue
+		} else if flag {
+			exist[v] = struct{}{}
+		}
+		in, err := ParseInt32(v)
 		if err != nil {
 			return nil
 		}
-		ret = append(ret, int32(in))
+		ret = append(ret, in)
 	}
 	return ret
 }
@@ -59,6 +96,18 @@ func Split(src string, char ...string) []int32 {
 	}
 	arr := strings.Split(src, char[0])
 	return Cover(arr)
+}
+
+// SplitAndUnrepeated 切割并去重
+func SplitAndUnrepeated(src string, char ...string) []int32 {
+	if src == "" {
+		return nil
+	}
+	if len(char) == 0 {
+		char = append(char, ",")
+	}
+	arr := strings.Split(src, char[0])
+	return Cover(arr, true)
 }
 
 func Multiple(src string, char1, char2 string) (r [][]int32) {
