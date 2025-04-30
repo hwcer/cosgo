@@ -43,6 +43,7 @@ func (this *Random) Add(k, v int32) {
 }
 
 func (this *Random) Sort(f Less) *Random {
+	this.total = 0
 	for _, data := range this.items {
 		this.total += data.Val
 	}
