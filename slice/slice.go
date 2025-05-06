@@ -2,9 +2,33 @@ package slice
 
 import (
 	"fmt"
+	"golang.org/x/exp/constraints"
 	"strconv"
 	"strings"
 )
+
+func Min[T constraints.Ordered](nums []T) (r T) {
+	if len(nums) == 0 {
+		return
+	}
+	for i, num := range nums {
+		if i == 0 || num < r {
+			r = num
+		}
+	}
+	return
+}
+func Max[T constraints.Ordered](nums []T) (r T) {
+	if len(nums) == 0 {
+		return
+	}
+	for i, num := range nums {
+		if i == 0 || num > r {
+			r = num
+		}
+	}
+	return
+}
 
 func Has[T comparable](arr []T, tar T) bool {
 	for _, v := range arr {
