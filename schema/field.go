@@ -32,14 +32,14 @@ func (field *Field) GetName(ks ...string) string {
 }
 
 func (field *Field) GetTagName(k string) string {
-	jsName := field.StructField.Tag.Get(k)
-	if i := strings.Index(jsName, ","); i >= 0 {
-		jsName = jsName[0:i]
+	name := field.StructField.Tag.Get(k)
+	if i := strings.Index(name, ","); i >= 0 {
+		name = name[0:i]
 	}
-	if jsName == "-" {
+	if name == "-" {
 		return ""
 	}
-	return jsName
+	return name
 }
 
 func (field *Field) GetEmbeddedFields() (r []*Field) {

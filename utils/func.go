@@ -23,15 +23,6 @@ func Try(f func(), handle ...TryHandle) {
 	f()
 }
 
-// Ceil 除法向上取整
-func Ceil(a, b int32) int32 {
-	r := a / b
-	if a%b != 0 {
-		r += 1
-	}
-	return r
-}
-
 func Timeout(d time.Duration, fn func() error) error {
 	cher := make(chan error)
 	go func() {
