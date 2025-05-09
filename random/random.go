@@ -26,14 +26,9 @@ type Random struct {
 func New(items map[int32]int32, less ...Less) *Random {
 	r := &Random{}
 	for k, v := range items {
-		r.items = append(r.items, &Data{Key: k, Val: v})
+		r.Add(k, v)
 	}
-	if len(less) > 0 {
-		r.Sort(less[0])
-	} else {
-		r.Sort(nil)
-	}
-	return r
+	return r.Sort(less...)
 }
 
 // Add 添加备选项 全部添加完毕后需要手动调用Sort排序才能使用
@@ -42,12 +37,11 @@ func (this *Random) Add(k, v int32) {
 	this.total += v
 }
 
-func (this *Random) Sort(f Less) *Random {
-	this.total = 0
-	for _, data := range this.items {
-		this.total += data.Val
-	}
-	if f == nil {
+func (this *Random) Sort(less ...Less) *Random {
+	var f Less
+	if len(less) > 0 && less[0] != nil {
+		f = less[0]
+	} else {
 		f = this.Less
 	}
 	sort.Slice(this.items, func(i, j int) bool {
