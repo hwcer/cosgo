@@ -3,6 +3,7 @@ package slice
 import (
 	"fmt"
 	"golang.org/x/exp/constraints"
+	"math/rand"
 	"strconv"
 	"strings"
 )
@@ -18,6 +19,7 @@ func Min[T constraints.Ordered](nums []T) (r T) {
 	}
 	return
 }
+
 func Max[T constraints.Ordered](nums []T) (r T) {
 	if len(nums) == 0 {
 		return
@@ -37,6 +39,15 @@ func Has[T comparable](arr []T, tar T) bool {
 		}
 	}
 	return false
+}
+
+func Roll[T constraints.Ordered](nums []T) (r T) {
+	l := len(nums)
+	if l == 0 {
+		return
+	}
+	i := rand.Int31n(int32(l) - 1)
+	return nums[i]
 }
 
 func IndexOf[T comparable](arr []T, tar T) int {
