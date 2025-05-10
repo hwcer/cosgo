@@ -3,7 +3,6 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"math"
 	"runtime/debug"
 	"time"
 )
@@ -68,12 +67,6 @@ func Assert(ps ...func() error) (err error) {
 	return nil
 }
 
-// FloatPrecision 四舍五入，保留到Precision位小数
-func FloatPrecision(value float64, precision float64) float64 {
-	x := math.Pow(10, precision)
-	return math.Round(value*x) / x
-}
-
 func UTF8StringLen(str string) int {
 	l := 0
 	for _, v := range str {
@@ -84,4 +77,12 @@ func UTF8StringLen(str string) int {
 		}
 	}
 	return l
+}
+
+func CloneMap[T1 comparable, T2 comparable](src map[T1]T2) map[T1]T2 {
+	r := map[T1]T2{}
+	for k, v := range src {
+		r[k] = v
+	}
+	return r
 }

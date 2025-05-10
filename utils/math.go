@@ -1,6 +1,9 @@
 package utils
 
-import "golang.org/x/exp/constraints"
+import (
+	"golang.org/x/exp/constraints"
+	"math"
+)
 
 // Ceil 除法向上取整
 func Ceil[T constraints.Integer](a, b T) (r T) {
@@ -32,4 +35,10 @@ func Max[T constraints.Integer](nums ...T) (r T) {
 		}
 	}
 	return
+}
+
+// FloatPrecision 四舍五入，保留到Precision位小数
+func FloatPrecision(value float64, precision float64) float64 {
+	x := math.Pow(10, precision)
+	return math.Round(value*x) / x
 }
