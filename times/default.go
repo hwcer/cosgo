@@ -12,8 +12,8 @@ func init() {
 	times.WeekStartDay = 1
 }
 
-func New(v ...time.Time) *Times {
-	return times.New(v...)
+func New(v time.Time) *Times {
+	return times.New(v)
 }
 
 func Now() time.Time {
@@ -27,21 +27,19 @@ func AddDate(years int, months int, days int) *Times {
 	return times.AddDate(years, months, days)
 }
 
-func Unix() int64 {
-	return times.Unix()
+func Unix(v int64) *Times {
+	return times.Unix(v)
+}
+func Milli(v int64) *Times {
+	return times.Milli(v)
 }
 
 func Parse(value string, layout ...string) (*Times, error) {
 	return times.Parse(value, layout...)
 }
-func Timestamp(v int64) *Times {
-	return times.Timestamp(v)
-}
+
 func Sign(addDays int) (sign int32, str string) {
 	return times.Sign(addDays)
-}
-func TimeReset(v [3]int) {
-	times.TimeReset(v)
 }
 
 func Format(layout ...string) string {
@@ -78,6 +76,10 @@ func Verify(et ExpireType, v int64) (r bool) {
 
 func Expire(t ExpireType, v int) (ttl *Times, err error) {
 	return times.Expire(t, v)
+}
+
+func SetTimeReset(v int64) {
+	times.SetTimeReset(v)
 }
 
 func SetTimeZone(zone string) {

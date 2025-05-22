@@ -14,19 +14,26 @@ const (
 )
 
 type Times struct {
-	time         time.Time //时间
-	layout       string    //日期输入格式，必须带时区-0700,默认精确到秒
-	timeZone     string    //时区偏移量 -0700
-	timeReset    [3]int    //每日重置设置，时分秒
-	WeekStartDay int       //每周开始时间,默认周一   1:周一，0:周日
+	time         time.Time     //时间
+	layout       string        //日期输入格式，必须带时区-0700,默认精确到秒
+	timeZone     string        //时区偏移量 -0700
+	timeReset    time.Duration //每日几点重置日(秒)
+	WeekStartDay int           //每周开始时间,默认周一   1:周一，0:周日
 }
 
-func (this *Times) New(v ...time.Time) *Times {
+func (this *Times) New(v time.Time) *Times {
 	t := *this
-	if len(v) > 0 && !v[0].IsZero() {
-		t.time = v[0]
-	}
+	t.time = v
 	return &t
+}
+
+func (this *Times) Unix(v int64) *Times {
+	t := time.Unix(v, 0)
+	return this.New(t)
+}
+func (this *Times) Milli(v int64) *Times {
+	t := time.UnixMilli(v)
+	return this.New(t)
 }
 
 func (this *Times) Now() time.Time {
@@ -48,10 +55,6 @@ func (this *Times) AddDate(years int, months int, days int) *Times {
 	return this.New(t)
 }
 
-func (this *Times) Unix() int64 {
-	return this.Now().Unix()
-}
-
 func (this *Times) Parse(value string, layout ...string) (*Times, error) {
 	var lay string
 	if len(layout) > 0 {
@@ -65,13 +68,12 @@ func (this *Times) Parse(value string, layout ...string) (*Times, error) {
 	}
 	return this.New(t), nil
 }
-func (this *Times) Timestamp(v int64) *Times {
-	t := time.Unix(v, 0)
-	return this.New(t)
-}
 
 func (this *Times) Sign(addDays int) (sign int32, str string) {
 	t := this.Now()
+	if this.timeReset != 0 {
+		t = t.Add(-this.timeReset)
+	}
 	if addDays > 0 {
 		t = t.AddDate(0, 0, addDays)
 	}
@@ -79,10 +81,6 @@ func (this *Times) Sign(addDays int) (sign int32, str string) {
 	ret, _ := strconv.ParseUint(str, 10, 32)
 	sign = int32(ret)
 	return
-}
-
-func (this *Times) TimeReset(v [3]int) {
-	this.timeReset = v
 }
 
 func (this *Times) Format(layout ...string) string {
@@ -102,7 +100,10 @@ func (this *Times) String() string {
 // args :时,分,秒,毫秒
 func (this *Times) Daily(addDays int) *Times {
 	t := this.Now()
-	r := time.Date(t.Year(), t.Month(), t.Day(), this.timeReset[0], this.timeReset[1], this.timeReset[2], 0, t.Location())
+	r := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	if this.timeReset != 0 {
+		r = r.Add(this.timeReset)
+	}
 	if addDays != 0 {
 		r = r.AddDate(0, 0, addDays)
 	}
@@ -123,8 +124,10 @@ func (this *Times) Weekly(addWeeks int) *Times {
 	if addDay != 0 {
 		t = t.AddDate(0, 0, addDay)
 	}
-
-	r := time.Date(t.Year(), t.Month(), t.Day(), this.timeReset[0], this.timeReset[1], this.timeReset[2], 0, t.Location())
+	r := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	if this.timeReset != 0 {
+		r = r.Add(this.timeReset)
+	}
 	if addWeeks != 0 {
 		r = r.AddDate(0, 0, addWeeks*7)
 	}
@@ -135,11 +138,19 @@ func (this *Times) Weekly(addWeeks int) *Times {
 // addMonth：月偏移，0：本月,1:下月 -1:上月
 func (this *Times) Monthly(addMonth int) *Times {
 	t := this.Now()
-	r := time.Date(t.Year(), t.Month(), 1, this.timeReset[0], this.timeReset[1], this.timeReset[2], 0, t.Location())
+	r := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
+	if this.timeReset != 0 {
+		r = r.Add(this.timeReset)
+	}
 	if addMonth != 0 {
 		r = r.AddDate(0, addMonth, 0)
 	}
 	return this.New(r)
+}
+
+// SetTimeReset 每日凌晨偏移时间，6点重置 v=6*3600
+func (this *Times) SetTimeReset(v int64) {
+	this.timeReset = time.Duration(v) * time.Second
 }
 
 func (this *Times) SetTimeZone(zone string) {
@@ -160,13 +171,13 @@ func (this *Times) Verify(t ExpireType, v int64) (r bool) {
 	var s int64
 	switch t {
 	case ExpireTypeDaily:
-		s = this.Daily(0).Unix()
+		s = this.Daily(0).Now().Unix()
 	case ExpireTypeWeekly:
-		s = this.Weekly(0).Unix()
+		s = this.Weekly(0).Now().Unix()
 	case ExpireTypeMonthly:
-		s = this.Monthly(0).Unix()
+		s = this.Monthly(0).Now().Unix()
 	case ExpireTypeSecond:
-		s = this.Unix()
+		s = this.Now().Unix()
 	default:
 		return false
 	}
@@ -177,16 +188,17 @@ func (this *Times) Verify(t ExpireType, v int64) (r bool) {
 func (this *Times) Expire(t ExpireType, v int) (ttl *Times, err error) {
 	switch t {
 	case ExpireTypeDaily:
-		ttl = this.Daily(v).Add(-1)
+		ttl = this.Daily(v)
 	case ExpireTypeWeekly:
-		ttl = this.Weekly(v).Add(-1)
+		ttl = this.Weekly(v)
 	case ExpireTypeMonthly:
-		ttl = this.Monthly(v).Add(-1)
+		ttl = this.Monthly(v)
 	case ExpireTypeSecond:
 		ttl = this.Add(time.Second * time.Duration(v))
 	case ExpireTypeCustomize:
-		if ttl, err = this.Parse(fmt.Sprintf("%v%v", v, this.GetTimeZone()), "20060102-0700"); err == nil {
-			ttl = ttl.Daily(1).Add(-1)
+		s := fmt.Sprintf("%v%v", v, this.GetTimeZone())
+		if ttl, err = this.Parse(s, "20060102-0700"); err == nil {
+			ttl = ttl.Daily(1)
 		}
 	default:
 		ttl = this.New(time.Unix(0, 0))
