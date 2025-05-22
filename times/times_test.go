@@ -10,7 +10,8 @@ func TestGetDayStartTime(t *testing.T) {
 	t.Logf("当前时区:%v", GetTimeZone())
 	t.Logf("%v", Daily(0).String())
 	t.Logf("%v", Daily(1).String())
-
+	t.Logf("Weekly:%v", Weekly(0).String())
+	t.Logf("Monthly:%v", Monthly(0).String())
 	v := 20231229
 	if expire, err := Expire(5, v); err != nil {
 		t.Logf("ERR:%v", err)

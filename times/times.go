@@ -100,10 +100,11 @@ func (this *Times) String() string {
 // args :时,分,秒,毫秒
 func (this *Times) Daily(addDays int) *Times {
 	t := this.Now()
-	r := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 	if this.timeReset != 0 {
-		r = r.Add(this.timeReset)
+		t = t.Add(-this.timeReset)
 	}
+	r := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	r = r.Add(this.timeReset)
 	if addDays != 0 {
 		r = r.AddDate(0, 0, addDays)
 	}
