@@ -97,6 +97,16 @@ func ParseInt32(v string) (int32, error) {
 	}
 	return int32(in), nil
 }
+func ParseInt64(v string) (int64, error) {
+	if v == "" {
+		return 0, nil
+	}
+	in, err := strconv.Atoi(v)
+	if err != nil {
+		return 0, err
+	}
+	return int64(in), nil
+}
 
 // Cover 字符串切片转int32切片
 // clean 去重
@@ -122,15 +132,32 @@ func Cover(s []string, unrepeated ...bool) []int32 {
 	}
 	return ret
 }
-func Split(src string, char ...string) []int32 {
+
+func Split(src string, char ...string) []string {
 	if src == "" {
 		return nil
 	}
 	if len(char) == 0 {
 		char = append(char, ",")
 	}
-	arr := strings.Split(src, char[0])
-	return Cover(arr)
+	return strings.Split(src, char[0])
+}
+
+func SplitInt32(src string, char ...string) (r []int32) {
+	arr := Split(src, char...)
+	for _, v := range arr {
+		in, _ := ParseInt32(v)
+		r = append(r, in)
+	}
+	return
+}
+func SplitInt64(src string, char ...string) (r []int64) {
+	arr := Split(src, char...)
+	for _, v := range arr {
+		in, _ := ParseInt64(v)
+		r = append(r, in)
+	}
+	return
 }
 
 // SplitAndUnrepeated 切割并去重
@@ -151,7 +178,7 @@ func Multiple(src string, char1, char2 string) (r [][]int32) {
 	}
 	arr := strings.Split(src, char1)
 	for _, s := range arr {
-		if v := Split(s, char2); len(v) > 0 {
+		if v := SplitInt32(s, char2); len(v) > 0 {
 			r = append(r, v)
 		}
 	}
