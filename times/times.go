@@ -164,27 +164,6 @@ func (this *Times) GetTimeZone() string {
 	return this.timeZone
 }
 
-// Verify 验证是否有效,true:有效
-func (this *Times) Verify(t ExpireType, v int64) (r bool) {
-	if t == ExpireTypeNone {
-		return true
-	}
-	var s int64
-	switch t {
-	case ExpireTypeDaily:
-		s = this.Daily(0).Now().Unix()
-	case ExpireTypeWeekly:
-		s = this.Weekly(0).Now().Unix()
-	case ExpireTypeMonthly:
-		s = this.Monthly(0).Now().Unix()
-	case ExpireTypeSecond:
-		s = this.Now().Unix()
-	default:
-		return false
-	}
-	return v > s
-}
-
 // Expire 过期时间
 func (this *Times) Expire(t ExpireType, v int) (ttl *Times, err error) {
 	switch t {
@@ -197,12 +176,18 @@ func (this *Times) Expire(t ExpireType, v int) (ttl *Times, err error) {
 	case ExpireTypeSecond:
 		ttl = this.Add(time.Second * time.Duration(v))
 	case ExpireTypeCustomize:
-		s := fmt.Sprintf("%v%v", v, this.GetTimeZone())
-		if ttl, err = this.Parse(s, "20060102-0700"); err == nil {
-			ttl = ttl.Daily(1)
+		if ttl, err = ParseExpireTypeCustomize(v); err == nil {
+			ttl = ttl.Daily(1).Add(-1)
 		}
+	case ExpireTimeTimeStamp:
+		ttl = this.Unix(int64(v))
 	default:
 		ttl = this.New(time.Unix(0, 0))
 	}
 	return
+}
+
+func ParseExpireTypeCustomize(v int) (ttl *Times, err error) {
+	s := fmt.Sprintf("%v%v", v, GetTimeZone())
+	return Parse(s, "20060102-0700")
 }

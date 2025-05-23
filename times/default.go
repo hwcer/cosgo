@@ -69,11 +69,6 @@ func Monthly(addMonth int) *Times {
 	return times.Monthly(addMonth)
 }
 
-// Verify 验证是否有效,true:有效
-func Verify(et ExpireType, v int64) (r bool) {
-	return times.Verify(et, v)
-}
-
 func Expire(t ExpireType, v int) (ttl *Times, err error) {
 	return times.Expire(t, v)
 }

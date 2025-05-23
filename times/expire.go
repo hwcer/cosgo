@@ -20,4 +20,9 @@ const (
 	ExpireTypeMonthly   ExpireType = 3
 	ExpireTypeSecond    ExpireType = 4
 	ExpireTypeCustomize ExpireType = 5
+	ExpireTimeTimeStamp ExpireType = 6
 )
+
+func (t ExpireType) Has() bool {
+	return t >= ExpireTypeNone && t <= ExpireTimeTimeStamp
+}
