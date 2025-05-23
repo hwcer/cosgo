@@ -189,11 +189,11 @@ func (this *Times) Verify(t ExpireType, v int64) (r bool) {
 func (this *Times) Expire(t ExpireType, v int) (ttl *Times, err error) {
 	switch t {
 	case ExpireTypeDaily:
-		ttl = this.Daily(v)
+		ttl = this.Daily(v).Add(-1)
 	case ExpireTypeWeekly:
-		ttl = this.Weekly(v)
+		ttl = this.Weekly(v).Add(-1)
 	case ExpireTypeMonthly:
-		ttl = this.Monthly(v)
+		ttl = this.Monthly(v).Add(-1)
 	case ExpireTypeSecond:
 		ttl = this.Add(time.Second * time.Duration(v))
 	case ExpireTypeCustomize:
