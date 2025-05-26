@@ -57,6 +57,9 @@ func (this *Random) Roll() int32 {
 	if this.total == 0 {
 		return -1
 	}
+	if len(this.items) == 1 {
+		return this.items[0].Key
+	}
 	rnd := Roll(1, this.total)
 	for _, d := range this.items {
 		if d.Val > 0 {
@@ -71,6 +74,9 @@ func (this *Random) Roll() int32 {
 func (this *Random) Weight() (r int32) {
 	if this.total == 0 {
 		return -1
+	}
+	if len(this.items) == 1 {
+		return this.items[0].Key
 	}
 	for _, v := range this.items {
 		r = v.GetKey()
