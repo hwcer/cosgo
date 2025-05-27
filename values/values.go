@@ -1,8 +1,8 @@
 package values
 
 import (
-	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -91,28 +91,30 @@ func (vs Values) GetString(k string) (r string) {
 	return ParseString(v)
 }
 func (vs Values) Marshal(k string, v any) (r any, err error) {
-	switch v.(type) {
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64, string:
+	if IsBasicType(v) {
 		r = v
 		vs[k] = v
-	default:
+	} else {
 		var b []byte
 		if b, err = json.Marshal(v); err == nil {
-			r = b
-			vs[k] = base64.StdEncoding.EncodeToString(b)
+			r = Attach(b)
+			vs[k] = r
 		}
 	}
 	return
 }
-func (vs Values) Unmarshal(k string, v any) error {
-	s := vs.GetString(k)
-	if s == "" {
+func (vs Values) Unmarshal(k string, i any) error {
+	v := vs[k]
+	if v == nil {
 		return nil
 	}
-	if b, err := base64.StdEncoding.DecodeString(s); err == nil {
-		return json.Unmarshal(b, v)
-	} else {
-		return err
+	switch s := v.(type) {
+	case string:
+		att := Attach(s)
+		return att.Unmarshal(i)
+	case Attach:
+		return s.Unmarshal(i)
+	default:
+		return errors.New("invalid type")
 	}
-
 }
