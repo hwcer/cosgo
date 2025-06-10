@@ -4,7 +4,6 @@ import (
 	"github.com/hwcer/cosgo/session/storage"
 	"github.com/hwcer/cosgo/values"
 	"github.com/hwcer/logger"
-	"time"
 )
 
 func NewSetter(id string, data any) storage.Setter {
@@ -28,8 +27,7 @@ func NewSetter(id string, data any) storage.Setter {
 }
 
 type Setter struct {
-	*Data        //数据接口
-	expire int64 //过期时间
+	*Data //数据接口
 }
 
 func (this *Setter) Get() interface{} {
@@ -48,12 +46,5 @@ func (this *Setter) Set(data interface{}) {
 	}
 	if v != nil {
 		this.Data.Update(v)
-	}
-}
-
-// KeepAlive 设置有效期(s)
-func (this *Setter) KeepAlive() {
-	if Options.MaxAge > 0 {
-		this.expire = time.Now().Unix() + Options.MaxAge
 	}
 }

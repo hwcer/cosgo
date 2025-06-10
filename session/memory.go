@@ -8,8 +8,6 @@ import (
 	"time"
 )
 
-var Heartbeat int32 = 10 //心跳(S)
-
 func NewMemory(cap ...int) *Memory {
 	var c int
 	if len(cap) > 0 && cap[0] > 0 {
@@ -42,17 +40,18 @@ func (this *Memory) get(id string) (*Setter, error) {
 		return v.(*Setter), nil
 	}
 }
+
 func (this *Memory) New(p *Data) error {
 	_ = this.Storage.Create(p)
 	return nil
 }
+
 func (this *Memory) Verify(token string) (p *Data, err error) {
 	var setter *Setter
 	if setter, err = this.get(token); err == nil {
 		p = setter.Data
 		setter.KeepAlive()
 	}
-
 	return
 }
 
@@ -63,8 +62,11 @@ func (this *Memory) Update(p *Data, data map[string]any) (err error) {
 	p.Update(data)
 	return
 }
-func (this *Memory) Delete(p *Data) error {
-	this.Storage.Delete(p.id)
+
+func (this *Memory) Delete(d *Data) error {
+	if setter := this.Storage.Delete(d.id); setter != nil {
+		emit(d)
+	}
 	return nil
 }
 
@@ -78,7 +80,8 @@ func (this *Memory) Create(uuid string, data map[string]any) (p *Data, err error
 }
 
 func (this *Memory) daemon(ctx context.Context) {
-	ticker := time.NewTimer(time.Second * time.Duration(Heartbeat))
+	ts := time.Second * time.Duration(Options.Heartbeat)
+	ticker := time.NewTimer(ts)
 	defer ticker.Stop()
 	for {
 		select {
@@ -86,6 +89,7 @@ func (this *Memory) daemon(ctx context.Context) {
 			return
 		case <-ticker.C:
 			this.clean()
+			ticker.Reset(ts)
 		}
 	}
 }
@@ -96,16 +100,20 @@ func (this *Memory) clean() {
 			logger.Alert("session.memory daemon ticker error:%v", err)
 		}
 	}()
-	nowTime := time.Now().Unix()
 	var keys []string
+	maxAge := int32(Options.MaxAge)
 	this.Storage.Range(func(item storage.Setter) bool {
-		if data, ok := item.(*Setter); ok && data.expire < nowTime {
+		if data, ok := item.(*Setter); ok && data.Heartbeat(Options.Heartbeat) >= maxAge {
 			keys = append(keys, data.Id())
 		}
 		return true
 	})
 
-	if len(keys) > 0 {
-		this.Remove(keys)
+	for _, key := range keys {
+		if setter := this.Storage.Delete(key); setter != nil {
+			if v := setter.(*Setter); v != nil {
+				emit(v.Data)
+			}
+		}
 	}
 }

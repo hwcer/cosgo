@@ -14,15 +14,18 @@ type token interface {
 }
 
 var Options = struct {
-	Name    string //session cookie name
-	Token   token  //token生成和解析方式
-	MaxAge  int64  //有效期(S)
-	Secret  string //16位秘钥
-	Storage Storage
+	Name      string //session cookie name
+	Token     token  //token生成和解析方式
+	MaxAge    int64  //有效期(S)
+	Secret    string //16位秘钥
+	Storage   Storage
+	Heartbeat int32 //心跳(S)
+
 }{
-	Name:   "_cookie_vars",
-	MaxAge: 3600,
-	Secret: "UVFGHIJABCopqDNO", //redis 存储时生成TOKEN的密钥
+	Name:      "_cookie_vars",
+	MaxAge:    3600,
+	Secret:    "UVFGHIJABCopqDNO", //redis 存储时生成TOKEN的密钥
+	Heartbeat: 10,
 }
 
 func Decode(sid string) (uid string, err error) {

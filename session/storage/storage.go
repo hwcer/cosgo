@@ -119,8 +119,11 @@ func (this *Storage) Delete(id string) Setter {
 	}
 	return bucket.Delete(id)
 }
-func (this *Storage) Remove(id []string) {
+func (this *Storage) Remove(id []string) (r []Setter) {
 	for _, v := range id {
-		this.Delete(v)
+		if s := this.Delete(v); s != nil {
+			r = append(r, s)
+		}
 	}
+	return r
 }

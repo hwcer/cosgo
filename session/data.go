@@ -56,7 +56,7 @@ func (this *Data) Heartbeat(v ...int32) int32 {
 }
 
 func (this *Data) Set(key string, value any, locked ...bool) any {
-	if !(len(locked) > 0 && locked[0]) {
+	if len(locked) == 0 || !locked[0] {
 		this.Lock()
 		defer this.Unlock()
 	}
@@ -67,11 +67,21 @@ func (this *Data) Set(key string, value any, locked ...bool) any {
 	return value
 }
 
+func (this *Data) Delete(key string, locked ...bool) {
+	if len(locked) == 0 || !locked[0] {
+		this.Lock()
+		defer this.Unlock()
+	}
+	vs := this.Values.Clone()
+	delete(vs, key)
+	this.Values = vs
+}
+
 func (this *Data) Merge(p *Data, locked ...bool) {
 	if this.id == p.id {
 		return
 	}
-	if !(len(locked) > 0 && locked[0]) {
+	if len(locked) == 0 || !locked[0] {
 		this.Lock()
 		defer this.Unlock()
 	}
@@ -82,7 +92,7 @@ func (this *Data) Merge(p *Data, locked ...bool) {
 
 // Update 批量设置Cookie信息
 func (this *Data) Update(data map[string]any, locked ...bool) {
-	if !(len(locked) > 0 && locked[0]) {
+	if len(locked) == 0 || !locked[0] {
 		this.Lock()
 		defer this.Unlock()
 	}
