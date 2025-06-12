@@ -1,39 +1,35 @@
 package values
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 )
 
-const MessageErrorCodeDefault int = 9999
+const MessageErrorCodeDefault int32 = 9999
 
 type Message struct {
-	Code int   `json:"code"`
-	Data Bytes `json:"data"`
+	Code int32 `json:"code"`
+	Data any   `json:"data"`
 }
 
-func (this *Message) Parse(v interface{}) *Message {
-	switch d := v.(type) {
+func (this *Message) Parse(v any) *Message {
+	switch v.(type) {
 	case error:
-		this.Format(0, d)
-	case []byte:
-		this.Data = d
+		this.Errorf(0, v)
 	default:
-		if err := this.Marshal(v); err != nil {
-			this.Format(0, err)
-		}
+		this.Data = v
 	}
 	return this
 }
 func (this *Message) String() string {
-	if this.Code == 0 {
-		return string(this.Data)
-	}
-	var r string
-	if err := this.Data.Unmarshal(&r); err == nil {
-		return r
-	} else {
-		return err.Error()
+	switch v := this.Data.(type) {
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	default:
+		return fmt.Sprintf("%v", this.Data)
 	}
 }
 
@@ -41,29 +37,23 @@ func (this *Message) Error() string {
 	return this.String()
 }
 
-// Format 格式化一个错误,必定产生错误码
-func (this *Message) Format(code int, format any, args ...any) {
+// Errorf 格式化一个错误,必定产生错误码
+func (this *Message) Errorf(code int32, format any, args ...any) {
 	if code == 0 {
 		this.Code = MessageErrorCodeDefault
 	} else {
 		this.Code = code
 	}
-	var data string
-	switch v := format.(type) {
-	case string:
-		if len(args) > 0 {
-			data = fmt.Sprintf(v, args...)
-		} else {
-			data = v
-		}
-	default:
-		data = fmt.Sprintf("%v", format)
-	}
-	_ = this.Data.Marshal(data)
+	this.Data = Sprintf(format, args...)
 }
 
-func (this *Message) Marshal(v interface{}) error {
-	return this.Data.Marshal(v)
+func (this *Message) Marshal(v any) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	this.Data = b
+	return nil
 }
 
 // Unmarshal 如果是一个错误信息 应当单独处理
@@ -71,7 +61,44 @@ func (this *Message) Unmarshal(i interface{}) error {
 	if this.Code != 0 {
 		return errors.New(this.String())
 	}
-	return this.Data.Unmarshal(i)
+	switch v := this.Data.(type) {
+	case []byte:
+		return json.Unmarshal(v, i)
+	case string:
+		return json.Unmarshal([]byte(v), i)
+	default:
+		return errors.New("unsupported type")
+	}
+}
+
+type messageWithNet struct {
+	Code int32 `json:"code"`
+	Data Bytes `json:"data"`
+}
+
+func (this *Message) MarshalJSON() ([]byte, error) {
+	v := &messageWithNet{Code: this.Code}
+	switch i := this.Data.(type) {
+	case []byte:
+		v.Data = i
+	default:
+		if b, err := json.Marshal(this.Data); err == nil {
+			return nil, err
+		} else {
+			v.Data = b
+		}
+	}
+	return json.Marshal(v)
+}
+
+func (this *Message) UnmarshalJSON(b []byte) error {
+	v := &messageWithNet{}
+	if err := json.Unmarshal(b, v); err != nil {
+		return err
+	}
+	this.Code = v.Code
+	this.Data = []byte(v.Data)
+	return nil
 }
 
 func Parse(v any) *Message {
@@ -88,22 +115,17 @@ func Parse(v any) *Message {
 
 func Error(err any) (r *Message) {
 	r = &Message{}
-	r.Format(0, err)
+	r.Errorf(0, err)
 	return
 }
-func Errorf(code int, format any, args ...any) (r *Message) {
-	var ok bool
-	if r, ok = format.(*Message); ok {
+func Errorf(code int32, format any, args ...any) *Message {
+	if r, ok := format.(*Message); ok {
 		if code != 0 {
 			r.Code = code
 		}
 		return r
 	}
-	r = &Message{}
-	r.Format(code, format, args...)
-	return
+	r := &Message{}
+	r.Errorf(code, format, args...)
+	return r
 }
-
-//func NewMessage(v interface{}) *Message {
-//	return Parse(v)
-//}
