@@ -53,6 +53,9 @@ func (*protobufBinding) Marshal(i interface{}) ([]byte, error) {
 }
 
 func (*protobufBinding) Unmarshal(b []byte, i interface{}) error {
+	if len(b) == 0 {
+		return nil
+	}
 	pb, ok := i.(proto.Message)
 	if !ok {
 		return errors.New("not proto.Message")

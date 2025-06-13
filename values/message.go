@@ -57,18 +57,23 @@ func (this *Message) Marshal(v any) error {
 }
 
 // Unmarshal 如果是一个错误信息 应当单独处理
-func (this *Message) Unmarshal(i interface{}) error {
+func (this *Message) Unmarshal(i interface{}) (err error) {
 	if this.Code != 0 {
 		return errors.New(this.String())
 	}
 	switch v := this.Data.(type) {
 	case []byte:
-		return json.Unmarshal(v, i)
+		if len(v) > 0 {
+			err = json.Unmarshal(v, i)
+		}
 	case string:
-		return json.Unmarshal([]byte(v), i)
+		if b := []byte(v); len(b) > 0 {
+			err = json.Unmarshal(b, i)
+		}
 	default:
-		return errors.New("unsupported type")
+		err = errors.New("unsupported type")
 	}
+	return
 }
 
 type messageWithNet struct {

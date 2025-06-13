@@ -36,5 +36,8 @@ func (jsonBinding) Marshal(i interface{}) ([]byte, error) {
 }
 
 func (jsonBinding) Unmarshal(b []byte, i interface{}) error {
+	if len(b) == 0 {
+		return nil
+	}
 	return json.Unmarshal(b, i)
 }
