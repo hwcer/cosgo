@@ -87,7 +87,7 @@ func (this *Message) MarshalJSON() ([]byte, error) {
 	case []byte:
 		v.Data = i
 	default:
-		if b, err := json.Marshal(this.Data); err == nil {
+		if b, err := json.Marshal(this.Data); err != nil {
 			return nil, err
 		} else {
 			v.Data = b
