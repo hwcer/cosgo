@@ -18,23 +18,14 @@ func TestMessage_Error(t *testing.T) {
 
 	_ = msg.Parse(100)
 	t.Log(msg.String())
-
 	msg.Code = 0
 
 	v := map[string]interface{}{}
 	v["k"] = "k"
 	v["v"] = 1
-	t.Logf("test map value:%v", v)
-	_ = msg.Marshal(v)
+	msg.Data = v
 
-	v2 := map[string]interface{}{}
-	if err := msg.Unmarshal(&v2); err != nil {
-		t.Error(err)
-	} else {
-		t.Logf("test json Unmarshal:%v", v2)
-	}
-
-	b, err := msg.MarshalJSON()
+	b, err := json.Marshal(msg)
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -42,16 +33,16 @@ func TestMessage_Error(t *testing.T) {
 	}
 
 	//模拟通过NET获得的message
-	m2 := &Message{}
-	if err = json.Unmarshal(b, m2); err != nil {
+	r := &Request{}
+	if err = json.Unmarshal(b, r); err != nil {
 		t.Error(err)
 	}
 
-	r := map[string]interface{}{}
-	if err = m2.Unmarshal(&r); err != nil {
+	m := map[string]interface{}{}
+	if err = r.Unmarshal(&m); err != nil {
 		t.Error(err)
 	} else {
-		t.Logf("test net Unmarshal:%v", r)
+		t.Logf("test net Unmarshal:%v", m)
 	}
 
 }
