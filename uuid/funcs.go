@@ -52,3 +52,18 @@ func Index(id string, base int) (r int, err error) {
 	}
 	return
 }
+
+// IsValid 验证UUID 是否合法
+func IsValid(uuid string, base ...int) bool {
+	i := UUID{}
+	b := int(0)
+	if len(base) > 0 {
+		b = base[0]
+	} else {
+		b = BaseSize
+	}
+	if err := i.Parse(uuid, b); err != nil {
+		return false
+	}
+	return true
+}
