@@ -1,11 +1,8 @@
 package session
 
 import (
-	"context"
-	"github.com/hwcer/cosgo/scc"
 	"github.com/hwcer/cosgo/session/storage"
 	"github.com/hwcer/logger"
-	"time"
 )
 
 func NewMemory(cap ...int) *Memory {
@@ -25,11 +22,13 @@ func NewMemory(cap ...int) *Memory {
 
 type Memory struct {
 	storage.Storage
+	listeners []func(data *Data)
 }
 
 func (this *Memory) init() {
-	if Options.MaxAge > 0 {
-		scc.CGO(this.daemon)
+	if Options.MaxAge > 0 && Options.Heartbeat > 0 {
+		Heartbeat.On(this.Heartbeat)
+		Heartbeat.Start()
 	}
 }
 
@@ -39,6 +38,16 @@ func (this *Memory) get(id string) (*Setter, error) {
 	} else {
 		return v.(*Setter), nil
 	}
+}
+
+func (this *Memory) emit(v *Data) {
+	for _, l := range this.listeners {
+		l(v)
+	}
+}
+
+func (this *Memory) On(l func(data *Data)) {
+	this.listeners = append(this.listeners, l)
 }
 
 func (this *Memory) New(p *Data) error {
@@ -65,7 +74,7 @@ func (this *Memory) Update(p *Data, data map[string]any) (err error) {
 
 func (this *Memory) Delete(d *Data) error {
 	if setter := this.Storage.Delete(d.id); setter != nil {
-		emit(d)
+		this.emit(d)
 	}
 	return nil
 }
@@ -79,41 +88,22 @@ func (this *Memory) Create(uuid string, data map[string]any) (p *Data, err error
 	return
 }
 
-func (this *Memory) daemon(ctx context.Context) {
-	ts := time.Second * time.Duration(Options.Heartbeat)
-	ticker := time.NewTimer(ts)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			this.clean()
-			ticker.Reset(ts)
-		}
-	}
-}
-
-func (this *Memory) clean() {
+func (this *Memory) Heartbeat(s int32) {
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Alert("session.memory daemon ticker error:%v", err)
 		}
 	}()
-	var keys []string
+	var vs []*Data
 	maxAge := int32(Options.MaxAge)
 	this.Storage.Range(func(item storage.Setter) bool {
-		if data, ok := item.(*Setter); ok && data.Heartbeat(Options.Heartbeat) >= maxAge {
-			keys = append(keys, data.Id())
+		if d, ok := item.(*Setter); ok && d.Heartbeat(s) >= maxAge {
+			vs = append(vs, d.Data)
 		}
 		return true
 	})
 
-	for _, key := range keys {
-		if setter := this.Storage.Delete(key); setter != nil {
-			if v := setter.(*Setter); v != nil {
-				emit(v.Data)
-			}
-		}
+	for _, v := range vs {
+		this.Delete(v)
 	}
 }
