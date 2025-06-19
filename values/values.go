@@ -112,6 +112,9 @@ func (vs Values) Unmarshal(k string, i any) error {
 	case string:
 		att := Attach(s)
 		return att.Unmarshal(i)
+	case []byte:
+		att := Attach(s)
+		return att.Unmarshal(i)
 	case Attach:
 		return s.Unmarshal(i)
 	default:
