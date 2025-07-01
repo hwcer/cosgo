@@ -188,6 +188,6 @@ func (this *Times) Expire(t ExpireType, v int) (ttl *Times, err error) {
 }
 
 func ParseExpireTypeCustomize(v int) (ttl *Times, err error) {
-	s := fmt.Sprintf("%v%v", v, GetTimeZone())
-	return Parse(s, "20060102-0700")
+	s := fmt.Sprintf("%v%v", v, "+0000")
+	return Parse(s, "2006010215-0700")
 }
