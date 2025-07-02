@@ -12,7 +12,7 @@ func TestGetDayStartTime(t *testing.T) {
 	t.Logf("%v", Daily(1).String())
 	t.Logf("Weekly:%v", Weekly(0).String())
 	t.Logf("Monthly:%v", Monthly(0).String())
-	v := 20231229
+	v := 2023122914
 	if expire, err := Expire(5, v); err != nil {
 		t.Logf("ERR:%v", err)
 	} else {
@@ -21,9 +21,9 @@ func TestGetDayStartTime(t *testing.T) {
 
 	t.Logf("NOW:%v", String())
 
-	x := Daily(0)
+	x := Daily(-1)
 	t.Logf("Daily: %v,  %v", x.Now().Unix(), x.String())
-	if expire, err := x.Expire(ExpireTypeDaily, 1); err != nil {
+	if expire, err := x.Expire(ExpireTypeDaily, 2); err != nil {
 		t.Logf("ERR:%v", err)
 	} else {
 		t.Logf("Expire:%v  %v", expire.Now().Unix(), expire.String())
@@ -34,7 +34,7 @@ func TestGetDayStartTime(t *testing.T) {
 	sign, _ := z.Sign(0)
 	t.Logf("Daily:%v  sign:%v", z.String(), sign)
 
-	if s, err := Parse("2023-02-28 06:00:00+0800"); err != nil {
+	if s, err := Parse("2023-02-28 05:00:00+0800"); err != nil {
 		t.Logf("ERR:%v", err)
 	} else {
 		t.Logf("Parse:%v", s.String())

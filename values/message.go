@@ -21,6 +21,9 @@ func (this *Message) Parse(v any) *Message {
 	return this
 }
 func (this *Message) String() string {
+	if this.Data == nil {
+		return ""
+	}
 	switch v := this.Data.(type) {
 	case string:
 		return v

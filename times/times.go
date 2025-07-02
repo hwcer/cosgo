@@ -2,6 +2,7 @@ package times
 
 import (
 	"fmt"
+	"github.com/hwcer/cosgo/values"
 	"strconv"
 	"time"
 )
@@ -100,11 +101,10 @@ func (this *Times) String() string {
 // args :时,分,秒,毫秒
 func (this *Times) Daily(addDays int) *Times {
 	t := this.Now()
-	if this.timeReset != 0 {
-		t = t.Add(-this.timeReset)
-	}
 	r := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
-	r = r.Add(this.timeReset)
+	if this.timeReset != 0 {
+		r = r.Add(this.timeReset)
+	}
 	if addDays != 0 {
 		r = r.AddDate(0, 0, addDays)
 	}
@@ -154,14 +154,39 @@ func (this *Times) SetTimeReset(v int64) {
 	this.timeReset = time.Duration(v) * time.Second
 }
 
-func (this *Times) SetTimeZone(zone string) {
-	this.timeZone = zone
-}
+//	func (this *Times) SetTimeZone(zone string) {
+//		this.timeZone = zone
+//	}
 func (this *Times) GetTimeZone() string {
 	if this.timeZone == "" {
-		this.timeZone = this.time.Format("-0700")
+		this.timeZone = this.Now().Format("-0700")
 	}
 	return this.timeZone
+}
+
+// Start 开始时间
+func (this *Times) Start(t ExpireType, v int) (r *Times, err error) {
+	switch t {
+	case ExpireTypeNone:
+		return
+	case ExpireTypeDaily:
+		return this.Daily(0), nil
+	case ExpireTypeWeekly:
+		return this.Weekly(0), nil
+	case ExpireTypeMonthly:
+		return this.Monthly(0), nil
+	case ExpireTypeSecond:
+		//当前时间开始 v 秒之后开始
+		return this.Add(time.Duration(v) * time.Second), nil
+	case ExpireTypeCustomize:
+		return ParseExpireTypeCustomize(v, this.GetTimeZone())
+	case ExpireTimeTimeStamp:
+		//特定时间（戳）开始
+		return this.Unix(int64(v)), nil
+	default:
+		err = values.Errorf(0, "time type unknown")
+		return
+	}
 }
 
 // Expire 过期时间
@@ -176,9 +201,7 @@ func (this *Times) Expire(t ExpireType, v int) (ttl *Times, err error) {
 	case ExpireTypeSecond:
 		ttl = this.Add(time.Second * time.Duration(v))
 	case ExpireTypeCustomize:
-		if ttl, err = ParseExpireTypeCustomize(v); err == nil {
-			ttl = ttl.Daily(1).Add(-1)
-		}
+		ttl, err = ParseExpireTypeCustomize(v, this.GetTimeZone())
 	case ExpireTimeTimeStamp:
 		ttl = this.Unix(int64(v))
 	default:
@@ -187,7 +210,20 @@ func (this *Times) Expire(t ExpireType, v int) (ttl *Times, err error) {
 	return
 }
 
-func ParseExpireTypeCustomize(v int) (ttl *Times, err error) {
-	s := fmt.Sprintf("%v%v", v, "+0000")
+// Cycle 以当前Times未开始时间点，创建一个可以可以周期性循环的时间对象
+// ExpireType 必须支持循环
+func (this *Times) Cycle(t ExpireType, v int) *Cycle {
+	if v == 0 {
+		v = 1
+	}
+	return NewCycle(this, t, v)
+}
+
+func ParseExpireTypeCustomize(v int, tzs ...string) (ttl *Times, err error) {
+	tz := "+0000"
+	if len(tzs) > 0 {
+		tz = tzs[0]
+	}
+	s := fmt.Sprintf("%v%v", v, tz)
 	return Parse(s, "2006010215-0700")
 }
