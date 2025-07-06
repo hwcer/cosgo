@@ -168,7 +168,7 @@ func (this *Times) GetTimeZone() string {
 func (this *Times) Start(t ExpireType, v int) (r *Times, err error) {
 	switch t {
 	case ExpireTypeNone:
-		return
+		return this.Unix(0), nil
 	case ExpireTypeDaily:
 		return this.Daily(0), nil
 	case ExpireTypeWeekly:
