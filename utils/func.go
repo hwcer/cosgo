@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"time"
+	"unicode"
 )
 
 type TryHandle func(any)
@@ -50,8 +51,8 @@ func Sprintf(format interface{}, args ...interface{}) (r string) {
 }
 
 func IncludeNotPrintableChar(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if v := s[i]; v < 32 || v == 127 { //空格32
+	for _, r := range s {
+		if unicode.IsControl(r) || (r >= 0 && r <= 31) || (r == 160) || (r >= 8232 && r <= 8233) {
 			return true
 		}
 	}
