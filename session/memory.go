@@ -104,6 +104,6 @@ func (this *Memory) Heartbeat(s int32) {
 	})
 
 	for _, v := range vs {
-		this.Delete(v)
+		_ = this.Delete(v)
 	}
 }
