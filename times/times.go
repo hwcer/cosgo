@@ -101,6 +101,9 @@ func (this *Times) String() string {
 // args :时,分,秒,毫秒
 func (this *Times) Daily(addDays int) *Times {
 	t := this.Now()
+	if this.timeReset != 0 {
+		t = t.Add(-this.timeReset)
+	}
 	r := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 	if this.timeReset != 0 {
 		r = r.Add(this.timeReset)
@@ -116,6 +119,9 @@ func (this *Times) Daily(addDays int) *Times {
 func (this *Times) Weekly(addWeeks int) *Times {
 	var addDay int
 	t := this.Now()
+	if this.timeReset != 0 {
+		t = t.Add(-this.timeReset)
+	}
 	week := int(t.Weekday())
 	if week > this.WeekStartDay {
 		addDay = -(week - this.WeekStartDay)
@@ -139,6 +145,9 @@ func (this *Times) Weekly(addWeeks int) *Times {
 // addMonth：月偏移，0：本月,1:下月 -1:上月
 func (this *Times) Monthly(addMonth int) *Times {
 	t := this.Now()
+	if this.timeReset != 0 {
+		t = t.Add(-this.timeReset)
+	}
 	r := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
 	if this.timeReset != 0 {
 		r = r.Add(this.timeReset)
