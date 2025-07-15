@@ -1,6 +1,9 @@
 package values
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestValues(t *testing.T) {
 	vs := Values{}
@@ -8,21 +11,23 @@ func TestValues(t *testing.T) {
 	vs.Set("b", true)
 	vs.Set("c", 1)
 	_, _ = vs.Marshal("d", "d")
-	_, _ = vs.Marshal("arr", []int{1, 2, 3})
-
 	t.Logf("a:%s", vs.GetString("a"))
 	t.Logf("b:%v", vs.Get("b"))
 	t.Logf("c:%d", vs.GetInt("c"))
 
-	var d string
-	if err := vs.Unmarshal("d", &d); err != nil {
-		t.Logf("%v", err)
-	}
-
-	t.Logf("d:%s", d)
+	_, _ = vs.Marshal("arr", []int{1, 2, 3})
 
 	var arr []int
-	_ = vs.Unmarshal("arr", &arr)
-	t.Logf("arr:%v", arr)
+	if err := vs.Unmarshal("arr", &arr); err != nil {
+		t.Logf("%v", err)
+	} else {
+		t.Logf("arr:%v", arr)
+	}
+
+	if b, err := json.Marshal(vs); err != nil {
+		t.Logf("%v", err)
+	} else {
+		t.Logf("%s", string(b))
+	}
 
 }

@@ -1,9 +1,11 @@
 package values
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Values map[string]any
@@ -90,16 +92,16 @@ func (vs Values) GetString(k string) (r string) {
 	}
 	return ParseString(v)
 }
+
 func (vs Values) Marshal(k string, v any) (r any, err error) {
 	if IsBasicType(v) {
-		r = v
 		vs[k] = v
-	} else {
-		var b []byte
-		if b, err = json.Marshal(v); err == nil {
-			r = Attach(b)
-			vs[k] = r
-		}
+		return v, nil
+	}
+	var b []byte
+	if b, err = json.Marshal(v); err == nil {
+		r = Bytes(b)
+		vs[k] = r
 	}
 	return
 }
@@ -109,15 +111,47 @@ func (vs Values) Unmarshal(k string, i any) error {
 		return nil
 	}
 	switch s := v.(type) {
-	case string:
-		att := Attach(s)
+	case primitive.Binary:
+		att := Bytes(s.Data)
 		return att.Unmarshal(i)
 	case []byte:
-		att := Attach(s)
+		att := Bytes(s)
 		return att.Unmarshal(i)
-	case Attach:
+	case Bytes:
 		return s.Unmarshal(i)
 	default:
 		return errors.New("invalid type")
 	}
+}
+func (vs Values) MarshalJSON() ([]byte, error) {
+	l := len(vs)
+	if l == 0 {
+		return []byte("{}"), nil
+	}
+	b := bytes.NewBuffer([]byte("{"))
+	je := json.NewEncoder(b)
+	var err error
+	for k, v := range vs {
+		b.WriteString(fmt.Sprintf(`"%s":`, k))
+		switch i := v.(type) {
+		case []byte:
+			b.Write(i)
+		case primitive.Binary:
+			b.Write(i.Data)
+		case Bytes:
+			b.Write(i)
+		default:
+			err = je.Encode(i)
+		}
+		if err != nil {
+			return nil, err
+		}
+		l--
+		if l > 0 {
+			b.WriteString(",")
+		}
+	}
+	b.WriteString("}")
+
+	return b.Bytes(), nil
 }
