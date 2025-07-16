@@ -112,13 +112,11 @@ func (vs Values) Unmarshal(k string, i any) error {
 	}
 	switch s := v.(type) {
 	case primitive.Binary:
-		att := Bytes(s.Data)
-		return att.Unmarshal(i)
+		return json.Unmarshal(s.Data, i)
 	case []byte:
-		att := Bytes(s)
-		return att.Unmarshal(i)
+		return json.Unmarshal(s, i)
 	case Bytes:
-		return s.Unmarshal(i)
+		return json.Unmarshal(s, i)
 	default:
 		return errors.New("invalid type")
 	}
@@ -135,11 +133,11 @@ func (vs Values) MarshalJSON() ([]byte, error) {
 		b.WriteString(fmt.Sprintf(`"%s":`, k))
 		switch i := v.(type) {
 		case []byte:
-			b.Write(i)
+			_, err = b.Write(i)
 		case primitive.Binary:
-			b.Write(i.Data)
+			_, err = b.Write(i.Data)
 		case Bytes:
-			b.Write(i)
+			_, err = b.Write(i)
 		default:
 			err = je.Encode(i)
 		}
