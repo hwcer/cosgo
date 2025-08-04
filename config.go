@@ -2,7 +2,6 @@ package cosgo
 
 import (
 	"github.com/hwcer/logger"
-	"github.com/hwcer/logger/file"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"os"
@@ -19,6 +18,8 @@ import (
 // 4. config file
 // 5. key/value store
 // 6. defaults
+
+const LoggerFileName = "file"
 
 var Config = &config{Viper: viper.New()}
 
@@ -132,16 +133,9 @@ func (this *config) Init() (err error) {
 		logsFile := logger.NewFile(logsPath)
 		logsFile.SetFileName(logsFileNameFormatter)
 		logsFile.SetFileSize(100)
-		if err = logsFile.MayBackup(); err != nil {
+		if err = logger.SetOutput(LoggerFileName, logsFile); err != nil {
 			return
 		}
-		if err = logger.SetOutput("file", logsFile); err != nil {
-			return
-		}
-		//启动结束时取消控制台
-		On(EventTypStarted, func() error {
-			return nil
-		})
 	}
 	return
 }
@@ -160,8 +154,8 @@ func configExist(name, ext string) (f string, exist bool) {
 	return
 }
 
-func logsFileNameFormatter() (name string, expire int64) {
-	name, expire = file.NameFormatterDefault()
-	name = strings.Join([]string{Name(), name}, ".")
+func logsFileNameFormatter() (name, backup string, expire int64) {
+	_, backup, expire = logger.FileNameFormatter()
+	name = Name()
 	return
 }

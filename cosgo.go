@@ -99,7 +99,7 @@ func Close() bool {
 
 func showConfig() {
 	var log []string
-	log = append(log, "============================Show App Config============================")
+	log = append(log, "\n============================Show App Config============================")
 	log = append(log, fmt.Sprintf(">> App : %v", Name()))
 	pidFile := ""
 	if enablePidFile {
