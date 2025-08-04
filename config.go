@@ -1,6 +1,7 @@
 package cosgo
 
 import (
+	"fmt"
 	"github.com/hwcer/logger"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -156,6 +157,6 @@ func configExist(name, ext string) (f string, exist bool) {
 
 func logsFileNameFormatter() (name, backup string, expire int64) {
 	_, backup, expire = logger.FileNameFormatter()
-	name = Name()
+	name = fmt.Sprintf("%s.log", Name())
 	return
 }
