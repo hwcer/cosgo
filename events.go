@@ -1,5 +1,6 @@
 package cosgo
 
+var status EventType //当前状态
 type EventType int32
 type EventFunc func() error
 
@@ -19,6 +20,7 @@ func init() {
 }
 
 func emit(e EventType) (err error) {
+	status = e
 	if hs, ok := events[e]; ok {
 		for _, f := range hs {
 			if err = f(); err != nil {
@@ -31,4 +33,8 @@ func emit(e EventType) (err error) {
 
 func On(e EventType, f EventFunc) {
 	events[e] = append(events[e], f)
+}
+
+func Status() EventType {
+	return status
 }
