@@ -6,7 +6,7 @@ toolchain go1.23.4
 
 require (
 	github.com/go-redis/redis/v8 v8.11.5
-	github.com/hwcer/logger v0.1.2
+	github.com/hwcer/logger v0.0.0-20250804090620-c5ed3d300dab
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/spf13/pflag v1.0.7
 	github.com/spf13/viper v1.20.1
