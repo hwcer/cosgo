@@ -16,13 +16,17 @@ type Field struct {
 	FieldType         reflect.Type
 	StructField       reflect.StructField
 	IndirectFieldType reflect.Type
+	dbName            string
 }
 
 func (field *Field) JSName() string {
 	return field.GetName("json")
 }
 func (field *Field) DBName() string {
-	return field.GetName("bson", "json")
+	if field.dbName == "" {
+		field.dbName = field.GetName("bson", "json")
+	}
+	return field.dbName
 }
 
 // GetName json,form,....
