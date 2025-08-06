@@ -103,14 +103,14 @@ func ParseWithSpecialTableName(dest interface{}, specialTableName string, opts *
 	}
 
 	for _, field := range schema.Fields {
-		if field.DBName != "" {
-			if f, ok := schema.fieldsDatabase[field.DBName]; !ok {
-				schema.fieldsDatabase[field.DBName] = field
+		if db := field.DBName(); db != "" {
+			if f, ok := schema.fieldsDatabase[db]; !ok {
+				schema.fieldsDatabase[db] = field
 			} else {
 				return nil, fmt.Errorf("struct(%v) DBName repeat: %v,%v", schema.Name, f.Name, field.Name)
 			}
 		}
-		if jsName := field.JSName; jsName != "" {
+		if jsName := field.JSName(); jsName != "" {
 			schema.fieldsJson[jsName] = field
 		}
 	}

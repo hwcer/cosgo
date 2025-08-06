@@ -11,13 +11,18 @@ import (
 type Field struct {
 	Name              string
 	Index             []int
-	JSName            string
-	DBName            string
 	Schema            *Schema //所在的父对象
 	Embedded          *Schema //嵌入子对象
 	FieldType         reflect.Type
 	StructField       reflect.StructField
 	IndirectFieldType reflect.Type
+}
+
+func (field *Field) JSName() string {
+	return field.GetName("json")
+}
+func (field *Field) DBName() string {
+	return field.GetName("bson", "json")
 }
 
 // GetName json,form,....

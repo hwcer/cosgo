@@ -174,22 +174,24 @@ func (schema *Schema) parseTagIndex(table, field, value string) *IndexField {
 }
 
 func (schema *Schema) parseFieldIndexes(field *Field, table string) (indexes []*IndexField) {
-	if field.DBName == "" || field.DBName == "-" {
-		return
-	}
 	if table == "" {
 		table = schema.Table
 	}
+	db := field.DBName()
+	if db == "" {
+		return
+	}
+
 	indexTag, ok := field.StructField.Tag.Lookup(IndexTag)
 	if !ok {
 		return
 	}
 	if !strings.Contains(indexTag, ";") {
-		indexes = append(indexes, schema.parseTagIndex(table, field.DBName, indexTag))
+		indexes = append(indexes, schema.parseTagIndex(table, db, indexTag))
 	} else {
 		for _, value := range strings.Split(indexTag, ";") {
 			if value != "" {
-				indexes = append(indexes, schema.parseTagIndex(table, field.DBName, value))
+				indexes = append(indexes, schema.parseTagIndex(table, db, value))
 			}
 		}
 	}

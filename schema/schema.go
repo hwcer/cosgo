@@ -10,9 +10,8 @@ import (
 var ErrUnsupportedDataType = errors.New("unsupported data type")
 
 type Schema struct {
-	err  error
-	init chan struct{}
-
+	err            error
+	init           chan struct{}
 	options        *Options
 	Name           string
 	Table          string
@@ -71,11 +70,7 @@ func (schema *Schema) LookUpField(name string) *Field {
 }
 func (schema *Schema) JSName(k string) (r string) {
 	if field := schema.LookUpField(k); field != nil {
-		if field.JSName != "" {
-			r = field.JSName
-		} else {
-			r = field.Name
-		}
+		return field.JSName()
 	}
 	return
 }
@@ -158,15 +153,7 @@ func (schema *Schema) ParseField(fieldStruct reflect.StructField) *Field {
 	for field.IndirectFieldType.Kind() == reflect.Ptr {
 		field.IndirectFieldType = field.IndirectFieldType.Elem()
 	}
-
 	fieldValue := reflect.New(field.IndirectFieldType)
-	if dbName := fieldStruct.Tag.Get("bson"); dbName != "" && dbName != "inline" {
-		field.DBName = dbName
-	} else {
-		field.DBName = schema.options.ColumnName(schema.Table, field.Name)
-	}
-	field.JSName = field.GetTagName("json")
-
 	field.Index = field.StructField.Index
 	kind := reflect.Indirect(fieldValue).Kind()
 	switch kind {
