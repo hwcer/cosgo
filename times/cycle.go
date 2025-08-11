@@ -1,8 +1,9 @@
 package times
 
 import (
-	"github.com/hwcer/cosgo/utils"
 	"time"
+
+	"github.com/hwcer/cosgo/utils"
 )
 
 type Cycle struct {
@@ -41,7 +42,7 @@ func (this *Cycle) Maybe() bool {
 // Start 当前届开始时间
 func (this *Cycle) Start() (r *Times, err error) {
 	if this.v == 1 || !this.Maybe() {
-		return Now().Start(this.t, this.v)
+		return Default.Start(this.t, this.v)
 	}
 	switch this.t {
 	case ExpireTypeDaily:
@@ -67,7 +68,7 @@ func (this *Cycle) Start() (r *Times, err error) {
 // Expire 本届结束时间
 func (this *Cycle) Expire() (r *Times, err error) {
 	if this.v == 1 || !this.Maybe() {
-		return Now().Expire(this.t, this.v)
+		return Default.Expire(this.t, this.v)
 	}
 	switch this.t {
 	case ExpireTypeDaily:
@@ -90,7 +91,7 @@ func (this *Cycle) Expire() (r *Times, err error) {
 	if r != nil {
 		r = r.Add(-1)
 	}
-	
+
 	return
 }
 
