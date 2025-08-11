@@ -16,8 +16,8 @@ func New(v time.Time) *Times {
 	return Default.New(v)
 }
 
-func Now() *Times {
-	return Default.New(time.Now())
+func Now() time.Time {
+	return Default.Now()
 }
 func Add(d time.Duration) *Times {
 	return Default.Add(d)

@@ -43,9 +43,7 @@ func ParseWithSpecialTableName(dest interface{}, specialTableName string, opts *
 	// Player exist schmema cache, return if exists
 	if v, loaded := opts.Store.LoadOrStore(schemaCacheKey, schema); loaded {
 		s := v.(*Schema)
-		if s.init != nil {
-			<-s.init
-		}
+		<-s.init
 		return s, s.err
 	} else {
 		defer schema.initialized()
