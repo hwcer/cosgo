@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"go/ast"
 	"reflect"
+
+	"github.com/hwcer/logger"
 )
 
 // Parse get data type from dialector
@@ -19,6 +21,11 @@ func ParseWithSpecialTableName(dest interface{}, specialTableName string, opts *
 	if dest == nil {
 		return nil, fmt.Errorf("%w: %+v", ErrUnsupportedDataType, dest)
 	}
+	defer func() {
+		if e := recover(); e != nil {
+			logger.Debug(e)
+		}
+	}()
 	modelType := Kind(dest)
 	if modelType.Kind() != reflect.Struct {
 		if modelType.PkgPath() == "" {
@@ -46,7 +53,7 @@ func ParseWithSpecialTableName(dest interface{}, specialTableName string, opts *
 		<-s.init
 		return s, s.err
 	} else {
-		defer schema.initialized()
+		defer close(schema.init)
 	}
 	defer func() {
 		if schema.err != nil {

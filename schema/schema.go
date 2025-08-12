@@ -23,11 +23,6 @@ type Schema struct {
 	fieldsDatabase map[string]*Field //数据库字段索引
 }
 
-func (schema *Schema) initialized() {
-	close(schema.init)
-	schema.init = nil
-}
-
 func (schema *Schema) String() string {
 	if schema.ModelType.Name() == "" {
 		return fmt.Sprintf("%s(%s)", schema.Name, schema.Table)
