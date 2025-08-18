@@ -2,10 +2,11 @@ package slice
 
 import (
 	"fmt"
-	"golang.org/x/exp/constraints"
 	"math/rand"
 	"strconv"
 	"strings"
+
+	"golang.org/x/exp/constraints"
 )
 
 func Min[T constraints.Ordered](nums []T) (r T) {
@@ -50,6 +51,19 @@ func Roll[T constraints.Ordered](nums []T) (r T) {
 	return nums[i]
 }
 
+// Last 取结尾 n 个
+func Last[T comparable](arr []T, n int) []T {
+	if n <= 0 {
+		return nil
+	}
+	l := len(arr)
+	if l <= n {
+		return arr
+	}
+	s := l - n
+	return arr[s : n+s]
+}
+
 func IndexOf[T comparable](arr []T, tar T) int {
 	for k, v := range arr {
 		if v == tar {
@@ -72,7 +86,7 @@ func Unrepeated[T comparable](arr []T) []T {
 	return r
 }
 
-// String 转换成,分割的字符串
+// String 转换成split分割的字符串,默认,分割
 func String[T comparable](arr []T, split ...string) string {
 	var s string
 	if len(split) > 0 {
@@ -109,7 +123,7 @@ func ParseInt64(v string) (int64, error) {
 }
 
 // Cover 字符串切片转int32切片
-// clean 去重
+// unrepeated 去重
 func Cover(s []string, unrepeated ...bool) []int32 {
 	ret := make([]int32, 0)
 	flag := false
