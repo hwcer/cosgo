@@ -2,12 +2,13 @@ package cosgo
 
 import (
 	"fmt"
-	"github.com/hwcer/cosgo/scc"
-	"github.com/hwcer/logger"
 	"os"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/hwcer/cosgo/scc"
+	"github.com/hwcer/logger"
 )
 
 var modules []Module
