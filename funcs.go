@@ -20,7 +20,7 @@ func Debug() bool {
 
 // Dir 程序工作目录
 func Dir() string {
-	return Config.GetString(AppDir)
+	return Config.GetString(AppWorkerDir)
 }
 
 // Name 项目内部获取appName
