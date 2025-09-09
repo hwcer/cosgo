@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -63,7 +64,11 @@ func (vs Values) GetInt(k string) int {
 }
 
 func (vs Values) GetInt32(k string) int32 {
-	return int32(vs.GetInt64(k))
+	v, ok := vs[k]
+	if !ok {
+		return 0
+	}
+	return ParseInt32(v)
 }
 
 func (vs Values) GetInt64(k string) int64 {
@@ -75,7 +80,11 @@ func (vs Values) GetInt64(k string) int64 {
 }
 
 func (vs Values) GetFloat32(k string) float32 {
-	return float32(vs.GetFloat64(k))
+	v, ok := vs[k]
+	if !ok {
+		return 0
+	}
+	return ParseFloat32(v)
 }
 
 func (vs Values) GetFloat64(k string) (r float64) {
