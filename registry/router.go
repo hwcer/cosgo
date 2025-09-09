@@ -59,13 +59,19 @@ type Router struct {
 */
 func (this *Router) Match(paths ...string) (nodes []*Router) {
 	route := Join(paths...)
+	arr := strings.Split(route, "/")
+	//跟目录
+	if len(arr) == 2 {
+		arr = append(arr, "")
+		route = strings.Join(arr, "/")
+	}
+
 	//静态路由
 	if v, ok := this.static[route]; ok {
 		nodes = append(nodes, v)
 		return
 	}
 	//模糊匹配
-	arr := strings.Split(route, "/")
 	lastPathIndex := len(arr) - 1
 	if lastPathIndex == 0 {
 		fmt.Printf("错误的路由地址:%v\n%v", route, string(debug.Stack()))
@@ -75,10 +81,8 @@ func (this *Router) Match(paths ...string) (nodes []*Router) {
 	var spareNode []*Router
 	var selectNode *Router
 
-	for _, k := range []string{PathMatchVague, PathMatchParam, arr[1]} {
-		if node := this.child[k]; node != nil {
-			spareNode = append(spareNode, node)
-		}
+	if node := this.child[arr[1]]; node != nil {
+		spareNode = append(spareNode, node)
 	}
 	//
 	//for _, node := range spareNode {

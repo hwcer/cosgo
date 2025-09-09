@@ -1,18 +1,20 @@
 package cosgo
 
 import (
-	"github.com/hwcer/logger"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/hwcer/logger"
 )
 
 const (
-	AppDir                      string = "dir" //工作目录
 	AppName                     string = "name"
 	AppPprof                    string = "pprof"
 	AppDebug                    string = "debug"
+	AppBinDir                   string = "bin"           //程序目录
+	AppWorkerDir                string = "dir"           //工作目录
 	AppConfigNamePidFile        string = "pid"           //pid file dir
 	AppConfigNameLogsPath       string = "logs.path"     //logs dir
 	AppConfigNameLogsLevel      string = "logs.level"    //logs level
@@ -33,7 +35,7 @@ func init() {
 	Config.Flags(AppName, "", "", "app name")
 	Config.Flags(AppPprof, "", "", "pprof server address")
 	Config.Flags(AppDebug, "", false, "developer model")
-	Config.Flags(AppDir, "", "", "working directory")
+	Config.Flags(AppWorkerDir, "", "", "working directory")
 	Config.Flags(AppConfigNamePidFile, "", "", "pid file")
 	//Config.Flags(AppConfigNameLogsPath, "", "", "logs dir")
 	Config.Flags(AppConfigNameConfigFileName, "c", "", "use config file")
@@ -43,13 +45,13 @@ func init() {
 	//)
 	workDir, _ := os.Getwd()
 	appBinFile, _ := exec.LookPath(os.Args[0])
-	tmpDir, appName := filepath.Split(appBinFile)
+	appDir, appName := filepath.Split(appBinFile)
 
 	if filepath.IsAbs(appBinFile) {
-		appDir := filepath.Dir(tmpDir)
+		appDir = filepath.Dir(appDir)
 		workDir = filepath.Dir(appDir)
 	} else {
-		appDir := filepath.Join(workDir, filepath.Dir(appBinFile))
+		appDir = filepath.Join(workDir, filepath.Dir(appBinFile))
 		workDir, _ = filepath.Split(appDir)
 		workDir = filepath.Dir(workDir)
 	}
@@ -58,5 +60,7 @@ func init() {
 		appName = strings.TrimSuffix(appName, ext)
 	}
 	Config.SetDefault(AppName, appName)
-	Config.SetDefault(AppDir, workDir)
+
+	Config.SetDefault(AppBinDir, appDir)
+	Config.SetDefault(AppWorkerDir, workDir)
 }
