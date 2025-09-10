@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"path"
 	"reflect"
 	"runtime"
 	"strings"
@@ -10,13 +9,13 @@ import (
 )
 
 func Join(paths ...string) (r string) {
-	arr := make([]string, len(paths)+1)
-	arr[0] = "/"
-	copy(arr[1:], paths)
-	r = path.Join(arr...)
-	if r == "/" {
-		r = ""
+	r = strings.Join(paths, "/")
+	r = strings.Replace(r, "//", "/", -1)
+	if !strings.HasPrefix(r, "/") {
+		r = "/" + r
 	}
+	r = strings.TrimSuffix(r, "/")
+
 	return
 }
 

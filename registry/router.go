@@ -59,18 +59,12 @@ type Router struct {
 */
 func (this *Router) Match(paths ...string) (nodes []*Router) {
 	route := Join(paths...)
-	arr := strings.Split(route, "/")
-	//跟目录
-	if len(arr) == 2 {
-		arr = append(arr, "")
-		route = strings.Join(arr, "/")
-	}
-
 	//静态路由
 	if v, ok := this.static[route]; ok {
 		nodes = append(nodes, v)
 		return
 	}
+	arr := strings.Split(route, "/")
 	//模糊匹配
 	lastPathIndex := len(arr) - 1
 	if lastPathIndex == 0 {
