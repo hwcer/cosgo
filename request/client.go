@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/hwcer/cosgo/binder"
 	"io"
 	"net/http"
+
+	"github.com/hwcer/cosgo/binder"
 )
 
 func New() *Client {
@@ -62,7 +63,7 @@ func (c *Client) Marshal(data any) (b *bytes.Buffer, err error) {
 	return
 }
 
-func (c *Client) Request(method, url string, data interface{}) (reply []byte, err error) {
+func (c *Client) Request(method, url string, data any, header ...map[string]string) (reply []byte, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("%v", e)
@@ -80,25 +81,21 @@ func (c *Client) Request(method, url string, data interface{}) (reply []byte, er
 		return
 	}
 
-	//if data != nil {
-	//	var buf []byte
-	//	if buf, err = c.Binder.Marshal(data); err != nil {
-	//		return
-	//	}
-	//	req, err = http.NewRequest(method, url, bytes.NewReader(buf))
-	//} else {
-	//	req, err = http.NewRequest(method, url, nil)
-	//}
-	//if err != nil {
-	//	return
-	//}
 	if req.Body != nil {
 		defer req.Body.Close()
 	}
 
-	if contentType := c.Binder.String(); contentType != "" {
-		req.Header.Add("Content-Type", FormatContentTypeAndCharset(contentType))
+	if len(header) > 0 {
+		for k, v := range header[0] {
+			req.Header.Set(k, v)
+		}
 	}
+	if ct := req.Header.Get("Content-Type"); ct == "" {
+		if contentType := c.Binder.String(); contentType != "" {
+			req.Header.Add("Content-Type", FormatContentTypeAndCharset(contentType))
+		}
+	}
+
 	for _, m := range c.middleware {
 		if err = m(req); err != nil {
 			return
