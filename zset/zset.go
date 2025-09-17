@@ -1,14 +1,15 @@
 package zset
 
 import (
-	"golang.org/x/exp/constraints"
 	"sync"
+
+	"github.com/hwcer/logger"
 )
 
-// ZSet is the final exported sorted set we can use
-type ZSet[K constraints.Ordered] struct {
-	dict map[K]float64
-	zsl  *skipList[K]
+// ZSet 是针对string类型key和int64类型分数的有序集合实现
+type ZSet struct {
+	dict map[string]int64
+	zsl  *skipList
 	lock sync.RWMutex
 }
 
@@ -16,88 +17,120 @@ type ZSet[K constraints.Ordered] struct {
  * Common sorted set API
  *----------------------------------------------------------------------------*/
 
-// New creates a new ZSet and return its pointer
-func New[K constraints.Ordered](order ...int8) *ZSet[K] {
+// New 创建一个新的ZSet并返回其指针
+func New(order ...int8) *ZSet {
 	var zOrder int8
 	if len(order) > 0 {
 		zOrder = order[0]
 	}
-	s := &ZSet[K]{
-		dict: make(map[K]float64),
-		zsl:  zslCreate[K](zOrder),
+	s := &ZSet{
+		dict: make(map[string]int64),
+		zsl:  zslCreate(zOrder),
 		lock: sync.RWMutex{},
 	}
 	return s
 }
 
-// ZCard returns counts of elements
-func (z *ZSet[K]) ZCard() int64 {
+// ZCard 返回元素数量
+func (z *ZSet) ZCard() int64 {
 	z.lock.RLock()
 	defer z.lock.RUnlock()
 	return z.zsl.length
 }
 
-// ZAdd is used to add or update an element
-func (z *ZSet[K]) ZAdd(score float64, key K) {
-	z.lock.Lock()
-	defer z.lock.Unlock()
-	v, ok := z.dict[key]
-	z.dict[key] = score
-	if ok {
-		/* Remove and re-insert when score changes. */
-		if score != v {
-			z.zsl.zslDelete(v, key)
-			z.zsl.zslInsert(score, key)
-		}
-	} else {
-		z.zsl.zslInsert(score, key)
-	}
-}
+// zadd 内部方法，用于添加或更新元素，返回最终的分数
+func (z *ZSet) zadd(score int64, key string) int64 {
+	// 首先检查key是否已存在
+	oldScore, exists := z.dict[key]
 
-// ZIncr ..
-// 有序集合中对指定成员的分数加上增量 score
-func (z *ZSet[K]) ZIncr(score float64, key K) float64 {
-	z.lock.Lock()
-	defer z.lock.Unlock()
-	oldScore, ok := z.dict[key]
-	if !ok {
-		z.ZAdd(score, key)
+	// 如果key已存在且分数相同，则不需要修改
+	if exists && score == oldScore {
 		return score
 	}
-	if score != 0 {
-		z.zsl.zslDelete(oldScore, key)
-		z.dict[key] += score
-		z.zsl.zslInsert(z.dict[key], key)
+
+	// 更新字典中的分数
+	z.dict[key] = score
+
+	// 如果key已存在但分数不同，则先删除再重新插入
+	if exists {
+		success := z.zsl.zslDelete(oldScore, key)
+		// 确保删除成功才进行插入
+		if success {
+			z.zsl.zslInsert(score, key)
+		} else {
+			// 如果删除失败，说明可能存在数据不一致，启用强制删除
+			logger.Error("ZAdd failed, delete old score failed, key: %s, score: %d. Attempting force delete.", key, oldScore)
+			forceDeleted := z.zsl.zslForceDeleteById(key)
+			if forceDeleted > 0 {
+				// 强制删除成功后插入新的分数
+				logger.Trace("Force delete successful for key: %s, deleted %d nodes", key, forceDeleted)
+				z.zsl.zslInsert(score, key)
+			} else {
+				// 强制删除也失败，回滚分数更新
+				logger.Error("Force delete also failed for key: %s. Rolling back score update.", key)
+				z.dict[key] = oldScore
+			}
+		}
+	} else {
+		// 对于新key，直接插入
+		z.zsl.zslInsert(score, key)
 	}
 	return z.dict[key]
 }
 
-// ZRem removes an element from the ZSet
-// by its key.
-func (z *ZSet[K]) ZRem(key K) (ok bool) {
+// ZAdd 用于添加或更新元素
+func (z *ZSet) ZAdd(score int64, key string) {
+	z.lock.Lock()
+	defer z.lock.Unlock()
+	z.zadd(score, key)
+}
+
+// ZIncr 有序集合中对指定成员的分数加上增量 score
+func (z *ZSet) ZIncr(score int64, key string) int64 {
+	z.lock.Lock()
+	defer z.lock.Unlock()
+	if score == 0 {
+		// 如果增量为0，直接返回当前分数
+		if currentScore, ok := z.dict[key]; ok {
+			return currentScore
+		}
+		return 0
+	}
+	newScore := z.dict[key] + score
+	return z.zadd(newScore, key)
+}
+
+// ZRem 通过key从ZSet中删除元素
+func (z *ZSet) ZRem(key string) (ok bool) {
 	z.lock.Lock()
 	defer z.lock.Unlock()
 	score, ok := z.dict[key]
 	if ok {
-		z.zsl.zslDelete(score, key)
-		delete(z.dict, key)
-		return true
+		// 先验证跳表删除是否成功
+		deleted := z.zsl.zslDelete(score, key)
+		if deleted {
+			delete(z.dict, key)
+			return true
+		}
+		// 如果跳表删除失败，返回false
+		return false
 	}
 	return false
 }
 
-func (z *ZSet[K]) ZRank(key K) (rank int64, score float64) {
+// ZRank 返回元素的正序排名（从0开始）和分数
+func (z *ZSet) ZRank(key string) (rank int64, score int64) {
 	return z.zRank(key, false)
 }
-func (z *ZSet[K]) ZRevRank(key K) (rank int64, score float64) {
+
+// ZRevRank 返回元素的逆序排名（从0开始）和分数
+func (z *ZSet) ZRevRank(key string) (rank int64, score int64) {
 	return z.zRank(key, true)
 }
 
-// zRank returns position,score and extra data of an element which
-// found by the parameter key.
-// The parameter reverse determines the rank is descent or ascend，
-// true means descend and false means ascend.
-func (z *ZSet[K]) zRank(key K, reverse bool) (rank int64, score float64) {
+// zRank 内部方法，用于获取元素的排名和分数
+// 参数reverse决定排名是降序还是升序，true表示降序，false表示升序
+func (z *ZSet) zRank(key string, reverse bool) (rank int64, score int64) {
 	z.lock.RLock()
 	defer z.lock.RUnlock()
 	score, ok := z.dict[key]
@@ -113,63 +146,63 @@ func (z *ZSet[K]) zRank(key K, reverse bool) (rank int64, score float64) {
 	return r, score
 }
 
-// ZScore implements ZScore
-// 通过 key 获取分数
-func (z *ZSet[K]) ZScore(key K) (score float64, ok bool) {
+// ZScore 通过key获取分数
+func (z *ZSet) ZScore(key string) (score int64, ok bool) {
 	z.lock.RLock()
 	defer z.lock.RUnlock()
 	score, ok = z.dict[key]
 	return score, ok
 }
 
-func (z *ZSet[K]) ZData(rank int64) (key K, score float64) {
+// ZData 返回指定排名的元素的key和分数（正序）
+func (z *ZSet) ZData(rank int64) (key string, score int64) {
 	return z.zData(rank, false)
 }
-func (z *ZSet[K]) ZRevData(rank int64) (key K, score float64) {
+
+// ZRevData 返回指定排名的元素的key和分数（逆序）
+func (z *ZSet) ZRevData(rank int64) (key string, score int64) {
 	return z.zData(rank, true)
 }
 
-// zData returns the id,score and extra data of an element which
-// found by position in the rank.
-// The parameter rank is the position, reverse says if in the descend rank.
-func (z *ZSet[K]) zData(rank int64, reverse bool) (key K, score float64) {
+// zData 内部方法，用于获取指定排名的元素的key和分数
+// 参数rank是排名位置，reverse表示是否为逆序排名
+func (z *ZSet) zData(rank int64, reverse bool) (key string, score int64) {
 	z.lock.RLock()
 	defer z.lock.RUnlock()
-	if rank < 0 || rank > z.zsl.length {
-		return *new(K), 0
+	if rank < 0 || rank >= z.zsl.length {
+		return "", 0
 	}
 	if reverse {
-		rank = z.zsl.length - rank
-	} else {
-		rank++
+		rank = z.zsl.length - rank - 1
 	}
-	n := z.zsl.zslGetElementByRank(uint64(rank))
+	n := z.zsl.zslGetElementByRank(uint64(rank + 1))
 	if n == nil {
-		return *new(K), 0
+		return "", 0
 	}
 	score, ok := z.dict[n.id]
 	if !ok {
-		return *new(K), 0
+		return "", 0
 	}
 	return n.id, score
 }
 
-// ZRange implements ZRANGE
-func (z *ZSet[K]) ZRange(start, end int64, f func(float64, K)) {
+// ZRange 实现ZRANGE命令，按照分数升序遍历指定范围的元素
+func (z *ZSet) ZRange(start, end int64, f func(int64, string)) {
 	z.snapshotRange(start, end, false, f)
 }
 
-// ZRevRange implements ZREVRANGE
-func (z *ZSet[K]) ZRevRange(start, end int64, f func(float64, K)) {
+// ZRevRange 实现ZREVRANGE命令，按照分数降序遍历指定范围的元素
+func (z *ZSet) ZRevRange(start, end int64, f func(int64, string)) {
 	z.snapshotRange(start, end, true, f)
 }
 
-func (z *ZSet[K]) snapshotRange(start, end int64, reverse bool, f func(float64, K)) {
-	scores := make([]float64, 0)
-	keys := make([]K, 0)
+// snapshotRange 内部方法，先获取元素快照，然后在锁外执行回调函数
+func (z *ZSet) snapshotRange(start, end int64, reverse bool, f func(int64, string)) {
+	scores := make([]int64, 0)
+	keys := make([]string, 0)
 
 	z.lock.RLock()
-	z.commonRange(start, end, reverse, func(f float64, k K) {
+	z.commonRange(start, end, reverse, func(f int64, k string) {
 		scores = append(scores, f)
 		keys = append(keys, k)
 	})
@@ -180,7 +213,8 @@ func (z *ZSet[K]) snapshotRange(start, end int64, reverse bool, f func(float64, 
 	}
 }
 
-func (z *ZSet[K]) commonRange(start, end int64, reverse bool, f func(float64, K)) {
+// commonRange 内部方法，实现范围查询的通用逻辑
+func (z *ZSet) commonRange(start, end int64, reverse bool, f func(int64, string)) {
 	l := z.zsl.length
 	if start < 0 {
 		start += l
@@ -200,7 +234,7 @@ func (z *ZSet[K]) commonRange(start, end int64, reverse bool, f func(float64, K)
 	}
 	span := (end - start) + 1
 
-	var node *zNode[K]
+	var node *zNode
 	if reverse {
 		node = z.zsl.tail
 		if start > 0 {
@@ -223,4 +257,28 @@ func (z *ZSet[K]) commonRange(start, end int64, reverse bool, f func(float64, K)
 			node = node.level[0].forward
 		}
 	}
+}
+
+// ZCount 返回有序集合中分数在min和max之间的元素数量
+func (z *ZSet) ZCount(min, max int64) int64 {
+	z.lock.RLock()
+	defer z.lock.RUnlock()
+	spec := &zRangeSpec{
+		min:   min,
+		max:   max,
+		minex: 0,
+		maxex: 0,
+	}
+
+	// 直接遍历范围内的元素计数
+	var count int64 = 0
+	for x := z.zsl.header.level[0].forward; x != nil; x = x.level[0].forward {
+		if zslValueGteMin(x.score, spec) && zslValueLteMax(x.score, spec) {
+			count++
+		} else if x.score > max {
+			// 因为是有序的，所以当分数超过max时可以提前退出
+			break
+		}
+	}
+	return count
 }
