@@ -56,6 +56,7 @@ type Router struct {
 /*
 /s/:id/update
 /s/123
+/GET/*
 */
 func (this *Router) Match(paths ...string) (nodes []*Router) {
 	route := Join(paths...)
@@ -75,13 +76,12 @@ func (this *Router) Match(paths ...string) (nodes []*Router) {
 	var spareNode []*Router
 	var selectNode *Router
 
-	if node := this.child[arr[1]]; node != nil {
-		spareNode = append(spareNode, node)
+	for _, k := range []string{PathMatchVague, PathMatchParam, arr[1]} {
+		if node := this.child[k]; node != nil {
+			spareNode = append(spareNode, node)
+		}
 	}
-	//
-	//for _, node := range spareNode {
-	//	fmt.Printf("spareNode:%v\n", strings.Join(node.Route(), "/"))
-	//}
+
 	n := len(spareNode)
 	for selectNode != nil || n > 0 {
 		if selectNode == nil {
