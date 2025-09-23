@@ -41,7 +41,7 @@ func (this *Cycle) Maybe() bool {
 
 // Start 当前届开始时间
 func (this *Cycle) Start() (r *Times, err error) {
-	if this.v == 1 || !this.Maybe() {
+	if this.v <= 1 || !this.Maybe() {
 		return Default.Start(this.t, this.v)
 	}
 	switch this.t {
@@ -67,7 +67,7 @@ func (this *Cycle) Start() (r *Times, err error) {
 
 // Expire 本届结束时间
 func (this *Cycle) Expire() (r *Times, err error) {
-	if this.v == 1 || !this.Maybe() {
+	if this.v <= 1 || !this.Maybe() {
 		return Default.Expire(this.t, this.v)
 	}
 	switch this.t {
