@@ -19,5 +19,5 @@ func Reload() {
 			}
 		}
 	}
-	_ = emit(EventTypReload)
+	emit(EventTypReload)
 }

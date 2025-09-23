@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -15,13 +16,13 @@ var modules []Module
 
 //var appStopChan = make(chan struct{})
 
-func assert(err interface{}, s ...string) {
-	if err != nil {
-		logger.Fatal(err)
-	} else if len(s) > 0 {
-		logger.Trace(s[0])
-	}
-}
+//func assert(err interface{}, s ...string) {
+//	if err != nil {
+//		logger.Sprint(logger.LevelFATAL, logger.Format(err), s[0])
+//	} else if len(s) > 0 {
+//		logger.Trace(s[0])
+//	}
+//}
 
 func Use(mods ...Module) {
 	for _, mod := range mods {
@@ -54,27 +55,31 @@ func Start(waitForSystemExit bool, mods ...Module) {
 	if err = writePidFile(); err != nil {
 		logger.Panic(err)
 	}
-	assert(emit(EventTypBegin))
+	emit(EventTypBegin)
 	logger.Trace("App Starting")
 	defer func() {
 		if err = deletePidFile(); err != nil {
 			logger.Trace("App delete pid file err:%v", err)
 		}
 		logger.Trace("App Closed\n")
-		assert(emit(EventTypStopped))
+		emit(EventTypStopped)
 	}()
 	//=========================加载模块=============================
 	if err = pprofStart(); err != nil {
-		logger.Panic(err)
+		logger.Sprint(logger.LevelFATAL, logger.Format(err), string(debug.Stack()))
 	}
 	defer func() {
 		_ = pprofClose()
 	}()
 	//assert(emit(EventTypInitBefore))
 	for _, v := range modules {
-		assert(v.Init(), fmt.Sprintf("mod[%v] init", v.Id()))
+		if err = v.Init(); err != nil {
+			logger.Sprint(logger.LevelFATAL, logger.Format(err), string(debug.Stack()))
+		} else {
+			logger.Trace("mod[%v] init", v.Id())
+		}
 	}
-	assert(emit(EventTypLoaded))
+	emit(EventTypLoaded)
 	//自定义进程
 	if Options.Process != nil && !Options.Process() {
 		return
@@ -84,9 +89,13 @@ func Start(waitForSystemExit bool, mods ...Module) {
 	//=========================启动模块=============================
 	for _, v := range modules {
 		scc.Add(1)
-		assert(v.Start(), fmt.Sprintf("mod[%v] start", v.Id()))
+		if err = v.Start(); err != nil {
+			logger.Sprint(logger.LevelFATAL, logger.Format(err), string(debug.Stack()))
+		} else {
+			logger.Trace("mod[%v] start", v.Id())
+		}
 	}
-	assert(emit(EventTypStarted))
+	emit(EventTypStarted)
 	Options.Banner()
 	if waitForSystemExit {
 		WaitForSystemExit()
@@ -126,7 +135,7 @@ func stop() (stopped bool) {
 	if !scc.Cancel() {
 		return true
 	}
-	assert(emit(EventTypClosing))
+	emit(EventTypClosing)
 	logger.Alert("App will stop")
 	for i := len(modules) - 1; i >= 0; i-- {
 		closeModule(modules[i])
@@ -141,8 +150,12 @@ func closeModule(m Module) {
 	defer scc.Done()
 	defer func() {
 		if err := recover(); err != nil {
-			logger.Error(err)
+			logger.Sprint(logger.LevelError, logger.Format(err), string(debug.Stack()))
 		}
 	}()
-	assert(m.Close(), fmt.Sprintf("mod [%v] stop", m.Id()))
+	if err := m.Close(); err != nil {
+		logger.Sprint(logger.LevelError, logger.Format(err), string(debug.Stack()))
+	} else {
+		logger.Trace("mod [%v] stop", m.Id())
+	}
 }
