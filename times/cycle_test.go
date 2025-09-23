@@ -3,9 +3,10 @@ package times
 import "testing"
 
 func TestCycle_Cycle(t *testing.T) {
-	v := 2025010315
+	v := 2025070105
+	t.Logf("===============%d================", v)
 	ts, _ := ParseExpireTypeCustomize(v)
-	c1 := ts.Cycle(ExpireTypeMonthly, 2)
+	c1 := ts.Cycle(ExpireTypeMonthly, 3)
 
 	s, _ := c1.Start()
 	e, _ := c1.Expire()
@@ -16,9 +17,11 @@ func TestCycle_Cycle(t *testing.T) {
 	t.Logf("本届开始:%v", s.String())
 	t.Logf("本届结束:%v", e.String())
 
-	v = 2025070115
+	v = 2024120105
+	t.Logf("===============%d================", v)
+
 	ts, _ = ParseExpireTypeCustomize(v)
-	c1 = ts.Cycle(ExpireTypeDaily, 2)
+	c1 = ts.Cycle(ExpireTypeMonthly, 2)
 
 	s, _ = c1.Start()
 	e, _ = c1.Expire()

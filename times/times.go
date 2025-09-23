@@ -2,9 +2,10 @@ package times
 
 import (
 	"fmt"
-	"github.com/hwcer/cosgo/values"
 	"strconv"
 	"time"
+
+	"github.com/hwcer/cosgo/values"
 )
 
 const (
@@ -200,6 +201,10 @@ func (this *Times) Start(t ExpireType, v int) (r *Times, err error) {
 
 // Expire 过期时间
 func (this *Times) Expire(t ExpireType, v int) (ttl *Times, err error) {
+	if v == 0 && (t == ExpireTypeDaily || t == ExpireTypeWeekly || t == ExpireTypeMonthly) {
+		v = 1 //默认1天，1周，1月
+	}
+
 	switch t {
 	case ExpireTypeDaily:
 		ttl = this.Daily(v).Add(-1)
@@ -229,6 +234,9 @@ func (this *Times) Cycle(t ExpireType, v int) *Cycle {
 }
 
 func ParseExpireTypeCustomize(v int, tzs ...string) (ttl *Times, err error) {
+	if v == 0 {
+		return Unix(0), nil
+	}
 	tz := "+0000"
 	if len(tzs) > 0 {
 		tz = tzs[0]

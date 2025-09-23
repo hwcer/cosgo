@@ -127,11 +127,10 @@ func (this *Cycle) monthlyCycle(era *Times) int {
 	m1, m2 := int(s.Month()), int(t.Month())
 	var r int
 	if y1, y2 := s.Year(), t.Year(); y1 < y2 {
-		r += 12 - m1 + 1
-		for i := y1 + 1; i < y2; i++ {
-			r += 12
-		}
+		r = (y2 - y1) * 12
+		m1 = 12
 	}
-	r += m2
+
+	r += m2 - m1
 	return utils.Ceil(r, this.v)
 }
