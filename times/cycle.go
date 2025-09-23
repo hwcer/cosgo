@@ -13,9 +13,6 @@ type Cycle struct {
 }
 
 func NewCycle(ts *Times, t ExpireType, v int) *Cycle {
-	if v == 0 {
-		v = 1
-	}
 	return &Cycle{Times: ts, t: t, v: v}
 }
 

@@ -227,14 +227,11 @@ func (this *Times) Expire(t ExpireType, v int) (ttl *Times, err error) {
 // Cycle 以当前Times未开始时间点，创建一个可以可以周期性循环的时间对象
 // ExpireType 必须支持循环
 func (this *Times) Cycle(t ExpireType, v int) *Cycle {
-	if v == 0 {
-		v = 1
-	}
 	return NewCycle(this, t, v)
 }
 
 func ParseExpireTypeCustomize(v int, tzs ...string) (ttl *Times, err error) {
-	if v == 0 {
+	if v < 2006010215 {
 		return Unix(0), nil
 	}
 	tz := "+0000"
