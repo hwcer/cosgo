@@ -2,13 +2,14 @@ package cosgo
 
 import (
 	"fmt"
-	"github.com/hwcer/logger"
-	"github.com/spf13/pflag"
-	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
+
+	"github.com/hwcer/logger"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 // 其他模块可以使用pflag设置额外的参数
@@ -156,7 +157,7 @@ func configExist(name, ext string) (f string, exist bool) {
 }
 
 func logsFileNameFormatter() (name, backup string, expire int64) {
-	_, backup, expire = logger.FileNameFormatter()
+	_, backup, expire = logger.FileNameFormatterDefault()
 	name = fmt.Sprintf("%s.log", Name())
 	return
 }

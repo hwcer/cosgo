@@ -30,7 +30,7 @@ func emit(e EventType) {
 	if len(hs) == 0 {
 		return
 	}
-	l := logger.LevelFATAL
+	l := logger.LevelFatal
 	if e == EventTypReload {
 		l = logger.LevelError
 	}
@@ -42,7 +42,7 @@ func emit(e EventType) {
 			logger.Sprint(l, logger.Format(err))
 		}
 	}()
-	
+
 	for _, f := range hs {
 		if err = f(); err != nil {
 			return
