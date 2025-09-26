@@ -63,10 +63,11 @@ func Start(waitForSystemExit bool, mods ...Module) {
 		}
 		logger.Trace("App Closed\n")
 		emit(EventTypStopped)
+		_ = logger.Close()
 	}()
 	//=========================加载模块=============================
 	if err = pprofStart(); err != nil {
-		logger.Sprint(logger.LevelFATAL, logger.Format(err), string(debug.Stack()))
+		logger.Sprint(logger.LevelFatal, logger.Format(err), string(debug.Stack()))
 	}
 	defer func() {
 		_ = pprofClose()
@@ -74,7 +75,7 @@ func Start(waitForSystemExit bool, mods ...Module) {
 	//assert(emit(EventTypInitBefore))
 	for _, v := range modules {
 		if err = v.Init(); err != nil {
-			logger.Sprint(logger.LevelFATAL, logger.Format(err), string(debug.Stack()))
+			logger.Sprint(logger.LevelFatal, logger.Format(err), string(debug.Stack()))
 		} else {
 			logger.Trace("mod[%v] init", v.Id())
 		}
@@ -90,7 +91,7 @@ func Start(waitForSystemExit bool, mods ...Module) {
 	for _, v := range modules {
 		scc.Add(1)
 		if err = v.Start(); err != nil {
-			logger.Sprint(logger.LevelFATAL, logger.Format(err), string(debug.Stack()))
+			logger.Sprint(logger.LevelFatal, logger.Format(err), string(debug.Stack()))
 		} else {
 			logger.Trace("mod[%v] start", v.Id())
 		}
