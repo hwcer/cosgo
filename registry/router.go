@@ -60,6 +60,7 @@ type Router struct {
 */
 func (this *Router) Match(paths ...string) (nodes []*Router) {
 	route := Join(paths...)
+	route = Formatter(route)
 	//静态路由
 	if v, ok := this.static[route]; ok {
 		nodes = append(nodes, v)
