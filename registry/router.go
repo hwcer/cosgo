@@ -29,10 +29,9 @@ func newRouter(name string, arr []string, step int) *Router {
 }
 
 // 静态路由
-func newStatic(arr []string, handle interface{}) *Router {
+func newStatic(arr []string) *Router {
 	l := len(arr) - 1
 	router := newRouter(RouteName(arr[l]), arr, l)
-	router.handle = handle
 	return router
 }
 
@@ -42,8 +41,22 @@ type Router struct {
 	route  []string           //当前路由绝对路径
 	child  map[string]*Router //子路径
 	static map[string]*Router //静态路由,不含糊任何匹配参数
-	handle interface{}        //handle入口
+	handle any                //默认handle入口
+	method map[string]*Router //允许的协议 短连接：GET,POST,,  [POST]:handle
 	//middleware []MiddlewareFunc //中间件
+}
+
+func (this *Router) Clone(handle any) *Router {
+	r := *this
+	r.child = nil
+	r.static = nil
+	r.handle = handle
+	r.method = nil
+	return &r
+}
+
+func (this *Router) Method() Method {
+	return Method{Router: this}
 }
 
 // Router is the registry of all registered Routes for an `engine` instance for
@@ -58,9 +71,9 @@ type Router struct {
 /s/123
 /GET/*
 */
+
 func (this *Router) Match(paths ...string) (nodes []*Router) {
-	route := Join(paths...)
-	route = Formatter(route)
+	route := Route(paths...)
 	//静态路由
 	if v, ok := this.static[route]; ok {
 		nodes = append(nodes, v)
@@ -69,7 +82,7 @@ func (this *Router) Match(paths ...string) (nodes []*Router) {
 	arr := strings.Split(route, "/")
 	//模糊匹配
 	lastPathIndex := len(arr) - 1
-	if lastPathIndex == 0 {
+	if lastPathIndex < 1 {
 		fmt.Printf("错误的路由地址:%v\n%v", route, string(debug.Stack()))
 		return
 	}
@@ -91,7 +104,7 @@ func (this *Router) Match(paths ...string) (nodes []*Router) {
 			spareNode = spareNode[0:n]
 		}
 		if selectNode.name == PathMatchVague || selectNode.step == lastPathIndex {
-			if selectNode.handle != nil {
+			if selectNode.handle != nil || len(selectNode.method) > 0 {
 				nodes = append(nodes, selectNode)
 			}
 			selectNode = nil
@@ -117,45 +130,51 @@ func (this *Router) Match(paths ...string) (nodes []*Router) {
 	return
 }
 
-// Reload 批量替换静态路由，主要用于热更
-func (this *Router) Reload(nodes map[string]any) {
-	static := make(map[string]*Router)
-	for k, v := range this.static {
-		static[k] = v
+func (this *Router) Register(handle any, paths ...string) (err error) {
+	route := Route(paths...)
+	return this.register(handle, route)
+}
+
+func (this *Router) setRouterHandle(node *Router, handle any, method ...string) (err error) {
+	if len(method) == 0 {
+		if node.handle == nil {
+			node.handle = handle
+		} else {
+			err = fmt.Errorf("route exist:%s", node.name)
+		}
+		return
 	}
-	for k, v := range nodes {
-		arr := strings.Split(k, "/")
-		static[k] = newStatic(arr, v)
+	if node.method == nil {
+		node.method = make(map[string]*Router)
 	}
-	this.static = static
+	for _, v := range method {
+		if _, ok := node.method[v]; !ok {
+			node.method[v] = node.Clone(handle)
+		} else {
+			return fmt.Errorf("route exist:%s/%s", v, node.name)
+		}
+	}
+	return nil
 }
 
 // Register 注册协议
-func (this *Router) Register(handle interface{}, paths ...string) (err error) {
-	route := Join(paths...)
-	//if route == "" {
-	//	return errors.New("Router.Watch method or route empty")
-	//}
+func (this *Router) register(handle any, route string, method ...string) (err error) {
 	arr := strings.Split(route, "/")
 	//静态路径
 	if !strings.Contains(route, PathMatchParam) && !strings.Contains(route, PathMatchVague) {
-		if _, ok := this.static[route]; ok {
-			err = fmt.Errorf("route exist:%v", route)
-		} else {
-			this.static[route] = newStatic(arr, handle)
-		}
-		return
+		node := newStatic(arr)
+		this.static[route] = node
+		return this.setRouterHandle(node, handle, method...)
 	}
 	//匹配路由
 	node := this
 	for i := 1; i < len(arr); i++ {
-		node, err = node.addChild(arr, i)
-		if err != nil {
+		if node, err = node.addChild(arr, i); err != nil {
 			return
 		}
 	}
 	if node != nil {
-		node.handle = handle
+		err = this.setRouterHandle(node, handle, method...)
 	}
 	return
 }
@@ -224,4 +243,26 @@ func (this *Router) childes() (r []string) {
 		r = append(r, c.String())
 	}
 	return
+}
+
+type Method struct {
+	*Router
+}
+
+func (this *Method) Match(method string, paths ...string) []*Router {
+	nodes := this.Router.Match(paths...)
+	var arr []*Router
+	for _, node := range nodes {
+		if n, ok := node.method[method]; ok {
+			arr = append(arr, n)
+		} else if node.handle != nil {
+			arr = append(arr, node)
+		}
+	}
+	return arr
+}
+
+func (this *Method) Register(handle any, route string, method ...string) error {
+	route = Route(route)
+	return this.Router.register(handle, route, method...)
 }

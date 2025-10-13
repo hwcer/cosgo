@@ -15,8 +15,23 @@ func Join(paths ...string) (r string) {
 		r = "/" + r
 	}
 	r = strings.TrimSuffix(r, "/")
-
 	return
+}
+
+// Route 生成规范化的路由路径
+func Route(paths ...string) string {
+	var arr []string
+	for _, v := range paths {
+		if strings.HasPrefix(v, PathMatchParam) || strings.HasPrefix(v, PathMatchVague) {
+			arr = append(arr, v)
+		} else if v != "" && v != "/" {
+			arr = append(arr, Formatter(v))
+		}
+	}
+	if len(arr) == 0 {
+		return "/"
+	}
+	return Formatter(Join(arr...))
 }
 
 //func Format(s string) string {

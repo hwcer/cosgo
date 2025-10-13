@@ -45,39 +45,23 @@ func (this *Service) Name() string {
 func (this *Service) Prefix() string {
 	return this.prefix
 }
-func (this *Service) Merge(s *Service) (err error) {
-	if s.Handler != nil {
-		this.Handler = s.Handler
-	}
-	for k, v := range s.nodes {
-		node := &Node{name: v.name, value: v.value, binder: v.binder, Service: this}
-		this.nodes[k] = node
-		if err = this.router.Register(node, node.Route()); err != nil {
-			return
-		}
-	}
-	return
-}
 
-// Reload 覆盖原协议主要用于热更
-func (this *Service) Reload(vs map[string]*Node) error {
-	nodes := make(map[string]*Node)
-	static := make(map[string]any)
-	for k, n := range this.nodes {
-		nodes[k] = n
-	}
-	for _, node := range vs {
-		k := node.Name()
-		nodes[k] = node
-		static[node.Route()] = node
-	}
-	this.nodes = nodes
-	this.router.Reload(static)
-	return nil
-}
+//func (this *Service) Merge(s *Service) (err error) {
+//	if s.Handler != nil {
+//		this.Handler = s.Handler
+//	}
+//	for k, v := range s.nodes {
+//		node := &Node{name: v.name, value: v.value, binder: v.binder, Service: this}
+//		this.nodes[k] = node
+//		if err = this.router.Register(node, node.Route()); err != nil {
+//			return
+//		}
+//	}
+//	return
+//}
 
 // Register 服务注册
-func (this *Service) Register(i interface{}, prefix ...string) error {
+func (this *Service) Register(i any, prefix ...string) (err error) {
 	v := reflect.ValueOf(i)
 	var kind reflect.Kind
 	if v.Kind() == reflect.Ptr {
@@ -87,12 +71,13 @@ func (this *Service) Register(i interface{}, prefix ...string) error {
 	}
 	switch kind {
 	case reflect.Func:
-		return this.RegisterFun(v, prefix...)
+		_, err = this.RegisterFun(v, prefix...)
 	case reflect.Struct:
-		return this.RegisterStruct(v, prefix...)
+		_, err = this.RegisterStruct(v, prefix...)
 	default:
-		return fmt.Errorf("未知的注册类型：%v", v.Kind())
+		err = fmt.Errorf("未知的注册类型：%v", v.Kind())
 	}
+	return
 }
 
 func (this *Service) filter(node *Node) bool {
@@ -108,8 +93,7 @@ func (this *Service) format(serviceName, methodName string, prefix ...string) st
 	if len(prefix) == 0 {
 		return Join(serviceName, methodName)
 	}
-
-	p := Formatter(Join(prefix...))
+	p := Route(prefix...)
 	var name string
 	if serviceName == "" {
 		name = methodName
@@ -136,26 +120,31 @@ func (this *Service) Node(i any, prefix ...string) (*Node, error) {
 	return node, nil
 }
 
-func (this *Service) RegisterFun(i interface{}, prefix ...string) error {
+func (this *Service) RegisterFun(i interface{}, prefix ...string) (nodes []*Node, err error) {
 	node, err := this.Node(i, prefix...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if _, ok := this.nodes[node.name]; ok {
-		return fmt.Errorf("RegisterFun exist:%v", node.name)
+		return nil, fmt.Errorf("RegisterFun exist:%v", node.name)
 	}
 	this.nodes[node.name] = node
-	return this.router.Register(node, node.Route())
+	if err = this.router.register(node, node.Route()); err == nil {
+		nodes = append(nodes, node)
+	} else {
+		fmt.Printf("router register error,route:%s error:%v", node.Route(), err)
+	}
+	return
 }
 
 // RegisterStruct 注册一组handle
-func (this *Service) RegisterStruct(i interface{}, prefix ...string) error {
+func (this *Service) RegisterStruct(i interface{}, prefix ...string) ([]*Node, error) {
 	v := ValueOf(i)
 	if v.Kind() != reflect.Ptr {
-		return errors.New("RegisterStruct handle type must be reflect.Struct")
+		return nil, errors.New("RegisterStruct handle type must be reflect.Struct")
 	}
 	if v.Elem().Kind() != reflect.Struct {
-		return errors.New("RegisterStruct handle type must be reflect.Struct")
+		return nil, errors.New("RegisterStruct handle type must be reflect.Struct")
 	}
 	handleType := v.Type()
 	serviceName := handleType.Elem().Name()
@@ -163,8 +152,10 @@ func (this *Service) RegisterStruct(i interface{}, prefix ...string) error {
 	nb := &Node{name: serviceName, binder: v, Service: this}
 	if !this.filter(nb) {
 		fmt.Printf("RegisterStruct filter refuse :%v,PkgPath:%v", serviceName, handleType.PkgPath)
-		return nil
+		return nil, nil
 	}
+
+	var nodes []*Node
 
 	for m := 0; m < handleType.NumMethod(); m++ {
 		method := handleType.Method(m)
@@ -185,11 +176,14 @@ func (this *Service) RegisterStruct(i interface{}, prefix ...string) error {
 			continue
 		}
 		this.nodes[name] = node
-		if err := this.router.Register(node, node.Route()); err != nil {
-			return err
+		if err := this.router.register(node, node.Route()); err == nil {
+			nodes = append(nodes, node)
+			return nil, err
+		} else {
+			fmt.Printf("router register error,route:%s error:%v", node.Route(), err)
 		}
 	}
-	return nil
+	return nodes, nil
 }
 
 func (this *Service) Paths() (r []string) {

@@ -1,6 +1,9 @@
 package registry
 
-import "reflect"
+import (
+	"net/http"
+	"reflect"
+)
 
 type Node struct {
 	name    string
@@ -10,6 +13,8 @@ type Node struct {
 }
 
 func (this *Node) Call(args ...interface{}) (r []reflect.Value) {
+	s := http.Request{}
+	s.Method = this.name
 	var arr []reflect.Value
 	if this.binder.IsValid() {
 		arr = append(arr, this.binder)

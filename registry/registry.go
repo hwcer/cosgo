@@ -1,21 +1,14 @@
 package registry
 
-import (
-	"fmt"
-)
-
 type Registry struct {
 	dict   map[string]*Service
 	router *Router
 }
 
-func New(router *Router) *Registry {
-	if router == nil {
-		router = NewRouter()
-	}
+func New() *Registry {
 	return &Registry{
 		dict:   make(map[string]*Service),
-		router: router,
+		router: NewRouter(),
 	}
 }
 
@@ -47,29 +40,33 @@ func (this *Registry) Has(name string) (ok bool) {
 //		})
 //		return
 //	}
-type ssr map[string]*Node
+//type ssr map[string]*Node
 
-func (this *Registry) Reload(nodes map[string]*Node) (err error) {
-	ssc := make(map[string]ssr)
-	for _, v := range nodes {
-		sr := ssc[v.Service.Name()]
-		if sr == nil {
-			sr = make(ssr)
-			ssc[v.Service.Name()] = sr
-		}
-		sr[v.Name()] = v
-	}
-	for k, v := range ssc {
-		service, ok := this.Get(k)
-		if !ok {
-			return fmt.Errorf("service not found:%v", k)
-		}
-		if err = service.Reload(v); err != nil {
-			return err
-		}
-	}
+//	func (this *Registry) Reload(nodes map[string]*Node) (err error) {
+//		ssc := make(map[string]ssr)
+//		for _, v := range nodes {
+//			sr := ssc[v.Service.Name()]
+//			if sr == nil {
+//				sr = make(ssr)
+//				ssc[v.Service.Name()] = sr
+//			}
+//			sr[v.Name()] = v
+//		}
+//		for k, v := range ssc {
+//			service, ok := this.Get(k)
+//			if !ok {
+//				return fmt.Errorf("service not found:%v", k)
+//			}
+//			if err = service.Reload(v); err != nil {
+//				return err
+//			}
+//		}
+//
+//		return
+//	}
 
-	return
+func (this *Registry) Method() Method {
+	return this.router.Method()
 }
 func (this *Registry) Router() *Router {
 	return this.router
