@@ -46,10 +46,11 @@ type Router struct {
 	//middleware []MiddlewareFunc //中间件
 }
 
-func (this *Router) Clone(handle any) *Router {
+func (this *Router) Clone(handle any, route []string) *Router {
 	r := *this
 	r.child = nil
 	r.static = nil
+	r.route = route
 	r.handle = handle
 	r.method = nil
 	return &r
@@ -135,7 +136,7 @@ func (this *Router) Register(handle any, paths ...string) (err error) {
 	return this.register(handle, route)
 }
 
-func (this *Router) setRouterHandle(node *Router, handle any, method ...string) (err error) {
+func (this *Router) setRouterHandle(node *Router, handle any, route []string, method ...string) (err error) {
 	if len(method) == 0 {
 		if node.handle == nil {
 			node.handle = handle
@@ -149,7 +150,7 @@ func (this *Router) setRouterHandle(node *Router, handle any, method ...string) 
 	}
 	for _, v := range method {
 		if _, ok := node.method[v]; !ok {
-			node.method[v] = node.Clone(handle)
+			node.method[v] = node.Clone(handle, route)
 		} else {
 			return fmt.Errorf("route exist:%s/%s", v, node.name)
 		}
@@ -164,7 +165,7 @@ func (this *Router) register(handle any, route string, method ...string) (err er
 	if !strings.Contains(route, PathMatchParam) && !strings.Contains(route, PathMatchVague) {
 		node := newStatic(arr)
 		this.static[route] = node
-		return this.setRouterHandle(node, handle, method...)
+		return this.setRouterHandle(node, handle, arr, method...)
 	}
 	//匹配路由
 	node := this
@@ -174,7 +175,7 @@ func (this *Router) register(handle any, route string, method ...string) (err er
 		}
 	}
 	if node != nil {
-		err = this.setRouterHandle(node, handle, method...)
+		err = this.setRouterHandle(node, handle, arr, method...)
 	}
 	return
 }
@@ -195,17 +196,15 @@ func (this *Router) Params(paths ...string) map[string]string {
 	if m > len(this.route) {
 		m = len(this.route)
 	}
-	for i := 2; i < m; i++ {
+	for i := 1; i < m; i++ {
 		s := this.route[i]
 		if strings.HasPrefix(s, PathMatchParam) {
 			k := strings.TrimPrefix(s, PathMatchParam)
 			r[k] = arr[i]
 		} else if strings.HasPrefix(s, PathMatchVague) {
-			k := strings.TrimPrefix(s, PathMatchVague)
-			if k == "" {
-				k = PathMatchVague
+			if k := strings.TrimPrefix(s, PathMatchVague); k != "" {
+				r[k] = strings.Join(arr[i:], "/")
 			}
-			r[k] = strings.Join(arr[i:], "/")
 		}
 	}
 	return r
@@ -220,10 +219,6 @@ func (this *Router) addChild(arr []string, step int) (node *Router, err error) {
 	}
 	//路由重复
 	node = this.child[name]
-	if node != nil && node.handle != nil && index == step {
-		err = fmt.Errorf("route exist:%v", strings.Join(arr, "/"))
-		return
-	}
 	if node == nil {
 		node = newRouter(name, arr, step)
 		this.child[name] = node

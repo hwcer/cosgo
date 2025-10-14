@@ -22,7 +22,7 @@ func Join(paths ...string) (r string) {
 func Route(paths ...string) string {
 	var arr []string
 	for _, v := range paths {
-		if strings.HasPrefix(v, PathMatchParam) || strings.HasPrefix(v, PathMatchVague) {
+		if strings.Contains(v, PathMatchParam) || strings.Contains(v, PathMatchVague) {
 			arr = append(arr, v)
 		} else if v != "" && v != "/" {
 			arr = append(arr, Formatter(v))
@@ -31,7 +31,7 @@ func Route(paths ...string) string {
 	if len(arr) == 0 {
 		return "/"
 	}
-	return Formatter(Join(arr...))
+	return Join(arr...)
 }
 
 //func Format(s string) string {
