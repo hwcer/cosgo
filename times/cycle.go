@@ -45,19 +45,29 @@ func (this *Cycle) Start() (r *Times, err error) {
 	case ExpireTypeDaily:
 		r = this.Daily(0)
 		n := this.secondCycle(r, 86400*this.v)
-		r = r.AddDate(0, 0, (n-1)*this.v)
+		if n != 1 {
+			r = r.AddDate(0, 0, (n-1)*this.v)
+		}
 	case ExpireTypeWeekly:
 		r = this.Weekly(0)
 		n := this.secondCycle(r, 86400*this.v*7)
-		r = r.AddDate(0, 0, (n-1)*this.v*7)
+		if n != 1 {
+			r = r.AddDate(0, 0, (n-1)*this.v*7)
+		}
 	case ExpireTypeMonthly:
 		r = this.Monthly(0)
 		n := this.monthlyCycle(r)
-		r = r.AddDate(0, (n-1)*this.v, 0)
+		if n != 1 {
+			r = r.AddDate(0, (n-1)*this.v, 0)
+		}
+
 	case ExpireTypeSecond:
 		r = this.Times
 		n := this.secondCycle(r, this.v)
-		r = r.Add(time.Duration((n-1)*this.v) * time.Second)
+		if n != 1 {
+			r = r.Add(time.Duration((n-1)*this.v) * time.Second)
+		}
+
 	}
 	return
 }
@@ -71,19 +81,29 @@ func (this *Cycle) Expire() (r *Times, err error) {
 	case ExpireTypeDaily:
 		r = this.Daily(0)
 		n := this.secondCycle(r, 86400*this.v)
-		r = r.AddDate(0, 0, n*this.v)
+		if n != 0 {
+			r = r.AddDate(0, 0, n*this.v)
+		}
+
 	case ExpireTypeWeekly:
 		r = this.Weekly(0)
 		n := this.secondCycle(r, 86400*this.v*7)
-		r = r.AddDate(0, 0, n*this.v*7)
+		if n != 0 {
+			r = r.AddDate(0, 0, n*this.v*7)
+		}
+
 	case ExpireTypeMonthly:
 		r = this.Monthly(0)
 		n := this.monthlyCycle(r)
-		r = r.AddDate(0, n*this.v, 0)
+		if n != 0 {
+			r = r.AddDate(0, n*this.v, 0)
+		}
 	case ExpireTypeSecond:
 		r = this.Times
 		n := this.secondCycle(r, this.v)
-		r = r.Add(time.Duration(n*this.v) * time.Second)
+		if n != 0 {
+			r = r.Add(time.Duration(n*this.v) * time.Second)
+		}
 	}
 	if r != nil {
 		r = r.Add(-1)
@@ -118,6 +138,7 @@ func (this *Cycle) secondCycle(era *Times, n int) (r int) {
 }
 
 // monthlyCycle 计算到当前时间累计有几个月，包含开始时间点，和当前月
+// 1开始,第一届为1
 func (this *Cycle) monthlyCycle(era *Times) int {
 	s := era.Now()
 	t := time.Now()
@@ -129,5 +150,5 @@ func (this *Cycle) monthlyCycle(era *Times) int {
 	}
 
 	r += m2 - m1
-	return utils.Ceil(r, this.v)
+	return utils.Ceil(r, this.v) + 1
 }
