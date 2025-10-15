@@ -178,7 +178,6 @@ func (this *Service) RegisterStruct(i interface{}, prefix ...string) ([]*Node, e
 		this.nodes[name] = node
 		if err := this.router.register(node, node.Route()); err == nil {
 			nodes = append(nodes, node)
-			return nil, err
 		} else {
 			fmt.Printf("router register error,route:%s error:%v", node.Route(), err)
 		}
