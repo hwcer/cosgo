@@ -65,14 +65,22 @@ func Error(err any) (r *Message) {
 	r.Errorf(0, err)
 	return
 }
-func Errorf(code int32, format any, args ...any) *Message {
-	if r, ok := format.(*Message); ok {
+func Errorf(code int32, format any, args ...any) (r *Message) {
+	switch v := format.(type) {
+	case *Message:
+		r = v
+	case Message:
+		r = &v
+	}
+	if r != nil {
 		if code != 0 {
 			r.Code = code
+		} else if r.Code == 0 {
+			r.Code = MessageErrorCodeDefault
 		}
 		return r
 	}
-	r := &Message{}
+	r = &Message{}
 	r.Errorf(code, format, args...)
 	return r
 }
