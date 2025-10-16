@@ -9,59 +9,98 @@ import (
 )
 
 type Handler interface {
-	Use(i any) //注册中间件
+	//Use(i any) //注册中间件
 	Filter(*Node) bool
 }
 
-func NewService(name string, router *Router) *Service {
+// NewService
+// name   :  必须是使用Route格式化后的路径
+func NewService(name string, router *Router, handle ...Handler) *Service {
 	r := &Service{
+		name:   name,
 		nodes:  make(map[string]*Node),
 		router: router,
 	}
-	r.prefix = Join(name)
-	if len(r.prefix) > 1 {
-		r.name = r.prefix[1:]
+	if len(handle) > 0 {
+		r.handler = handle[0]
 	}
-	//r.Formatter = strings.ToLower
 	return r
 }
 
 type Service struct {
-	name    string // a/b
-	prefix  string //  /a/b
+	name string // a/b
+	//prefix  string //  /a/b
 	nodes   map[string]*Node
 	router  *Router
-	Handler Handler //自定义 Filter等方法
+	methods []string
+	handler Handler //自定义 Filter等方法
 }
 
-func (this *Service) Use(i any) {
-	this.Handler.Use(i)
-}
+//func (this *Service) Use(i any) {
+//	this.Handler.Use(i)
+//}
 
 func (this *Service) Name() string {
 	return this.name
 }
 
-func (this *Service) Prefix() string {
-	return this.prefix
+// SetMethods 设置默认请求方式
+func (this *Service) SetMethods(s []string) {
+	this.methods = s
+}
+func (this *Service) Handler() Handler {
+	return this.handler
 }
 
-//func (this *Service) Merge(s *Service) (err error) {
-//	if s.Handler != nil {
-//		this.Handler = s.Handler
-//	}
-//	for k, v := range s.nodes {
-//		node := &Node{name: v.name, value: v.value, binder: v.binder, Service: this}
-//		this.nodes[k] = node
-//		if err = this.router.Register(node, node.Route()); err != nil {
-//			return
-//		}
-//	}
-//	return
+//func (this *Service) Prefix() string {
+//	return this.prefix
 //}
 
-// Register 服务注册
-func (this *Service) Register(i any, prefix ...string) (err error) {
+//	func (this *Service) Merge(s *Service) (err error) {
+//		if s.Handler != nil {
+//			this.Handler = s.Handler
+//		}
+//		for k, v := range s.nodes {
+//			node := &Node{name: v.name, value: v.value, binder: v.binder, Service: this}
+//			this.nodes[k] = node
+//			if err = this.router.Register(node, node.Route()); err != nil {
+//				return
+//			}
+//		}
+//		return
+//	}
+func (this *Service) Register(i any, prefix ...string) error {
+	nodes, err := this.Parse(i, prefix...)
+	if err != nil {
+		return err
+	}
+	for _, node := range nodes {
+		if err = this.router.Register(node, this.methods); err == nil {
+			nodes = append(nodes, node)
+		} else {
+			fmt.Printf("router register error,route:%s error:%v", node.Name(), err)
+		}
+	}
+	return nil
+}
+
+func (this *Service) RegisterWithMethod(i any, method []string, prefix ...string) error {
+	nodes, err := this.Parse(i, prefix...)
+	if err != nil {
+		return err
+	}
+	for _, node := range nodes {
+		if err = this.router.Register(node, method); err == nil {
+			nodes = append(nodes, node)
+		} else {
+			fmt.Printf("router register error,route:%s error:%v", node.Name(), err)
+		}
+	}
+	return nil
+}
+
+// Parse 解析服务
+func (this *Service) Parse(i any, prefix ...string) (nodes []*Node, err error) {
 	v := reflect.ValueOf(i)
 	var kind reflect.Kind
 	if v.Kind() == reflect.Ptr {
@@ -71,9 +110,9 @@ func (this *Service) Register(i any, prefix ...string) (err error) {
 	}
 	switch kind {
 	case reflect.Func:
-		_, err = this.RegisterFun(v, prefix...)
+		nodes, err = this.ParseFun(v, prefix...)
 	case reflect.Struct:
-		_, err = this.RegisterStruct(v, prefix...)
+		nodes, err = this.ParseStruct(v, prefix...)
 	default:
 		err = fmt.Errorf("未知的注册类型：%v", v.Kind())
 	}
@@ -81,10 +120,10 @@ func (this *Service) Register(i any, prefix ...string) (err error) {
 }
 
 func (this *Service) filter(node *Node) bool {
-	if this.Handler == nil {
+	if this.handler == nil {
 		return true
 	}
-	return this.Handler.Filter(node)
+	return this.handler.Filter(node)
 }
 
 func (this *Service) format(serviceName, methodName string, prefix ...string) string {
@@ -107,38 +146,40 @@ func (this *Service) format(serviceName, methodName string, prefix ...string) st
 }
 
 // Node 创建Node
-func (this *Service) Node(i any, prefix ...string) (*Node, error) {
+//func (this *Service) Node(i any, prefix ...string) (*Node, error) {
+//	v := ValueOf(i)
+//	if v.Kind() != reflect.Func {
+//		return nil, errors.New("RegisterFun fn type must be reflect.Func")
+//	}
+//	name := this.format(this.name, FuncName(v), prefix...)
+//	node := &Node{name: name, value: v}
+//	if !this.filter(node) {
+//		return nil, fmt.Errorf("service filter error:%v", name)
+//	}
+//	return node, nil
+//}
+
+func (this *Service) ParseFun(i interface{}, prefix ...string) (nodes []*Node, err error) {
 	v := ValueOf(i)
 	if v.Kind() != reflect.Func {
 		return nil, errors.New("RegisterFun fn type must be reflect.Func")
 	}
-	name := this.format("", FuncName(v), prefix...)
-	node := &Node{name: name, value: v, Service: this}
+	name := this.format(this.name, FuncName(v), prefix...)
+	node := &Node{name: name, value: v, service: this}
 	if !this.filter(node) {
 		return nil, fmt.Errorf("service filter error:%v", name)
 	}
-	return node, nil
-}
-
-func (this *Service) RegisterFun(i interface{}, prefix ...string) (nodes []*Node, err error) {
-	node, err := this.Node(i, prefix...)
-	if err != nil {
-		return nil, err
-	}
 	if _, ok := this.nodes[node.name]; ok {
-		return nil, fmt.Errorf("RegisterFun exist:%v", node.name)
+		return nil, fmt.Errorf("ParseFun exist:%v", node.name)
 	}
+	nodes = append(nodes, node)
 	this.nodes[node.name] = node
-	if err = this.router.register(node, node.Route()); err == nil {
-		nodes = append(nodes, node)
-	} else {
-		fmt.Printf("router register error,route:%s error:%v", node.Route(), err)
-	}
+
 	return
 }
 
-// RegisterStruct 注册一组handle
-func (this *Service) RegisterStruct(i interface{}, prefix ...string) ([]*Node, error) {
+// ParseStruct 注册一组handle
+func (this *Service) ParseStruct(i interface{}, prefix ...string) ([]*Node, error) {
 	v := ValueOf(i)
 	if v.Kind() != reflect.Ptr {
 		return nil, errors.New("RegisterStruct handle type must be reflect.Struct")
@@ -149,7 +190,7 @@ func (this *Service) RegisterStruct(i interface{}, prefix ...string) ([]*Node, e
 	handleType := v.Type()
 	serviceName := handleType.Elem().Name()
 
-	nb := &Node{name: serviceName, binder: v, Service: this}
+	nb := &Node{name: serviceName, binder: v, service: this}
 	if !this.filter(nb) {
 		fmt.Printf("RegisterStruct filter refuse :%v,PkgPath:%v", serviceName, handleType.PkgPath)
 		return nil, nil
@@ -170,16 +211,10 @@ func (this *Service) RegisterStruct(i interface{}, prefix ...string) ([]*Node, e
 			continue
 		}
 		name := this.format(serviceName, methodName, prefix...)
-
-		node := &Node{name: name, binder: v, value: method.Func, Service: this}
-		if !this.filter(node) {
-			continue
-		}
-		this.nodes[name] = node
-		if err := this.router.register(node, node.Route()); err == nil {
+		node := &Node{name: name, binder: v, value: method.Func, service: this}
+		if this.filter(node) {
 			nodes = append(nodes, node)
-		} else {
-			fmt.Printf("router register error,route:%s error:%v", node.Route(), err)
+			this.nodes[name] = node
 		}
 	}
 	return nodes, nil
@@ -199,3 +234,18 @@ func (this *Service) Range(f func(*Node) bool) {
 		}
 	}
 }
+
+//func (this *Service) Method() *Method {
+//	return &Method{Service: this}
+//}
+//
+//type Method struct {
+//	*Service
+//}
+//
+
+//
+//func (this *Method) Register(i any, route string, method ...string) error {
+//	route = Route(route)
+//	return this.Router.register(handle, route, method...)
+//}

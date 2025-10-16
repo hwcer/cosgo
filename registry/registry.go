@@ -65,31 +65,34 @@ func (this *Registry) Has(name string) (ok bool) {
 //		return
 //	}
 
-func (this *Registry) Method() Method {
-	return this.router.Method()
-}
+//	func (this *Registry) Method() Method {
+//		return this.router.Method()
+//	}
 func (this *Registry) Router() *Router {
 	return this.router
 }
 
-// Match 通过路径匹配Route,path必须是使用 Registry.Clean()处理后的
-func (this *Registry) Match(paths ...string) (node *Node, ok bool) {
-	nodes := this.router.Match(paths...)
-	for i := len(nodes) - 1; i >= 0; i-- {
-		if node, ok = nodes[i].Handle().(*Node); ok {
-			return
-		}
+// Search 通过路径匹配Route,path必须是使用 Registry.Clean()处理后的
+func (this *Registry) Search(method string, paths ...string) []*Node {
+	return this.router.Search(method, paths...)
+}
+
+func (this *Registry) Match(method string, paths ...string) (*Node, bool) {
+	nodes := this.router.Search(method, paths...)
+	if l := len(nodes); l == 0 {
+		return nil, false
+	} else {
+		return nodes[l-1], true
 	}
-	return
 }
 
 // Service GET OR CREATE
-func (this *Registry) Service(name string) *Service {
-	prefix := Join(name)
+func (this *Registry) Service(name string, hs ...Handler) *Service {
+	prefix := Route(name)
 	if r, ok := this.dict[prefix]; ok {
 		return r
 	}
-	srv := NewService(prefix, this.router)
+	srv := NewService(prefix, this.router, hs...)
 	this.dict[prefix] = srv
 	return srv
 }
