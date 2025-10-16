@@ -130,9 +130,10 @@ func (this *Service) format(serviceName, methodName string, prefix ...string) st
 	serviceName = Formatter(serviceName)
 	methodName = Formatter(methodName)
 	if len(prefix) == 0 {
-		return Join(serviceName, methodName)
+		return Join(this.name, serviceName, methodName)
 	}
-	p := Route(prefix...)
+	arr := append([]string{this.name}, prefix...)
+	p := Route(arr...)
 	var name string
 	if serviceName == "" {
 		name = methodName
@@ -164,7 +165,7 @@ func (this *Service) ParseFun(i interface{}, prefix ...string) (nodes []*Node, e
 	if v.Kind() != reflect.Func {
 		return nil, errors.New("RegisterFun fn type must be reflect.Func")
 	}
-	name := this.format(this.name, FuncName(v), prefix...)
+	name := this.format("", FuncName(v), prefix...)
 	node := &Node{name: name, value: v, service: this}
 	if !this.filter(node) {
 		return nil, fmt.Errorf("service filter error:%v", name)

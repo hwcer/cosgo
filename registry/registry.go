@@ -79,10 +79,10 @@ func (this *Registry) Search(method string, paths ...string) []*Node {
 
 func (this *Registry) Match(method string, paths ...string) (*Node, bool) {
 	nodes := this.router.Search(method, paths...)
-	if l := len(nodes); l == 0 {
+	if len(nodes) == 0 {
 		return nil, false
 	} else {
-		return nodes[l-1], true
+		return nodes[0], true
 	}
 }
 
