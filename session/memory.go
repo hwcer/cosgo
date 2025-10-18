@@ -55,9 +55,9 @@ func (this *Memory) New(p *Data) error {
 	return nil
 }
 
-func (this *Memory) Verify(token string) (p *Data, err error) {
+func (this *Memory) Get(id string) (p *Data, err error) {
 	var setter *Setter
-	if setter, err = this.get(token); err == nil {
+	if setter, err = this.get(id); err == nil {
 		p = setter.Data
 		setter.KeepAlive()
 	}
@@ -83,7 +83,7 @@ func (this *Memory) Delete(d *Data) error {
 // Create会自动设置有效期
 // Create新数据为锁定状态
 func (this *Memory) Create(uuid string, data map[string]any) (p *Data, err error) {
-	p = NewData(uuid, data)
+	p = NewData(uuid, data) //setter中自动设置
 	_ = this.Storage.Create(p)
 	return
 }

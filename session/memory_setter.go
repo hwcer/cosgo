@@ -14,14 +14,14 @@ func NewSetter(id string, data any) storage.Setter {
 	case Data:
 		d.Data = &v
 	case map[string]any:
-		d.Data = NewData("", v)
+		d.Data = NewData(id, v)
 	case values.Values:
 		d.Data = NewData(id, v)
 	default:
-		d.Data = NewData("", nil)
+		d.Data = NewData(id, nil)
 		logger.Alert("NewSetter Data Type Error:%v", data)
 	}
-	d.Data.id = id
+	d.Data.id = id //重置成Setter id
 	d.KeepAlive()
 	return d
 }

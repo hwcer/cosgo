@@ -7,8 +7,8 @@ import (
 var (
 	ErrorStorageNotSet     = values.Errorf(201, "session Storage not set")
 	ErrorSessionIdEmpty    = values.Errorf(202, "session id empty")
-	ErrorSessionLocked     = values.Errorf(203, "session locked")
-	ErrorSessionTypeError  = values.Errorf(204, "session type error")
+	ErrorSessionTokenEmpty = values.Errorf(203, "session token empty")
+	ErrorSessionNotCreate  = values.Errorf(204, "session not create")
 	ErrorSessionNotExist   = values.Errorf(205, "session not exist")
 	ErrorSessionTypeExpire = values.Errorf(206, "session expire")
 	ErrorSessionIllegal    = values.Errorf(207, "session illegal")

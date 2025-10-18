@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-const ContextRandomStringLength = 4
+const ContextRandomStringLength = 6
 
 type token interface {
 	Decode(sid string) (uid string, err error)

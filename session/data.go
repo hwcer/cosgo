@@ -7,15 +7,12 @@ import (
 	"sync/atomic"
 )
 
-func NewData(uuid string, vs map[string]any, token ...string) *Data {
-	p := &Data{uuid: uuid}
+func NewData(uuid string, vs map[string]any) *Data {
+	p := &Data{id: uuid, uuid: uuid}
 	if len(vs) > 0 {
 		p.Values = vs
 	} else {
 		p.Values = values.Values{}
-	}
-	if len(token) > 0 {
-		p.id = token[0]
 	}
 	return p
 }
@@ -24,9 +21,10 @@ var MaxDataIndex = int32(math.MaxInt32 - 1000)
 
 // Data 用户登录信息,不要直接修改 Player.Values 信息
 type Data struct {
-	id    string //token
-	uuid  string //GUID
-	index int32  //socket server id
+	id     string // 默认uuid,memory模式会定制此ID
+	uuid   string //GUID
+	index  int32  //socket server id
+	secret string //TOKEN
 	sync.Mutex
 	values.Values
 	heartbeat int32
@@ -38,7 +36,12 @@ func (this *Data) Id() string {
 	}
 	return this.id
 }
-
+func (this *Data) Secret() string {
+	if this == nil {
+		return ""
+	}
+	return this.secret
+}
 func (this *Data) Is(v *Data) bool {
 	if v == nil {
 		return false

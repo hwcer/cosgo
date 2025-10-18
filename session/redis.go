@@ -51,21 +51,12 @@ func (this *Redis) rkey(uuid string) string {
 	return strings.Join(append(this.prefix, uuid), "-")
 }
 
-// Verify 获取session镜像数据
-func (this *Redis) Verify(token string) (p *Data, err error) {
-	var uuid string
-	if uuid, err = Decode(token); err != nil {
-		return
-	}
+// Get 获取session镜像数据
+func (this *Redis) Get(uuid string) (p *Data, err error) {
 	val := map[string]string{}
 	rk := this.rkey(uuid)
 	if val, err = this.client.HGetAll(context.Background(), rk).Result(); err != nil {
 		return
-	}
-	if v, ok := val[redisSessionKeyTokenName]; !ok {
-		return nil, ErrorSessionNotExist
-	} else if v != token {
-		return nil, ErrorSessionIllegal
 	}
 	data := map[string]any{}
 	for k, v := range val {
@@ -75,7 +66,7 @@ func (this *Redis) Verify(token string) (p *Data, err error) {
 	if Options.MaxAge > 0 {
 		this.client.Expire(context.Background(), rk, time.Duration(Options.MaxAge)*time.Second)
 	}
-	p = NewData(uuid, data, token)
+	p = NewData(uuid, data)
 	return
 }
 
@@ -87,19 +78,14 @@ func (this *Redis) New(p *Data) error {
 // Create ttl过期时间(s)
 func (this *Redis) Create(uuid string, data map[string]any) (p *Data, err error) {
 	rk := this.rkey(uuid)
-	var id string
-	if id, err = Encode(uuid); err != nil {
-		return
-	}
 	var args []any
 	for k, v := range data {
 		args = append(args, k, v)
 	}
-	args = append(args, redisSessionKeyTokenName, id)
 	if err = this.client.HMSet(context.Background(), rk, args...).Err(); err != nil {
 		return
 	}
-	p = NewData(uuid, data, id)
+	p = NewData(uuid, data)
 	return
 }
 

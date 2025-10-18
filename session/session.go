@@ -1,12 +1,30 @@
 package session
 
-func New() *Session {
-	return &Session{}
+import (
+	"github.com/hwcer/cosgo/random"
+	"strings"
+)
+
+func New(d ...*Data) *Session {
+	r := &Session{}
+	if len(d) > 0 {
+		r.Data = d[0]
+	}
+	return r
 }
 
 type Session struct {
 	*Data
 	dirty []string
+}
+
+// Token 创建强制刷新token
+func (this *Session) Token() (string, error) {
+	if this.Data == nil {
+		return "", ErrorSessionNotCreate
+	}
+	this.Data.secret = random.Strings.String(ContextRandomStringLength)
+	return strings.Join([]string{this.Data.secret, this.Data.id}, ""), nil
 }
 
 // Verify 验证TOKEN信息是否有效,并初始化session
@@ -15,14 +33,19 @@ func (this *Session) Verify(token string) (err error) {
 		return ErrorStorageNotSet
 	}
 	if token == "" {
-		return ErrorSessionIdEmpty
+		return ErrorSessionTokenEmpty
 	}
-	if this.Data, err = Options.Storage.Verify(token); err != nil {
+	if len(token) <= ContextRandomStringLength {
+		return ErrorSessionIllegal
+	}
+	id := token[ContextRandomStringLength:]
+
+	if this.Data, err = Options.Storage.Get(id); err != nil {
 		return err
 	} else if this.Data == nil {
 		return ErrorSessionNotExist
 	}
-	if this.id != token {
+	if this.Data.secret != token[0:ContextRandomStringLength] {
 		return ErrorSessionReplaced
 	}
 	return nil
@@ -47,13 +70,25 @@ func (this *Session) Update(vs map[string]any) {
 	}
 }
 
+func (this *Session) New(data *Data) (token string, err error) {
+	if Options.Storage == nil {
+		return "", ErrorStorageNotSet
+	}
+	if err = Options.Storage.New(data); err == nil {
+		this.Data = data
+		token, err = this.Token()
+	}
+
+	return
+}
+
 // Create 创建SESSION，uuid 用户唯一ID，可以检测是不是重复登录
 func (this *Session) Create(uuid string, data map[string]any) (token string, err error) {
 	if Options.Storage == nil {
 		return "", ErrorStorageNotSet
 	}
 	if this.Data, err = Options.Storage.Create(uuid, data); err == nil {
-		token = this.Data.id
+		token, err = this.Token()
 	}
 	return
 }
