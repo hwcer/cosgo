@@ -1,10 +1,11 @@
 package session
 
 import (
-	"github.com/hwcer/cosgo/values"
 	"math"
 	"sync"
 	"sync/atomic"
+
+	"github.com/hwcer/cosgo/values"
 )
 
 func NewData(uuid string, vs map[string]any) *Data {
@@ -21,10 +22,9 @@ var MaxDataIndex = int32(math.MaxInt32 - 1000)
 
 // Data 用户登录信息,不要直接修改 Player.Values 信息
 type Data struct {
-	id     string // 默认uuid,memory模式会定制此ID
-	uuid   string //GUID
-	index  int32  //socket server id
-	secret string //TOKEN
+	id    string // 默认uuid,memory模式会定制此ID
+	uuid  string //GUID
+	index int32  //socket server id
 	sync.Mutex
 	values.Values
 	heartbeat int32
@@ -36,12 +36,7 @@ func (this *Data) Id() string {
 	}
 	return this.id
 }
-func (this *Data) Secret() string {
-	if this == nil {
-		return ""
-	}
-	return this.secret
-}
+
 func (this *Data) Is(v *Data) bool {
 	if v == nil {
 		return false
@@ -58,47 +53,27 @@ func (this *Data) Heartbeat(v ...int32) int32 {
 	return this.heartbeat
 }
 
-func (this *Data) Set(key string, value any, locked ...bool) any {
-	if len(locked) == 0 || !locked[0] {
-		this.Lock()
-		defer this.Unlock()
-	}
-
+func (this *Data) Set(key string, value any) any {
+	this.Lock()
+	defer this.Unlock()
 	vs := this.Values.Clone()
 	vs.Set(key, value)
 	this.Values = vs
 	return value
 }
 
-func (this *Data) Delete(key string, locked ...bool) {
-	if len(locked) == 0 || !locked[0] {
-		this.Lock()
-		defer this.Unlock()
-	}
+func (this *Data) Delete(key string) {
+	this.Lock()
+	defer this.Unlock()
 	vs := this.Values.Clone()
 	delete(vs, key)
 	this.Values = vs
 }
 
-func (this *Data) Merge(p *Data, locked ...bool) {
-	if this.id == p.id {
-		return
-	}
-	if len(locked) == 0 || !locked[0] {
-		this.Lock()
-		defer this.Unlock()
-	}
-	vs := this.Values.Clone()
-	vs.Merge(p.Values, false)
-	this.Values = vs
-}
-
 // Update 批量设置Cookie信息
-func (this *Data) Update(data map[string]any, locked ...bool) {
-	if len(locked) == 0 || !locked[0] {
-		this.Lock()
-		defer this.Unlock()
-	}
+func (this *Data) Update(data map[string]any) {
+	this.Lock()
+	defer this.Unlock()
 	vs := this.Values.Clone()
 	for k, v := range data {
 		vs.Set(k, v)

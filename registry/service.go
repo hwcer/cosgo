@@ -130,7 +130,7 @@ func (this *Service) format(serviceName, methodName string, prefix ...string) st
 	serviceName = Formatter(serviceName)
 	methodName = Formatter(methodName)
 	if len(prefix) == 0 {
-		return Join(this.name, serviceName, methodName)
+		return Route(this.name, serviceName, methodName)
 	}
 	arr := append([]string{this.name}, prefix...)
 	p := Route(arr...)

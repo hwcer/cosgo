@@ -78,7 +78,7 @@ func (this *Node) IsStruct() bool {
 
 func (this *Node) Params(paths ...string) map[string]string {
 	r := make(map[string]string)
-	arr := strings.Split(Route(paths...), "/")
+	arr := strings.Split(Join(paths...), "/")
 	route := this.Route()
 	m := len(arr)
 	if m > len(route) {

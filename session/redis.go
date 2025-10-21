@@ -3,10 +3,11 @@ package session
 import (
 	"context"
 	"errors"
-	"github.com/hwcer/cosgo/redis"
-	"github.com/hwcer/cosgo/scc"
 	"strings"
 	"time"
+
+	"github.com/hwcer/cosgo/redis"
+	"github.com/hwcer/cosgo/scc"
 )
 
 const redisSessionKeyTokenName = "_cookie_key_token"
@@ -90,10 +91,7 @@ func (this *Redis) Create(uuid string, data map[string]any) (p *Data, err error)
 }
 
 func (this *Redis) Update(p *Data, data map[string]any) (err error) {
-	var uuid string
-	if uuid, err = Decode(p.id); err != nil {
-		return
-	}
+	uuid := p.UUID()
 	rk := this.rkey(uuid)
 	//pipeline := this.client.Pipeline()
 	if len(data) > 0 {
@@ -101,9 +99,7 @@ func (this *Redis) Update(p *Data, data map[string]any) (err error) {
 		for k, v := range data {
 			args = append(args, k, v)
 		}
-		if _, err = this.client.HMSet(context.Background(), rk, args...).Result(); err != nil {
-			return
-		}
+		_, err = this.client.HMSet(context.Background(), rk, args...).Result()
 	}
 	return
 }

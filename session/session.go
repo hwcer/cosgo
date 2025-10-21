@@ -1,8 +1,9 @@
 package session
 
 import (
-	"github.com/hwcer/cosgo/random"
 	"strings"
+
+	"github.com/hwcer/cosgo/random"
 )
 
 func New(d ...*Data) *Session {
@@ -13,18 +14,27 @@ func New(d ...*Data) *Session {
 	return r
 }
 
+const TokenSecretName = "_TS_"
+
 type Session struct {
 	*Data
 	dirty []string
 }
 
-// Token 创建强制刷新token
-func (this *Session) Token() (string, error) {
+func (this *Session) Refresh() (string, error) {
 	if this.Data == nil {
 		return "", ErrorSessionNotCreate
 	}
-	this.Data.secret = random.Strings.String(ContextRandomStringLength)
-	return strings.Join([]string{this.Data.secret, this.Data.id}, ""), nil
+	secret := random.Strings.String(ContextRandomStringLength)
+	token := strings.Join([]string{secret, this.Data.Id()}, "")
+
+	dirty := map[string]any{}
+	dirty[TokenSecretName] = secret
+	this.Data.Update(dirty)
+	if err := Options.Storage.Update(this.Data, dirty); err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 // Verify 验证TOKEN信息是否有效,并初始化session
@@ -45,7 +55,11 @@ func (this *Session) Verify(token string) (err error) {
 	} else if this.Data == nil {
 		return ErrorSessionNotExist
 	}
-	if this.Data.secret != token[0:ContextRandomStringLength] {
+	secret := this.Data.GetString(TokenSecretName)
+	if secret == "" {
+		return ErrorSessionIllegal
+	}
+	if secret != token[0:ContextRandomStringLength] {
 		return ErrorSessionReplaced
 	}
 	return nil
@@ -74,12 +88,11 @@ func (this *Session) New(data *Data) (token string, err error) {
 	if Options.Storage == nil {
 		return "", ErrorStorageNotSet
 	}
-	if err = Options.Storage.New(data); err == nil {
-		this.Data = data
-		token, err = this.Token()
+	if err = Options.Storage.New(data); err != nil {
+		return "", err
 	}
-
-	return
+	this.Data = data
+	return this.Refresh()
 }
 
 // Create 创建SESSION，uuid 用户唯一ID，可以检测是不是重复登录
@@ -87,10 +100,10 @@ func (this *Session) Create(uuid string, data map[string]any) (token string, err
 	if Options.Storage == nil {
 		return "", ErrorStorageNotSet
 	}
-	if this.Data, err = Options.Storage.Create(uuid, data); err == nil {
-		token, err = this.Token()
+	if this.Data, err = Options.Storage.Create(uuid, data); err != nil {
+		return "", err
 	}
-	return
+	return this.Refresh()
 }
 
 func (this *Session) Delete() (err error) {

@@ -66,9 +66,8 @@ func (this *Memory) Get(id string) (p *Data, err error) {
 
 // Update 更新信息，内存没事，共享Player信息已经更新过，仅仅设置过去时间
 // 内存模式 data已经更新过，不需要再次更新
-
 func (this *Memory) Update(p *Data, data map[string]any) (err error) {
-	p.Update(data)
+	//p.Update(data)
 	return
 }
 
