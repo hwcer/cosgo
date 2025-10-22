@@ -52,10 +52,10 @@ func (this *Session) Token() (string, error) {
 // Verify 验证TOKEN信息是否有效,并初始化session
 func (this *Session) Verify(token string) (err error) {
 	if Options.Storage == nil {
-		return ErrorStorageNotSet
+		return ErrorStorageEmpty
 	}
 	if token == "" {
-		return ErrorSessionTokenEmpty
+		return ErrorSessionEmpty
 	}
 	if len(token) <= ContextRandomStringLength {
 		return ErrorSessionIllegal
@@ -74,7 +74,6 @@ func (this *Session) Verify(token string) (err error) {
 	if secret != token[0:ContextRandomStringLength] {
 		return ErrorSessionReplaced
 	}
-	this.Data.KeepAlive()
 	return nil
 }
 
@@ -99,7 +98,7 @@ func (this *Session) Update(vs map[string]any) {
 
 func (this *Session) New(data *Data) (token string, err error) {
 	if Options.Storage == nil {
-		return "", ErrorStorageNotSet
+		return "", ErrorStorageEmpty
 	}
 	if err = Options.Storage.New(data); err != nil {
 		return "", err
@@ -111,7 +110,7 @@ func (this *Session) New(data *Data) (token string, err error) {
 // Create 创建SESSION，uuid 用户唯一ID，可以检测是不是重复登录
 func (this *Session) Create(uuid string, data map[string]any) (token string, err error) {
 	if Options.Storage == nil {
-		return "", ErrorStorageNotSet
+		return "", ErrorStorageEmpty
 	}
 	if this.Data, err = Options.Storage.Create(uuid, data); err != nil {
 		return "", err
