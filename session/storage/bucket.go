@@ -1,19 +1,19 @@
 package storage
 
 import (
+	"runtime/debug"
+
 	"github.com/hwcer/cosgo/uuid"
 	"github.com/hwcer/logger"
-	"runtime/debug"
 )
 
 func NewBucket(id int, cap int) *Bucket {
 	b := &Bucket{
 		dirty:     newDirty(cap),
 		values:    make([]Setter, cap),
-		Unique:    uuid.NewUnique(uint64(id), uuid.BaseSize),
+		Builder:   uuid.New(uint64(id), 1000),
 		NewSetter: NewSetterDefault,
 	}
-	b.Unique.Garbled = 4
 	return b
 }
 
@@ -21,13 +21,13 @@ func NewBucket(id int, cap int) *Bucket {
 type Bucket struct {
 	dirty     *dirty
 	values    []Setter
-	Unique    *uuid.Unique
+	Builder   *uuid.Builder
 	NewSetter NewSetter //创建新数据结构
 }
 
 // createSocketId 使用index生成ID
 func (this *Bucket) createId(index int) string {
-	return this.Unique.New(uint64(index))
+	return this.Builder.New(uint64(index)).String(uuid.BaseSize)
 }
 
 // parseSocketId 返回idPack中的index

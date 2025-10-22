@@ -37,6 +37,18 @@ func (this *Session) Refresh() (string, error) {
 	return token, nil
 }
 
+// Token 获取当前TOKEN，可能为空
+func (this *Session) Token() (string, error) {
+	if this.Data == nil {
+		return "", ErrorSessionNotCreate
+	}
+	secret := this.Data.GetString(TokenSecretName)
+	if secret == "" {
+		return "", ErrorSessionNotCreate
+	}
+	return strings.Join([]string{secret, this.Data.Id()}, ""), nil
+}
+
 // Verify 验证TOKEN信息是否有效,并初始化session
 func (this *Session) Verify(token string) (err error) {
 	if Options.Storage == nil {
@@ -62,6 +74,7 @@ func (this *Session) Verify(token string) (err error) {
 	if secret != token[0:ContextRandomStringLength] {
 		return ErrorSessionReplaced
 	}
+	this.Data.KeepAlive()
 	return nil
 }
 

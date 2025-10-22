@@ -6,8 +6,8 @@ import (
 	"github.com/hwcer/logger"
 )
 
-func NewSetter(id string, data any) storage.Setter {
-	d := &Setter{}
+func NewMemorySetter(id string, data any) storage.Setter {
+	d := &MemorySetter{}
 	switch v := data.(type) {
 	case *Data:
 		d.Data = v
@@ -19,22 +19,22 @@ func NewSetter(id string, data any) storage.Setter {
 		d.Data = NewData(id, v)
 	default:
 		d.Data = NewData(id, nil)
-		logger.Alert("NewSetter Data Type Error:%v", data)
+		logger.Alert("NewMemorySetter Data Type Error:%v", data)
 	}
 	d.Data.id = id //重置成Setter id
 	d.KeepAlive()
 	return d
 }
 
-type Setter struct {
+type MemorySetter struct {
 	*Data //数据接口
 }
 
-func (this *Setter) Get() interface{} {
+func (this *MemorySetter) Get() interface{} {
 	return this.Values
 }
 
-func (this *Setter) Set(data interface{}) {
+func (this *MemorySetter) Set(data interface{}) {
 	var v map[string]any
 	switch i := data.(type) {
 	case map[string]any:
@@ -42,7 +42,7 @@ func (this *Setter) Set(data interface{}) {
 	case values.Values:
 		v = i
 	default:
-		logger.Alert("Setter Set Args Data Type Error:%v", data)
+		logger.Alert("MemorySetter Set Args Data Type Error:%v", data)
 	}
 	if v != nil {
 		this.Data.Update(v)

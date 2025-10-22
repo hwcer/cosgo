@@ -2,10 +2,11 @@ package session
 
 import (
 	"context"
-	"github.com/hwcer/cosgo/scc"
-	"github.com/hwcer/logger"
 	"sync/atomic"
 	"time"
+
+	"github.com/hwcer/cosgo/scc"
+	"github.com/hwcer/logger"
 )
 
 var Heartbeat = heartbeat{}

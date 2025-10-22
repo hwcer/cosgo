@@ -13,16 +13,14 @@ func NewMemory(cap ...int) *Memory {
 		c = 10240
 	}
 	s := &Memory{
-		Storage: *storage.New(c, NewSetter),
+		Storage: *storage.New(c, NewMemorySetter),
 	}
-	//s.Array.NewSetter = NewSetter
 	s.init()
 	return s
 }
 
 type Memory struct {
 	storage.Storage
-	listeners []func(data *Data)
 }
 
 func (this *Memory) init() {
@@ -32,22 +30,12 @@ func (this *Memory) init() {
 	}
 }
 
-func (this *Memory) get(id string) (*Setter, error) {
+func (this *Memory) get(id string) (*MemorySetter, error) {
 	if v, ok := this.Storage.Get(id); !ok {
 		return nil, ErrorSessionIllegal
 	} else {
-		return v.(*Setter), nil
+		return v.(*MemorySetter), nil
 	}
-}
-
-func (this *Memory) emit(v *Data) {
-	for _, l := range this.listeners {
-		l(v)
-	}
-}
-
-func (this *Memory) On(l func(data *Data)) {
-	this.listeners = append(this.listeners, l)
 }
 
 func (this *Memory) New(p *Data) error {
@@ -56,7 +44,7 @@ func (this *Memory) New(p *Data) error {
 }
 
 func (this *Memory) Get(id string) (p *Data, err error) {
-	var setter *Setter
+	var setter *MemorySetter
 	if setter, err = this.get(id); err == nil {
 		p = setter.Data
 		setter.KeepAlive()
@@ -73,7 +61,7 @@ func (this *Memory) Update(p *Data, data map[string]any) (err error) {
 
 func (this *Memory) Delete(d *Data) error {
 	if setter := this.Storage.Delete(d.id); setter != nil {
-		this.emit(d)
+		emitRelease(d)
 	}
 	return nil
 }
@@ -96,7 +84,7 @@ func (this *Memory) Heartbeat(s int32) {
 	var vs []*Data
 	maxAge := int32(Options.MaxAge)
 	this.Storage.Range(func(item storage.Setter) bool {
-		if d, ok := item.(*Setter); ok && d.Heartbeat(s) >= maxAge {
+		if d, ok := item.(*MemorySetter); ok && d.Heartbeat(s) >= maxAge {
 			vs = append(vs, d.Data)
 		}
 		return true
