@@ -44,7 +44,7 @@ func (this *Session) Token() (string, error) {
 	}
 	secret := this.Data.GetString(TokenSecretName)
 	if secret == "" {
-		return "", ErrorSessionNotCreate
+		return this.Refresh()
 	}
 	return strings.Join([]string{secret, this.Data.Id()}, ""), nil
 }
