@@ -76,6 +76,7 @@ func Start(waitForSystemExit bool, mods ...Module) {
 	for _, v := range modules {
 		if err = v.Init(); err != nil {
 			logger.Sprint(logger.LevelFatal, logger.Format(err), string(debug.Stack()))
+			os.Exit(1)
 		} else {
 			logger.Trace("mod[%v] init", v.Id())
 		}
@@ -92,6 +93,7 @@ func Start(waitForSystemExit bool, mods ...Module) {
 		scc.Add(1)
 		if err = v.Start(); err != nil {
 			logger.Sprint(logger.LevelFatal, logger.Format(err), string(debug.Stack()))
+			os.Exit(1)
 		} else {
 			logger.Trace("mod[%v] start", v.Id())
 		}
