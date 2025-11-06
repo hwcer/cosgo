@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"runtime/debug"
 	"strings"
 	"time"
 
@@ -14,20 +13,8 @@ import (
 
 var modules []Module
 
-//var appStopChan = make(chan struct{})
-
-//func assert(err interface{}, s ...string) {
-//	if err != nil {
-//		logger.Sprint(logger.LevelFATAL, logger.Format(err), s[0])
-//	} else if len(s) > 0 {
-//		logger.Trace(s[0])
-//	}
-//}
-
 func Use(mods ...Module) {
-	for _, mod := range mods {
-		modules = append(modules, mod)
-	}
+	modules = append(modules, mods...)
 }
 func Range(f func(Module) bool) {
 	for _, mod := range modules {
@@ -42,18 +29,16 @@ func Range(f func(Module) bool) {
 // @param mods 需注册的模块
 
 func Start(waitForSystemExit bool, mods ...Module) {
-	for _, mod := range mods {
-		modules = append(modules, mod)
-	}
+	modules = append(modules, mods...)
 	var err error
 	if err = Config.Init(); err != nil {
-		logger.Panic(err)
+		logger.Fatal("Config.Init err:%v", err)
 	}
 	if err = helps(); err != nil {
-		panic(err)
+		logger.Fatal("helps err:%v", err)
 	}
 	if err = writePidFile(); err != nil {
-		logger.Panic(err)
+		logger.Fatal("writePidFile err:%v", err)
 	}
 	emit(EventTypBegin)
 	logger.Trace("App Starting")
@@ -61,13 +46,13 @@ func Start(waitForSystemExit bool, mods ...Module) {
 		if err = deletePidFile(); err != nil {
 			logger.Trace("App delete pid file err:%v", err)
 		}
-		logger.Trace("App Closed\n")
+		logger.Trace("App Closed")
 		emit(EventTypStopped)
 		_ = logger.Close()
 	}()
 	//=========================加载模块=============================
 	if err = pprofStart(); err != nil {
-		logger.Sprint(logger.LevelFatal, logger.Format(err), string(debug.Stack()))
+		logger.Fatal("pprofStart err:%v", err)
 	}
 	defer func() {
 		_ = pprofClose()
@@ -75,8 +60,7 @@ func Start(waitForSystemExit bool, mods ...Module) {
 	//assert(emit(EventTypInitBefore))
 	for _, v := range modules {
 		if err = v.Init(); err != nil {
-			logger.Sprint(logger.LevelFatal, logger.Format(err), string(debug.Stack()))
-			os.Exit(1)
+			logger.Fatal("mod[%v] init err:%v", v.Id(), err)
 		} else {
 			logger.Trace("mod[%v] init", v.Id())
 		}
@@ -92,8 +76,7 @@ func Start(waitForSystemExit bool, mods ...Module) {
 	for _, v := range modules {
 		scc.Add(1)
 		if err = v.Start(); err != nil {
-			logger.Sprint(logger.LevelFatal, logger.Format(err), string(debug.Stack()))
-			os.Exit(1)
+			logger.Fatal("mod[%v] start err:%v", v.Id(), err)
 		} else {
 			logger.Trace("mod[%v] start", v.Id())
 		}
@@ -153,12 +136,12 @@ func closeModule(m Module) {
 	defer scc.Done()
 	defer func() {
 		if err := recover(); err != nil {
-			logger.Sprint(logger.LevelError, logger.Format(err), string(debug.Stack()))
+			logger.Trace("mod[%v] close err:%v", m.Id(), err)
 		}
 	}()
 	if err := m.Close(); err != nil {
-		logger.Sprint(logger.LevelError, logger.Format(err), string(debug.Stack()))
+		logger.Trace("mod[%v] close err:%v", m.Id(), err)
 	} else {
-		logger.Trace("mod [%v] stop", m.Id())
+		logger.Trace("mod [%v] stopped", m.Id())
 	}
 }
