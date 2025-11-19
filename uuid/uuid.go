@@ -13,6 +13,10 @@ type UUID struct {
 	index  uint64
 }
 
+func NewUUID(share, prefix, index uint64) *UUID {
+	return &UUID{share: share, prefix: prefix, index: index}
+}
+
 func (u *UUID) GetShard() uint64 {
 	return u.share
 }
