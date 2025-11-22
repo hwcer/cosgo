@@ -104,9 +104,8 @@ func (this *Cycle) Expire() (r *Times, err error) {
 		}
 	}
 	if r != nil {
-		r = r.Add(-1)
+		r = r.Add(-1) //减去1纳秒确保时间点回到本届最后一纳秒，而不是下一届的第一纳秒
 	}
-
 	return
 }
 
