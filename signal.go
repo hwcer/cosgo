@@ -1,13 +1,14 @@
 package cosgo
 
 import (
-	"github.com/hwcer/cosgo/scc"
-	"github.com/hwcer/logger"
 	"os"
 	"os/signal"
 	"runtime"
 	"syscall"
 	"time"
+
+	"github.com/hwcer/cosgo/scc"
+	"github.com/hwcer/logger"
 )
 
 // SignalReload 重新加载系统信号 kill -10 pid
@@ -68,5 +69,5 @@ func SIGHUP() {
 
 func gcSummaryLogs() {
 	runtime.GC()
-	logger.Debug("GOROUTINE:%v", runtime.NumGoroutine())
+	logger.Info("GOROUTINE:%v", runtime.NumGoroutine())
 }
