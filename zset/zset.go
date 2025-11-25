@@ -2,8 +2,6 @@ package zset
 
 import (
 	"sync"
-
-	"github.com/hwcer/logger"
 )
 
 // ZSet 是针对string类型key和int64类型分数的有序集合实现
@@ -49,7 +47,6 @@ func (z *ZSet) zadd(score int64, key string) int64 {
 	}
 
 	// 更新字典中的分数
-	z.dict[key] = score
 
 	// 如果key已存在但分数不同，则先删除再重新插入
 	if exists {
@@ -59,23 +56,26 @@ func (z *ZSet) zadd(score int64, key string) int64 {
 			z.zsl.zslInsert(score, key)
 		} else {
 			// 如果删除失败，说明可能存在数据不一致，启用强制删除
-			logger.Error("ZAdd failed, delete old score failed, key: %s, score: %d. Attempting force delete.", key, oldScore)
+			//logger.Trace("ZAdd failed, delete old score failed, key: %s, score: %d. Attempting force delete.", key, oldScore)
 			forceDeleted := z.zsl.zslForceDeleteById(key)
 			if forceDeleted > 0 {
 				// 强制删除成功后插入新的分数
-				logger.Trace("Force delete successful for key: %s, deleted %d nodes", key, forceDeleted)
+				//logger.Trace("Force delete successful for key: %s, deleted %d nodes", key, forceDeleted)
 				z.zsl.zslInsert(score, key)
 			} else {
-				// 强制删除也失败，回滚分数更新
-				logger.Error("Force delete also failed for key: %s. Rolling back score update.", key)
-				z.dict[key] = oldScore
+				// 强制删除也失败
+				return score
+				//logger.Trace("Force delete also failed for key: %s. Rolling back score update.", key)
+				//z.dict[key] = oldScore
 			}
 		}
 	} else {
 		// 对于新key，直接插入
 		z.zsl.zslInsert(score, key)
 	}
-	return z.dict[key]
+
+	z.dict[key] = score
+	return score
 }
 
 // ZAdd 用于添加或更新元素
