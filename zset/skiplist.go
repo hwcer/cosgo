@@ -457,9 +457,9 @@ func (zsl *skipList) zslGetRank(score int64, key string) int64 {
 			x = x.level[i].forward
 		}
 
-		/* x might be equal to zsl->header, so test if obj is non-NULL */
-		if x.id == key {
-			return int64(rank)
+		/* 检查当前节点的下一个节点是否是目标节点 */
+		if x.level[i].forward != nil && x.level[i].forward.score == score && x.level[i].forward.id == key {
+			return int64(rank + 1) // 加1因为rank是到x的位置，目标节点在x后面
 		}
 	}
 	return 0
