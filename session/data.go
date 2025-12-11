@@ -79,6 +79,9 @@ func (this *Data) Set(key string, value any) any {
 	defer this.mutex.Unlock()
 	return this.set(key, value)
 }
+func (this *Data) Clone() values.Values {
+	return this.Values.Clone()
+}
 
 // Update 批量设置Cookie信息
 func (this *Data) Update(data map[string]any) {

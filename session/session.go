@@ -112,7 +112,12 @@ func (this *Session) Create(uuid string, data map[string]any) (token string, err
 	if Options.Storage == nil {
 		return "", ErrorStorageEmpty
 	}
-	if this.Data, err = Options.Storage.Create(uuid, data); err != nil {
+	if this.Data, err = Options.Storage.Get(uuid); err == nil {
+		this.Data.Update(data)
+	} else {
+		this.Data, err = Options.Storage.Create(uuid, data)
+	}
+	if err != nil {
 		return "", err
 	}
 	return this.Refresh()
