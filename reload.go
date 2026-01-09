@@ -12,6 +12,7 @@ func Reload() {
 		logger.Trace("Reload Config Finish\n")
 	}()
 	logger.Trace("Start reload Config\n")
+	emit(EventTypReload)
 	for _, m := range modules {
 		if reload, ok := m.(ModuleReload); ok {
 			if err := reload.Reload(); err != nil {
@@ -19,5 +20,4 @@ func Reload() {
 			}
 		}
 	}
-	emit(EventTypReload)
 }
