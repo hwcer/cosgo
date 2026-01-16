@@ -8,19 +8,25 @@ import (
 	"unicode/utf8"
 )
 
-func Join(paths ...string) (r string) {
-	r = strings.Join(paths, "/")
+func Join(paths ...string) string {
+
+	r := strings.Join(paths, "/")
+	// 处理重复的斜杠
 	r = strings.Replace(r, "//", "/", -1)
+
 	if !strings.HasPrefix(r, "/") {
 		r = "/" + r
 	}
+
 	r = strings.TrimSuffix(r, "/")
-	return
+	return r
 }
 
 // Route 生成规范化的路由路径
 func Route(paths ...string) string {
-	var arr []string
+	// 预分配切片容量，减少扩容
+	arr := make([]string, 0, len(paths))
+
 	for _, v := range paths {
 		if strings.Contains(v, PathMatchParam) || strings.Contains(v, PathMatchVague) {
 			arr = append(arr, v)
@@ -28,9 +34,11 @@ func Route(paths ...string) string {
 			arr = append(arr, Formatter(v))
 		}
 	}
+
 	if len(arr) == 0 {
 		return "/"
 	}
+
 	return Join(arr...)
 }
 

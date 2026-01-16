@@ -16,7 +16,7 @@ func ABC() {
 }
 
 func TestRoute(t *testing.T) {
-	registry := New(nil)
+	registry := New()
 
 	service := registry.Service("srv")
 	_ = service.Register(&services{})
@@ -25,12 +25,12 @@ func TestRoute(t *testing.T) {
 		t.Logf("ERROR:%v", err)
 	}
 
-	for _, s := range registry.Services() {
+	registry.Range(func(s *Service) bool {
 		s.Range(func(node *Node) bool {
 			t.Logf("route:%v", node.Route())
 			return true
 		})
-
-	}
+		return true
+	})
 
 }

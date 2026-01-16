@@ -19,7 +19,7 @@ func TestName(t *testing.T) {
 		wg.Add(1)
 		go func(n int) {
 			t.Logf("goroutine start %d", n)
-			_ = init.Reload(handle)
+			_ = init.Try(handle)
 			t.Logf("goroutine finish %d", n)
 			wg.Done()
 		}(i)

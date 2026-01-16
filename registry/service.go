@@ -193,7 +193,7 @@ func (this *Service) ParseStruct(i interface{}, prefix ...string) ([]*Node, erro
 
 	nb := &Node{name: serviceName, binder: v, service: this}
 	if !this.filter(nb) {
-		fmt.Printf("RegisterStruct filter refuse :%v,PkgPath:%v", serviceName, handleType.PkgPath)
+		fmt.Printf("RegisterStruct filter refuse :%v,PkgPath:%v", serviceName, handleType.PkgPath())
 		return nil, nil
 	}
 

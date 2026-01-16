@@ -73,17 +73,8 @@ func (this *Registry) Router() *Router {
 }
 
 // Search 通过路径匹配Route,path必须是使用 Registry.Clean()处理后的
-func (this *Registry) Search(method string, paths ...string) []*Node {
+func (this *Registry) Search(method string, paths ...string) (*Node, map[string]string) {
 	return this.router.Search(method, paths...)
-}
-
-func (this *Registry) Match(method string, paths ...string) (*Node, bool) {
-	nodes := this.router.Search(method, paths...)
-	if len(nodes) == 0 {
-		return nil, false
-	} else {
-		return nodes[0], true
-	}
 }
 
 // Service GET OR CREATE

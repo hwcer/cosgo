@@ -50,7 +50,7 @@ func signalNotify(sig os.Signal) (stopped bool) {
 	logger.Trace("收到信号：%v\n", sig)
 	switch sig {
 	case SignalReload:
-		Reload()
+		reload()
 	case syscall.SIGHUP:
 		SIGHUP()
 	case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM:
