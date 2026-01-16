@@ -192,7 +192,8 @@ func (this *Router) Search(method string, paths ...string) (node *Node, params m
 	if route, node = this.Static(method, paths...); node != nil {
 		return node, nil
 	}
-	// 2. 唯一匹配方法：基数树匹配
+
+	// 2. 基数树匹配（非静态路径）
 	if this.radix != nil {
 		n, p := this.radix.Match(route, method)
 		if n != nil {
@@ -226,9 +227,11 @@ func (this *Router) Register(node *Node, method []string) (err error) {
 				return fmt.Errorf("route exist:%s/%s", v, node.Name())
 			}
 		}
+		// 静态路径不需要注册到基数树
+		return nil
 	}
 
-	// 注册到基数树
+	// 注册到基数树（非静态路径）
 	for _, m := range method {
 		m = strings.ToUpper(m)
 		this.radix.Register(route, m, node)
