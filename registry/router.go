@@ -3,6 +3,8 @@ package registry
 import (
 	"fmt"
 	"strings"
+
+	"github.com/hwcer/cosgo/slice"
 )
 
 const (
@@ -18,78 +20,99 @@ const (
 
 // RadixNode 基数树节点
 type RadixNode struct {
-	prefix   string                // 当前节点的路径前缀
-	children map[string]*RadixNode // 子节点映射
-	method   map[string]*Node      // HTTP方法到处理节点的映射
-	nodeType int                   // 节点类型：NodeTypeStatic, NodeTypeParam, NodeTypeWild
+	prefix     string                // 当前节点的路径前缀
+	children   map[string]*RadixNode // 子节点映射
+	method     map[string]*Node      // HTTP方法到处理节点的映射
+	nodeType   int                   // 节点类型：NodeTypeStatic, NodeTypeParam, NodeTypeWild
+	paramNames []string              // 参数节点的参数名列表
 }
 
 // NewRadixNode 创建一个新的基数树节点
 func NewRadixNode(prefix string) *RadixNode {
 	return &RadixNode{
-		prefix:   prefix,
-		children: make(map[string]*RadixNode),
-		method:   make(map[string]*Node),
-		nodeType: NodeTypeStatic, // 默认是静态节点
+		prefix:     prefix,
+		children:   make(map[string]*RadixNode),
+		method:     make(map[string]*Node),
+		nodeType:   NodeTypeStatic, // 默认是静态节点
+		paramNames: []string{},     // 参数名列表
 	}
 }
 
 // Register 注册路由到基数树
-func (r *RadixNode) Register(path string, method string, node *Node) {
+func (r *RadixNode) Register(path string, method []string, node *Node) error {
 	// 路径分割
 	parts := strings.Split(path, "/")
-	parts = parts[1:] // 移除空的第一个元素
-
+	if parts[0] == "" {
+		parts = parts[1:] // 移除空的第一个元素
+	}
 	// 递归插入
-	r.insert(parts, method, node)
+	return r.insert(path, parts, method, node)
 }
 
 // insert 递归插入路由到基数树
-func (r *RadixNode) insert(parts []string, method string, node *Node) {
+func (r *RadixNode) insert(path string, parts []string, method []string, node *Node) error {
 	if len(parts) == 0 {
 		// 到达路径末尾，注册方法
-		r.method[method] = node
-		return
+		for _, m := range method {
+			m = strings.ToUpper(m)
+			// 检查方法是否已经存在
+			if _, exists := r.method[m]; exists {
+				return fmt.Errorf("method already exists: %s for path: %s", m, path)
+			}
+			// 如果方法不存在，那么注册方法
+			r.method[m] = node
+		}
+		return nil
 	}
 
 	part := parts[0]
-	child, exists := r.children[part]
+	// 确定节点前缀
+	var prefix string
+	if strings.HasPrefix(part, PathMatchParam) {
+		prefix = PathMatchParam
+	} else if strings.HasPrefix(part, PathMatchVague) {
+		prefix = PathMatchVague
+	} else {
+		prefix = Formatter(part)
+	}
+	child, exists := r.children[prefix]
 
 	if !exists {
 		// 检查是否为参数或通配符
 		nodeType := NodeTypeStatic
-		if strings.HasPrefix(part, ":") {
+		var paramName string
+		if strings.HasPrefix(part, PathMatchParam) {
 			nodeType = NodeTypeParam
-		} else if strings.HasPrefix(part, "*") {
+			paramName = strings.TrimPrefix(part, PathMatchParam)
+		} else if strings.HasPrefix(part, PathMatchVague) {
 			nodeType = NodeTypeWild
+			//paramName = PathMatchVague // 通配符参数名在匹配时固定为 "*"，不需要特意处理
 		}
 
 		// 创建新节点
-		child = NewRadixNode(part)
+		child = NewRadixNode(prefix)
 		child.nodeType = nodeType
-		r.children[part] = child
+		if paramName != "" {
+			child.paramNames = append(child.paramNames, paramName)
+		}
+		r.children[prefix] = child
+	} else if child.nodeType == NodeTypeParam && strings.HasPrefix(part, PathMatchParam) {
+		// 如果已经存在参数节点但参数名不同，添加新的参数名
+		paramName := strings.TrimPrefix(part, PathMatchParam)
+		// 检查参数名是否已经存在
+		if !slice.Has(child.paramNames, paramName) {
+			child.paramNames = append(child.paramNames, paramName)
+		}
 	}
 
 	// 递归插入剩余部分
-	child.insert(parts[1:], method, node)
+	return child.insert(path, parts[1:], method, node)
 }
 
 // Match 匹配路由
 func (r *RadixNode) Match(path string, method string) (*Node, map[string]string) {
-	// 路径分割优化：减少内存分配
-	var parts []string
-	var start int
-	for i, c := range path {
-		if c == '/' {
-			if i > start {
-				parts = append(parts, path[start:i])
-			}
-			start = i + 1
-		}
-	}
-	if start < len(path) {
-		parts = append(parts, path[start:])
-	}
+	// 使用公共的 Split 方法进行路径分割
+	parts := Split(path)
 
 	// 递归匹配
 	params := make(map[string]string)
@@ -114,33 +137,40 @@ func (r *RadixNode) match(parts []string, params map[string]string) *RadixNode {
 	part := parts[0]
 
 	// 优先匹配静态路由
-	if child, exists := r.children[part]; exists {
+	formattedPart := Formatter(part)
+	if child, exists := r.children[formattedPart]; exists {
 		if result := child.match(parts[1:], params); result != nil {
 			return result
 		}
 	}
 
 	// 匹配参数路由
-	for key, child := range r.children {
-		if child.nodeType == NodeTypeParam {
-			// 提取参数值
-			paramName := strings.TrimPrefix(key, ":")
+	if child, exists := r.children[PathMatchParam]; exists && child.nodeType == NodeTypeParam {
+		// 提取参数值，对所有参数名赋值
+		for _, paramName := range child.paramNames {
 			params[paramName] = part
+		}
 
-			if result := child.match(parts[1:], params); result != nil {
-				return result
-			}
+		if result := child.match(parts[1:], params); result != nil {
+			return result
+		}
 
-			// 回溯参数
+		// 回溯参数
+		for _, paramName := range child.paramNames {
 			delete(params, paramName)
 		}
 	}
 
 	// 匹配通配符路由
-	for _, child := range r.children {
-		if child.nodeType == NodeTypeWild {
-			return child
+	if child, exists := r.children[PathMatchVague]; exists && child.nodeType == NodeTypeWild {
+		// 提取剩余路径作为通配符参数值
+		if len(parts) > 0 {
+			// 构建剩余路径
+			remainingPath := strings.Join(parts, "/")
+			// 通配符参数名在匹配时固定为 "*"
+			params[PathMatchVague] = remainingPath
 		}
+		return child
 	}
 
 	return nil
@@ -187,15 +217,15 @@ func (this *Router) Static(method string, paths ...string) (route string, node *
 	return
 }
 func (this *Router) Search(method string, paths ...string) (node *Node, params map[string]string) {
-	var route string
 	// 1. 最高优先级：静态路由查找
-	if route, node = this.Static(method, paths...); node != nil {
+	if _, node = this.Static(method, paths...); node != nil {
 		return node, nil
 	}
 
 	// 2. 基数树匹配（非静态路径）
 	if this.radix != nil {
-		n, p := this.radix.Match(route, method)
+		originalPath := "/" + strings.Join(paths, "/")
+		n, p := this.radix.Match(originalPath, method)
 		if n != nil {
 			return n, p
 		}
@@ -213,16 +243,18 @@ func (this *Router) Register(node *Node, method []string) (err error) {
 	//静态路径
 	if !strings.Contains(route, PathMatchParam) && !strings.Contains(route, PathMatchVague) {
 		// 初始化静态路由（如果不存在）
-		if _, ok := this.static[route]; !ok {
-			this.static[route] = &Static{
+		static, ok := this.static[route]
+		if !ok {
+			static = &Static{
 				method: make(map[string]*Node),
 			}
+			this.static[route] = static
 		}
 		// 注册方法
 		for _, v := range method {
 			v = strings.ToUpper(v)
-			if _, ok := this.static[route].method[v]; !ok {
-				this.static[route].method[v] = node
+			if _, ok := static.method[v]; !ok {
+				static.method[v] = node
 			} else {
 				return fmt.Errorf("route exist:%s/%s", v, node.Name())
 			}
@@ -232,9 +264,8 @@ func (this *Router) Register(node *Node, method []string) (err error) {
 	}
 
 	// 注册到基数树（非静态路径）
-	for _, m := range method {
-		m = strings.ToUpper(m)
-		this.radix.Register(route, m, node)
+	if err := this.radix.Register(route, method, node); err != nil {
+		return err
 	}
 
 	return

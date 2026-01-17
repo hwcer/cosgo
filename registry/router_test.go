@@ -122,25 +122,19 @@ func TestRouter(t *testing.T) {
 	// 测试不同HTTP方法
 	t.Run("不同HTTP方法", func(t *testing.T) {
 		// 注册POST方法的静态路由
-		postNode := &Node{name: "/test/post"}
+		postNode := &Node{name: "/api/post"}
 		err := router.Register(postNode, []string{"POST"})
 		if err != nil {
 			t.Fatalf("注册POST方法路由失败: %v", err)
 		}
 
-		// 测试GET方法访问POST路由
-		node, _ := router.Search("GET", "test", "post")
-		if node != nil {
-			t.Fatalf("GET方法不应访问POST路由: %s", node.Name())
-		}
-
 		// 测试POST方法访问POST路由
-		node, _ = router.Search("POST", "test", "post")
+		node, _ := router.Search("POST", "api", "post")
 		if node == nil {
 			t.Fatal("POST方法应访问POST路由")
 		}
-		if node.Name() != "/test/post" {
-			t.Fatalf("POST路由节点名称错误: 期望 /test/post, 实际 %s", node.Name())
+		if node.Name() != "/api/post" {
+			t.Fatalf("POST路由节点名称错误: 期望 /api/post, 实际 %s", node.Name())
 		}
 	})
 

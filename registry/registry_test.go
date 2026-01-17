@@ -27,7 +27,7 @@ func TestRoute(t *testing.T) {
 
 	registry.Range(func(s *Service) bool {
 		s.Range(func(node *Node) bool {
-			t.Logf("route:%v", node.Route())
+			t.Logf("route:%v", node.Name())
 			return true
 		})
 		return true

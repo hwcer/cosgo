@@ -127,8 +127,6 @@ func (this *Service) filter(node *Node) bool {
 }
 
 func (this *Service) format(serviceName, methodName string, prefix ...string) string {
-	serviceName = Formatter(serviceName)
-	methodName = Formatter(methodName)
 	if len(prefix) == 0 {
 		return Route(this.name, serviceName, methodName)
 	}

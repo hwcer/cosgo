@@ -79,3 +79,22 @@ func IsExported(name string) bool {
 	r, _ := utf8.DecodeRuneInString(name)
 	return unicode.IsUpper(r)
 }
+
+// Split 路径分割优化：减少内存分配
+func Split(path string) []string {
+	// 路径分割优化：减少内存分配
+	var parts []string
+	var start int
+	for i, c := range path {
+		if c == '/' {
+			if i > start {
+				parts = append(parts, path[start:i])
+			}
+			start = i + 1
+		}
+	}
+	if start < len(path) {
+		parts = append(parts, path[start:])
+	}
+	return parts
+}
