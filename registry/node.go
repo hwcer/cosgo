@@ -5,8 +5,7 @@ import (
 )
 
 type Node struct {
-	name string //Route格式化之后的名字,包含完整路径 /serviceName/MethodName....
-	//route   []string
+	name    string //Route格式化之后的名字,包含完整路径 /serviceName/MethodName....
 	value   reflect.Value
 	binder  reflect.Value //绑定的对象，作为对象的方法时才有值
 	service *Service
@@ -26,17 +25,6 @@ func (this *Node) Call(args ...any) (r []reflect.Value) {
 func (this *Node) Name() string {
 	return this.name
 }
-
-// func (this *Node) Route() []string {
-// 	if this.route == nil {
-// 		this.route = strings.Split(this.name, "/")
-// 	}
-// 	return this.route
-// }
-
-//func (this *Node) Route() string {
-//	return Join(this.service.name, this.name)
-//}
 
 func (this *Node) Value() reflect.Value {
 	return this.value
@@ -75,25 +63,3 @@ func (this *Node) IsMethod() bool {
 func (this *Node) IsStruct() bool {
 	return !this.value.IsValid() && this.binder.IsValid()
 }
-
-// func (this *Node) Params(paths ...string) map[string]string {
-// 	r := make(map[string]string)
-// 	arr := strings.Split(Join(paths...), "/")
-// 	route := this.Route()
-// 	m := len(arr)
-// 	if m > len(route) {
-// 		m = len(route)
-// 	}
-// 	for i := 1; i < m; i++ {
-// 		s := route[i]
-// 		if strings.HasPrefix(s, PathMatchParam) {
-// 			k := strings.TrimPrefix(s, PathMatchParam)
-// 			r[k] = arr[i]
-// 		} else if strings.HasPrefix(s, PathMatchVague) {
-// 			if k := strings.TrimPrefix(s, PathMatchVague); k != "" {
-// 				r[k] = strings.Join(arr[i:], "/")
-// 			}
-// 		}
-// 	}
-// 	return r
-// }

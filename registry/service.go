@@ -9,7 +9,6 @@ import (
 )
 
 type Handler interface {
-	//Use(i any) //注册中间件
 	Filter(*Node) bool
 }
 
@@ -138,9 +137,9 @@ func (this *Service) format(serviceName, methodName string, prefix ...string) st
 	} else {
 		name = path.Join(serviceName, methodName)
 	}
-	p = strings.Replace(p, "%v", name, -1)
-	p = strings.Replace(p, "%s", serviceName, -1)
-	p = strings.Replace(p, "%m", methodName, -1)
+	p = strings.Replace(p, "%v", Formatter(name), -1)
+	p = strings.Replace(p, "%s", Formatter(serviceName), -1)
+	p = strings.Replace(p, "%m", Formatter(methodName), -1)
 	return p
 }
 
