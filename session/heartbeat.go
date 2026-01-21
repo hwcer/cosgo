@@ -1,3 +1,4 @@
+// Package session 提供会话管理功能，支持内存和Redis存储
 package session
 
 import (
@@ -9,6 +10,12 @@ import (
 	"github.com/hwcer/logger"
 )
 
+// Heartbeat 心跳管理器
+// 注意：
+// 1. 心跳机制用于自动清理过期会话
+// 2. 心跳间隔由 Options.Heartbeat 控制，单位为秒
+// 3. 内存存储会自动注册心跳监听器，用于清理过期会话
+// 4. 心跳管理器是全局的，只需要启动一次
 var Heartbeat = heartbeat{}
 
 type heartbeat struct {

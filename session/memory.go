@@ -1,9 +1,15 @@
+// Package session 提供会话管理功能，支持内存和Redis存储
 package session
 
 import (
-	"github.com/hwcer/cosgo/session/storage"
+	"github.com/hwcer/cosgo/storage"
 	"github.com/hwcer/logger"
 )
+
+// 注意：
+// 1. 内存存储实现中，会话数据存储在内存中，适用于单机应用
+// 2. 内置心跳机制，自动清理过期会话
+// 3. 内存模式下，Data 已经在写操作时更新过，Update 方法不需要再次更新
 
 func NewMemory(cap ...int) *Memory {
 	var c int

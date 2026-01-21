@@ -8,19 +8,33 @@ import (
 	"strings"
 )
 
+// Field 表示结构体的一个字段，包含字段的元数据和操作方法
 type Field struct {
-	Name              string
-	Index             []int
-	Schema            *Schema //所在的父对象
-	Embedded          *Schema //嵌入子对象
-	FieldType         reflect.Type
-	StructField       reflect.StructField
-	IndirectFieldType reflect.Type
-	dbName            string
+	// 核心字段：字段标识和类型信息
+	Name              string              // 字段名称
+	FieldType         reflect.Type        // 字段类型
+	IndirectFieldType reflect.Type        // 间接字段类型（去除指针）
+	StructField       reflect.StructField // 原始结构体字段
+
+	// 关联信息：与 Schema 和嵌入字段的关系
+	Schema   *Schema // 所在的父 Schema
+	Embedded *Schema // 嵌入子对象的 Schema
+
+	// 访问信息：字段访问路径和缓存
+	Index      []int                                  // 字段索引路径
+	getValueFn func(reflect.Value) reflect.Value      // 缓存获取值的函数
+	setValueFn func(reflect.Value, interface{}) error // 缓存设置值的函数
+
+	// 命名缓存：避免重复计算
+	dbName string // 缓存数据库字段名
+	jsName string // 缓存 JSON 字段名
 }
 
 func (field *Field) JSName() string {
-	return field.GetName("json")
+	if field.jsName == "" {
+		field.jsName = field.GetName("json")
+	}
+	return field.jsName
 }
 func (field *Field) DBName() string {
 	if field.dbName == "" {
@@ -73,51 +87,84 @@ func (field *Field) Get(value reflect.Value) reflect.Value {
 }
 
 func (field *Field) ReflectValueOf(value reflect.Value) reflect.Value {
+	// 如果没有缓存的获取函数，编译一个
+	if field.getValueFn == nil {
+		field.compileGetValueFn()
+	}
+	// 使用缓存的函数获取值
+	return field.getValueFn(value)
+}
+
+// compileGetValueFn 编译获取值的函数，缓存反射访问路径
+func (field *Field) compileGetValueFn() {
 	switch {
 	case len(field.Index) == 1:
-		return reflect.Indirect(value).Field(field.Index[0])
+		// 简单字段：直接访问
+		idx := field.Index[0]
+		field.getValueFn = func(value reflect.Value) reflect.Value {
+			return reflect.Indirect(value).Field(idx)
+		}
 	case len(field.Index) == 2 && field.Index[0] >= 0 && field.FieldType.Kind() != reflect.Ptr:
-		return reflect.Indirect(value).Field(field.Index[0]).Field(field.Index[1])
+		// 两层简单字段：直接访问
+		idx1, idx2 := field.Index[0], field.Index[1]
+		field.getValueFn = func(value reflect.Value) reflect.Value {
+			return reflect.Indirect(value).Field(idx1).Field(idx2)
+		}
 	default:
-		v := reflect.Indirect(value)
-		//logger.Debug("ReflectValueOf:%+v", v.Interface())
-		for idx, fieldIdx := range field.Index {
-			if fieldIdx >= 0 {
-				v = v.Field(fieldIdx)
-			} else {
-				v = v.Field(-fieldIdx - 1)
-			}
-			//logger.Debug("ReflectValueOf:%+v", v.Interface())
-			if v.Kind() == reflect.Ptr {
-				if v.Type().Elem().Kind() == reflect.Struct {
-					if v.IsNil() {
-						v.Set(reflect.New(v.Type().Elem()))
+		// 复杂字段：预编译索引路径
+		indices := make([]int, len(field.Index))
+		copy(indices, field.Index)
+		field.getValueFn = func(value reflect.Value) reflect.Value {
+			v := reflect.Indirect(value)
+			for idx, fieldIdx := range indices {
+				if fieldIdx >= 0 {
+					v = v.Field(fieldIdx)
+				} else {
+					v = v.Field(-fieldIdx - 1)
+				}
+				if v.Kind() == reflect.Ptr {
+					if v.Type().Elem().Kind() == reflect.Struct {
+						if v.IsNil() {
+							v.Set(reflect.New(v.Type().Elem()))
+						}
+					}
+					if idx < len(indices)-1 {
+						v = v.Elem()
 					}
 				}
-				if idx < len(field.Index)-1 {
-					v = v.Elem()
-				}
 			}
+			return v
 		}
-		return v
 	}
 }
 
 // Set valuer, setter when parse struct
 func (field *Field) Set(value reflect.Value, v interface{}) error {
+	// 如果没有缓存的设置函数，编译一个
+	if field.setValueFn == nil {
+		field.compileSetValueFn()
+	}
+	// 使用缓存的函数设置值
+	return field.setValueFn(value, v)
+}
+
+// compileSetValueFn 编译设置值的函数，缓存类型判断和反射操作
+func (field *Field) compileSetValueFn() {
 	switch field.FieldType.Kind() {
 	case reflect.Bool:
-		return field.SetBool(value, v)
+		field.setValueFn = field.SetBool
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return field.SetInt(value, v)
+		field.setValueFn = field.SetInt
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return field.SetUint(value, v)
+		field.setValueFn = field.SetUint
 	case reflect.Float32, reflect.Float64:
-		return field.SetFloat(value, v)
+		field.setValueFn = field.SetFloat
 	case reflect.String:
-		return field.SetString(value, v)
+		field.setValueFn = field.SetString
 	default:
-		return field.fallbackSetter(value, v, field.Set)
+		field.setValueFn = func(value reflect.Value, v interface{}) error {
+			return field.fallbackSetter(value, v, field.Set)
+		}
 	}
 }
 

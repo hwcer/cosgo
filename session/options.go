@@ -1,12 +1,15 @@
+// Package session 提供会话管理功能，支持内存和Redis存储
 package session
 
 const ContextRandomStringLength = 6
 
-//type token interface {
-//	Decode(sid string) (uid string, err error)
-//	Encode(uid string) (sid string, err error)
-//}
-
+// Options 全局配置选项
+// 注意：
+// 1. Name: session cookie name
+// 2. MaxAge: 会话有效期，单位为秒
+// 3. Secret: 16位秘钥，用于Redis存储时生成TOKEN
+// 4. Storage: 存储后端，支持内存和Redis存储
+// 5. Heartbeat: 心跳间隔，单位为秒，用于自动清理过期会话
 var Options = struct {
 	Name string //session cookie name
 	//Token     token  //token生成和解析方式

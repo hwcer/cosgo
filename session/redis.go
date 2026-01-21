@@ -1,3 +1,4 @@
+// Package session 提供会话管理功能，支持内存和Redis存储
 package session
 
 import (
@@ -9,6 +10,11 @@ import (
 	"github.com/hwcer/cosgo/redis"
 	"github.com/hwcer/cosgo/scc"
 )
+
+// 注意：
+// 1. Redis 存储实现中，会话数据会设置过期时间，避免内存泄漏
+// 2. 在 Create、Get 和 Update 方法中都会设置/续约过期时间
+// 3. 过期时间由 Options.MaxAge 控制，单位为秒
 
 const redisSessionKeyTokenName = "_cookie_key_token"
 
@@ -72,7 +78,7 @@ func (this *Redis) Get(uuid string) (p *Data, err error) {
 }
 
 func (this *Redis) New(p *Data) error {
-	_, err := this.Create(p.uuid, p.Values)
+	_, err := this.Create(p.uuid, p.Values())
 	return err
 }
 
@@ -85,6 +91,10 @@ func (this *Redis) Create(uuid string, data map[string]any) (p *Data, err error)
 	}
 	if err = this.client.HMSet(context.Background(), rk, args...).Err(); err != nil {
 		return
+	}
+	// 设置过期时间
+	if Options.MaxAge > 0 {
+		this.client.Expire(context.Background(), rk, time.Duration(Options.MaxAge)*time.Second)
 	}
 	p = NewData(uuid, data)
 	return
@@ -100,6 +110,10 @@ func (this *Redis) Update(p *Data, data map[string]any) (err error) {
 			args = append(args, k, v)
 		}
 		_, err = this.client.HMSet(context.Background(), rk, args...).Result()
+	}
+	// 更新过期时间
+	if Options.MaxAge > 0 {
+		this.client.Expire(context.Background(), rk, time.Duration(Options.MaxAge)*time.Second)
 	}
 	return
 }

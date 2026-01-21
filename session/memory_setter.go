@@ -1,7 +1,7 @@
 package session
 
 import (
-	"github.com/hwcer/cosgo/session/storage"
+	"github.com/hwcer/cosgo/storage"
 	"github.com/hwcer/cosgo/values"
 	"github.com/hwcer/logger"
 )

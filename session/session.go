@@ -1,3 +1,4 @@
+// Package session 提供会话管理功能，支持内存和Redis存储
 package session
 
 import (
@@ -5,6 +6,11 @@ import (
 
 	"github.com/hwcer/cosgo/random"
 )
+
+// 注意：
+// 1. 一个 Session 绑定的是一个用户的单次请求的上下文，不会存在并发问题
+// 2. 业务层面会限制用户的并发请求以保证数据安全
+// 3. dirty 字段用于记录修改过的键，在 Release 时批量更新到存储
 
 func New(d ...*Data) *Session {
 	r := &Session{}

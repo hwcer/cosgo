@@ -1,3 +1,4 @@
+// Package session 提供会话管理功能，支持内存和Redis存储
 package session
 
 import (
@@ -8,12 +9,18 @@ import (
 	"github.com/hwcer/cosgo/values"
 )
 
+// 注意：
+// 1. Data 结构中的 values 字段是私有的，外部只能通过提供的方法访问
+// 2. 读操作（如 Get、GetString 等）是无锁的，直接访问 values 字段
+// 3. 写操作（如 Set、Update、Delete 等）使用互斥锁保护，并采用 Copy-on-Write 模式
+// 4. 一个 Session 绑定的是一个用户的单次请求的上下文，不会存在并发问题
+
 func NewData(uuid string, vs map[string]any) *Data {
 	p := &Data{id: uuid, uuid: uuid}
 	if len(vs) > 0 {
-		p.Values = vs
+		p.values = vs
 	} else {
-		p.Values = values.Values{}
+		p.values = values.Values{}
 	}
 	return p
 }
@@ -22,10 +29,10 @@ var MaxDataIndex = int32(math.MaxInt32 - 1000)
 
 // Data 用户登录信息,不要直接修改 Player.Values 信息
 type Data struct {
-	id    string // 默认uuid,memory模式会定制此ID
-	uuid  string //GUID
-	index int32  //socket server id
-	values.Values
+	id        string        // 默认uuid,memory模式会定制此ID
+	uuid      string        //GUID
+	index     int32         //socket server id
+	values    values.Values // 私有字段，外部通过方法访问
 	heartbeat int32
 	mutex     sync.Mutex
 }
@@ -54,24 +61,24 @@ func (this *Data) Heartbeat(v ...int32) int32 {
 }
 
 func (this *Data) set(key string, value any) any {
-	vs := this.Values.Clone()
+	vs := this.values.Clone()
 	vs.Set(key, value)
-	this.Values = vs
+	this.values = vs
 	return value
 }
 
 // update 批量设置Cookie信息
 func (this *Data) update(data map[string]any) {
-	vs := this.Values.Clone()
+	vs := this.values.Clone()
 	for k, v := range data {
 		vs.Set(k, v)
 	}
-	this.Values = vs
+	this.values = vs
 }
 func (this *Data) delete(key string) {
-	vs := this.Values.Clone()
+	vs := this.values.Clone()
 	delete(vs, key)
-	this.Values = vs
+	this.values = vs
 }
 
 func (this *Data) Set(key string, value any) any {
@@ -79,8 +86,42 @@ func (this *Data) Set(key string, value any) any {
 	defer this.mutex.Unlock()
 	return this.set(key, value)
 }
-func (this *Data) Clone() values.Values {
-	return this.Values.Clone()
+
+func (this *Data) Values() values.Values {
+	return this.values.Clone()
+}
+
+// Get 获取指定键的值
+func (this *Data) Get(key string) any {
+	return this.values.Get(key)
+}
+
+// GetString 获取指定键的字符串值
+func (this *Data) GetString(key string) string {
+	return this.values.GetString(key)
+}
+
+// GetInt 获取指定键的整数值
+func (this *Data) GetInt(key string) int {
+	return this.values.GetInt(key)
+}
+func (this *Data) GetInt32(key string) int32 {
+	return this.values.GetInt32(key)
+}
+
+// GetInt64 获取指定键的64位整数值
+func (this *Data) GetInt64(key string) int64 {
+	return this.values.GetInt64(key)
+}
+
+// GetFloat64 获取指定键的浮点数值
+func (this *Data) GetFloat64(key string) float64 {
+	return this.values.GetFloat64(key)
+}
+
+// Range 遍历所有键值对
+func (this *Data) Range(cb func(key string, value any) bool) {
+	this.values.Range(cb)
 }
 
 // Update 批量设置Cookie信息

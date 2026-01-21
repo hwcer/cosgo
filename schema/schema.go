@@ -1,17 +1,12 @@
 package schema
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 )
 
-// ErrUnsupportedDataType unsupported data type
-var ErrUnsupportedDataType = errors.New("unsupported data type")
-
 type Schema struct {
 	err            error
-	init           chan struct{}
 	options        *Options
 	Name           string
 	Table          string
@@ -21,6 +16,7 @@ type Schema struct {
 	fieldsPrivate  []*Field          //不包含内嵌结构的字段,需要使用所有字段，请使用Schema.Range 或者遍历 FieldsByName FieldsByDBName
 	fieldsJson     map[string]*Field //JSON字段索引
 	fieldsDatabase map[string]*Field //数据库字段索引
+	initState      uint32            // 0: 未初始化, 1: 初始化中, 2: 初始化完成
 }
 
 func (schema *Schema) String() string {
