@@ -19,8 +19,8 @@ import (
 var Heartbeat = heartbeat{}
 
 type heartbeat struct {
-	started   int32
-	listeners []func(int32)
+	started int32
+	//listeners []func(int32)
 }
 
 func (this *heartbeat) Start() {
@@ -30,15 +30,15 @@ func (this *heartbeat) Start() {
 	scc.CGO(this.daemon)
 }
 
-func (this *heartbeat) On(f func(int32)) {
-	this.listeners = append(this.listeners, f)
-}
-
-func (this *heartbeat) emit(i int32) {
-	for _, l := range this.listeners {
-		l(i)
-	}
-}
+//func (this *heartbeat) On(f func(int32)) {
+//	this.listeners = append(this.listeners, f)
+//}
+//
+//func (this *heartbeat) emit(i int32) {
+//	for _, l := range this.listeners {
+//		l(i)
+//	}
+//}
 
 func (this *heartbeat) daemon(ctx context.Context) {
 	if Options.Heartbeat == 0 {
@@ -66,5 +66,5 @@ func (this *heartbeat) heartbeat() {
 			logger.Alert("session.memory daemon ticker error:%v", err)
 		}
 	}()
-	this.emit(Options.Heartbeat)
+	Emit(EventHeartbeat, Options.Heartbeat)
 }

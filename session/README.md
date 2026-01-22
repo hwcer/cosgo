@@ -140,7 +140,7 @@ type Data struct {
 ```go
 type Session struct {
     *Data
-    dirty []string
+    dirty map[string]struct{}
 }
 ```
 
@@ -165,6 +165,7 @@ type Storage interface {
 5. **写操作加锁**：写操作（如 Set、Update、Delete 等）使用互斥锁保护，并采用 Copy-on-Write 模式
 6. **Redis 存储过期时间**：Redis 存储实现中，会话数据会设置过期时间，避免内存泄漏
 7. **内存存储心跳机制**：内存存储实现中，内置心跳机制，自动清理过期会话
+8. **会话结束必须调用 Release**：每次会话结束时必须调用 `Release()` 方法，以确保修改的会话数据被保存到存储后端，避免数据丢失。这是使用本模块的重要注意事项，必须严格遵守。
 
 ## 性能优化
 
@@ -172,6 +173,8 @@ type Storage interface {
 2. **合理设置过期时间**：根据业务需求合理设置会话过期时间，避免会话数据占用过多内存
 3. **减少写操作**：尽量减少会话数据的写操作，因为写操作会克隆 values，产生内存开销
 4. **批量更新**：使用 Update 方法批量更新会话数据，减少写操作次数
+5. **dirty 字段优化**：使用 map[string]struct{} 存储修改过的键，避免重复键和提高查找性能
+6. **Copy-on-Write 模式**：使用 Copy-on-Write 模式避免并发问题，提高并发性能
 
 ## 常见问题
 

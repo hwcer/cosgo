@@ -2,8 +2,6 @@ package storage
 
 type Setter interface {
 	Id() string
-	Get() interface{}
-	Set(interface{})
 }
 
 type NewSetter func(id string, val interface{}) Setter

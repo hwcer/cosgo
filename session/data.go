@@ -29,10 +29,10 @@ var MaxDataIndex = int32(math.MaxInt32 - 1000)
 
 // Data 用户登录信息,不要直接修改 Player.Values 信息
 type Data struct {
-	id        string        // 默认uuid,memory模式会定制此ID
-	uuid      string        //GUID
-	index     int32         //socket server id
-	values    values.Values // 私有字段，外部通过方法访问
+	id        string        // session id
+	uuid      string        // GUID
+	index     int32         // socket server id
+	values    values.Values //私有字段，外部通过方法访问
 	heartbeat int32
 	mutex     sync.Mutex
 }
@@ -81,42 +81,20 @@ func (this *Data) delete(key string) {
 	this.values = vs
 }
 
-func (this *Data) Set(key string, value any) any {
+// Set 设置Cookie信息
+// done 可选参数，用于在设置完成后锁内安全执行额外操作
+func (this *Data) Set(key string, value any, done ...func()) any {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
-	return this.set(key, value)
+	r := this.set(key, value)
+	if len(done) > 0 {
+		done[0]()
+	}
+	return r
 }
 
 func (this *Data) Values() values.Values {
 	return this.values.Clone()
-}
-
-// Get 获取指定键的值
-func (this *Data) Get(key string) any {
-	return this.values.Get(key)
-}
-
-// GetString 获取指定键的字符串值
-func (this *Data) GetString(key string) string {
-	return this.values.GetString(key)
-}
-
-// GetInt 获取指定键的整数值
-func (this *Data) GetInt(key string) int {
-	return this.values.GetInt(key)
-}
-func (this *Data) GetInt32(key string) int32 {
-	return this.values.GetInt32(key)
-}
-
-// GetInt64 获取指定键的64位整数值
-func (this *Data) GetInt64(key string) int64 {
-	return this.values.GetInt64(key)
-}
-
-// GetFloat64 获取指定键的浮点数值
-func (this *Data) GetFloat64(key string) float64 {
-	return this.values.GetFloat64(key)
 }
 
 // Range 遍历所有键值对
@@ -125,15 +103,22 @@ func (this *Data) Range(cb func(key string, value any) bool) {
 }
 
 // Update 批量设置Cookie信息
-func (this *Data) Update(data map[string]any) {
+// done 可选参数，用于在设置完成后锁内安全执行额外操作
+func (this *Data) Update(data map[string]any, done ...func()) {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 	this.update(data)
+	if len(done) > 0 {
+		done[0]()
+	}
 }
-func (this *Data) Delete(key string) {
+func (this *Data) Delete(key string, done ...func()) {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 	this.delete(key)
+	if len(done) > 0 {
+		done[0]()
+	}
 }
 
 func (this *Data) UUID() string {
@@ -147,18 +132,10 @@ func (this *Data) Reset() {
 	this.index = 0
 }
 
-// Mutex 获得写权限，注意必须使用Setter进行操作
-func (this *Data) Mutex(cb func(Setter)) {
-	this.mutex.Lock()
-	defer this.mutex.Unlock()
-	s := Setter{Data: this}
-	cb(s)
-}
-
 // Atomic 生成一个自增的包序列号
 func (this *Data) Atomic() int32 {
 	if this.index >= MaxDataIndex {
-		this.TryResetIndex()
+		this.tryResetIndex()
 	}
 	r := atomic.AddInt32(&this.index, 1)
 	return r
@@ -167,24 +144,10 @@ func (this *Data) Index() int32 {
 	return this.index
 }
 
-func (this *Data) TryResetIndex() {
+func (this *Data) tryResetIndex() {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 	if this.index >= MaxDataIndex {
 		this.index = 0
 	}
-}
-
-type Setter struct {
-	*Data
-}
-
-func (this *Setter) Set(key string, value any) any {
-	return this.set(key, value)
-}
-func (this *Setter) Update(data map[string]any) {
-	this.update(data)
-}
-func (this *Setter) Delete(key string) {
-	this.delete(key)
 }

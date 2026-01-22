@@ -31,34 +31,32 @@ type Memory struct {
 
 func (this *Memory) init() {
 	if Options.MaxAge > 0 && Options.Heartbeat > 0 {
-		Heartbeat.On(this.Heartbeat)
+		On(EventHeartbeat, this.Heartbeat)
 		Heartbeat.Start()
 	}
 }
 
-func (this *Memory) get(id string) (*MemorySetter, error) {
-	if v, ok := this.Storage.Get(id); !ok {
+func (this *Memory) get(id string) (*Data, error) {
+	v, ok := this.Storage.Get(id)
+	if !ok {
 		return nil, ErrorSessionIllegal
-	} else {
-		return v.(*MemorySetter), nil
 	}
+	return v.(*Data), nil
 }
 
 func (this *Memory) New(p *Data) error {
-	_ = this.Storage.Create(p)
+	_ = this.Storage.New(p)
 	return nil
 }
 
-func (this *Memory) Get(id string) (p *Data, err error) {
-	var setter *MemorySetter
-	if setter, err = this.get(id); err == nil {
-		p = setter.Data
-		setter.KeepAlive()
+func (this *Memory) Get(id string) (data *Data, err error) {
+	if data, err = this.get(id); err == nil {
+		data.KeepAlive()
 	}
 	return
 }
 
-// Update 更新信息，内存没事，共享Player信息已经更新过，仅仅设置过去时间
+// Update 更新信息，内存没事，共享Player信息已经更新过，仅仅设置过期时间
 // 内存模式 data已经更新过，不需要再次更新
 func (this *Memory) Update(p *Data, data map[string]any) (err error) {
 	//p.Update(data)
@@ -66,22 +64,22 @@ func (this *Memory) Update(p *Data, data map[string]any) (err error) {
 }
 
 func (this *Memory) Delete(d *Data) error {
-	if setter := this.Storage.Delete(d.id); setter != nil {
-		emitRelease(d)
-	}
+	_ = this.Storage.Delete(d.id)
 	return nil
 }
 
-// Create 创建新SESSION,返回SESSION Index
-// Create会自动设置有效期
-// Create新数据为锁定状态
+// Create 创建新SESSION
 func (this *Memory) Create(uuid string, data map[string]any) (p *Data, err error) {
-	p = NewData(uuid, data) //setter中自动设置
-	_ = this.Storage.Create(p)
+	p = NewData(uuid, data)
+	_ = this.Storage.New(p)
 	return
 }
 
-func (this *Memory) Heartbeat(s int32) {
+func (this *Memory) Heartbeat(i any) {
+	s, _ := i.(int32)
+	if s <= 0 {
+		return
+	}
 	defer func() {
 		if err := recover(); err != nil {
 			logger.Alert("session.memory daemon ticker error:%v", err)
@@ -90,13 +88,15 @@ func (this *Memory) Heartbeat(s int32) {
 	var vs []*Data
 	maxAge := int32(Options.MaxAge)
 	this.Storage.Range(func(item storage.Setter) bool {
-		if d, ok := item.(*MemorySetter); ok && d.Heartbeat(s) >= maxAge {
-			vs = append(vs, d.Data)
+		if d, ok := item.(*Data); ok && d.Heartbeat(s) >= maxAge {
+			vs = append(vs, d)
 		}
 		return true
 	})
 
 	for _, v := range vs {
 		_ = this.Delete(v)
+		//内部删除想要触发事件
+		Emit(EventSessionRelease, v)
 	}
 }

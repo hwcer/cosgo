@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/hwcer/cosgo/random"
+	"github.com/hwcer/logger"
 )
 
 // 注意：
@@ -24,7 +25,7 @@ const TokenSecretName = "_TS_"
 
 type Session struct {
 	*Data
-	dirty []string
+	dirty map[string]struct{}
 }
 
 func (this *Session) Refresh() (string, error) {
@@ -34,12 +35,9 @@ func (this *Session) Refresh() (string, error) {
 	secret := random.Strings.String(ContextRandomStringLength)
 	token := strings.Join([]string{secret, this.Data.Id()}, "")
 
-	dirty := map[string]any{}
-	dirty[TokenSecretName] = secret
-	this.Data.Update(dirty)
-	if err := Options.Storage.Update(this.Data, dirty); err != nil {
-		return "", err
-	}
+	this.Data.Set(TokenSecretName, secret, func() {
+		this.markDirty(TokenSecretName)
+	})
 	return token, nil
 }
 
@@ -87,19 +85,46 @@ func (this *Session) Set(key string, val any) {
 	if this.Data == nil {
 		return
 	}
-	this.Data.Set(key, val)
-	this.dirty = append(this.dirty, key)
+	this.Data.Set(key, val, func() {
+		this.markDirty(key)
+	})
 }
 
-// Update 批量修改Session信息
+// markDirty 标记修改过的键，使用Copy-on-Write模式避免并发问题
+func (this *Session) markDirty(keys ...string) {
+	// 检查是否有新的键
+	l := len(this.dirty)
+	for _, k := range keys {
+		if _, ok := this.dirty[k]; !ok {
+			l += 1
+		}
+	}
+	if l == len(this.dirty) {
+		return
+	}
+	// 创建一个新的副本
+	newDirty := make(map[string]struct{}, l)
+	for k := range this.dirty {
+		newDirty[k] = struct{}{}
+	}
+	for _, k := range keys {
+		newDirty[k] = struct{}{}
+	}
+	this.dirty = newDirty
+}
+
 func (this *Session) Update(vs map[string]any) {
 	if this.Data == nil {
 		return
 	}
-	this.Data.Update(vs)
-	for k, _ := range vs {
-		this.dirty = append(this.dirty, k)
+	// 提取所有键
+	keys := make([]string, 0, len(vs))
+	for k := range vs {
+		keys = append(keys, k)
 	}
+	this.Data.Update(vs, func() {
+		this.markDirty(keys...)
+	})
 }
 
 func (this *Session) New(data *Data) (token string, err error) {
@@ -110,7 +135,11 @@ func (this *Session) New(data *Data) (token string, err error) {
 		return "", err
 	}
 	this.Data = data
-	return this.Refresh()
+	if token, err = this.Refresh(); err != nil {
+		return "", err
+	}
+	Emit(EventSessionNew, data)
+	return
 }
 
 // Create 创建SESSION，uuid 用户唯一ID，可以检测是不是重复登录
@@ -122,30 +151,43 @@ func (this *Session) Create(uuid string, data map[string]any) (token string, err
 	if err != nil {
 		return "", err
 	}
-	return this.Refresh()
+	if token, err = this.Refresh(); err != nil {
+		return "", err
+	}
+	Emit(EventSessionCreated, data)
+	return
 }
 
 func (this *Session) Delete() (err error) {
 	if Options.Storage == nil || this.Data == nil {
 		return nil
 	}
-	if err = Options.Storage.Delete(this.Data); err != nil {
+	data := this.Data
+	if err = Options.Storage.Delete(data); err != nil {
 		return
 	}
 	this.release()
+	Emit(EventSessionRelease, data)
 	return
 }
 
 // Release 释放 session 由HTTP SERVER 自动调用
 func (this *Session) Release() {
-	if this.Data == nil {
+	if this.Data == nil || len(this.dirty) == 0 {
+		this.release()
 		return
 	}
 	dirty := map[string]any{}
-	for _, k := range this.dirty {
+	for k := range this.dirty {
 		dirty[k] = this.Data.Get(k)
 	}
-	_ = Options.Storage.Update(this.Data, dirty)
+	if len(dirty) == 0 {
+		this.release()
+		return
+	}
+	if err := Options.Storage.Update(this.Data, dirty); err != nil {
+		logger.Alert("session update error: %v", err)
+	}
 	this.release()
 }
 

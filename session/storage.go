@@ -17,15 +17,15 @@ type Storage interface {
 	Delete(data *Data) error                                          //退出登录删除SESSION 	//关闭服务器时断开连接等
 }
 
-var listeners []func(data *Data)
-
-// OnRelease 监听被释放的数据
-func OnRelease(l func(data *Data)) {
-	listeners = append(listeners, l)
-}
-
-func emitRelease(v *Data) {
-	for _, l := range listeners {
-		l(v)
-	}
-}
+//var listeners []func(data *Data)
+//
+//// OnRelease 监听被释放的数据
+//func OnRelease(l func(data *Data)) {
+//	listeners = append(listeners, l)
+//}
+//
+//func emitRelease(v *Data) {
+//	for _, l := range listeners {
+//		l(v)
+//	}
+//}

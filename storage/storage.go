@@ -54,17 +54,17 @@ func (this *Storage) Get(id string) (Setter, bool) {
 	return bucket.Get(id)
 }
 
-func (this *Storage) Set(id string, v any) bool {
-	share, err := this.Share(id)
-	if err != nil {
-		return false
-	}
-	bucket := this.bucket[share]
-	if bucket == nil {
-		return false
-	}
-	return bucket.Set(id, v)
-}
+//func (this *Storage) Set(id string, v any) bool {
+//	share, err := this.Share(id)
+//	if err != nil {
+//		return false
+//	}
+//	bucket := this.bucket[share]
+//	if bucket == nil {
+//		return false
+//	}
+//	return bucket.Set(id, v)
+//}
 
 // Size 当前数量
 func (this *Storage) Size() (r int) {
@@ -92,10 +92,10 @@ func (this *Storage) Range(f func(Setter) bool) bool {
 	return true
 }
 
-// Create 创建一个新数据
-func (this *Storage) Create(v any) Setter {
+// New 创建一个新数据
+func (this *Storage) New(v any) Setter {
 	for _, bucket := range this.bucket {
-		if r := bucket.Create(v); r != nil {
+		if r := bucket.New(v); r != nil {
 			return r
 		}
 	}
@@ -106,14 +106,14 @@ func (this *Storage) expansion(v any) Setter {
 	defer this.mu.Unlock()
 	// 再次检查是否存在
 	for _, bucket := range this.bucket {
-		if r := bucket.Create(v); r != nil {
+		if r := bucket.New(v); r != nil {
 			return r
 		}
 	}
-	// 扩展bucket
+	// 扩展 bucket
 	bucket := NewBucket(len(this.bucket), this.cap)
 	bucket.NewSetter = this.NewSetter
-	r := bucket.Create(v)
+	r := bucket.New(v)
 	this.bucket = append(this.bucket, bucket)
 	return r
 }
