@@ -61,9 +61,7 @@ func Parse(v any) *Message {
 }
 
 func Error(err any) (r *Message) {
-	r = &Message{}
-	r.Errorf(0, err)
-	return
+	return Errorf(0, err)
 }
 func Errorf(code int32, format any, args ...any) (r *Message) {
 	switch v := format.(type) {
