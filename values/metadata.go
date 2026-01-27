@@ -16,8 +16,13 @@ func (meta Metadata) Set(k string, v any) {
 	}
 }
 
-func (meta Metadata) Get(k string) string {
-	return meta[k]
+func (meta Metadata) Get(keys ...string) (string, bool) {
+	for _, k := range keys {
+		if v, ok := meta[k]; ok {
+			return v, true
+		}
+	}
+	return "", false
 }
 
 func (meta Metadata) GetInt(k string) int {
