@@ -19,6 +19,10 @@ func Join(paths ...string) string {
 	}
 
 	r = strings.TrimSuffix(r, "/")
+	// 确保空路径返回根路径 "/"
+	if r == "" {
+		return "/"
+	}
 	return r
 }
 
@@ -95,6 +99,10 @@ func Split(path string) []string {
 	}
 	if start < len(path) {
 		parts = append(parts, path[start:])
+	}
+	// 特殊处理根路径 "/"，返回 [""] 与 Register 方法保持一致
+	if path == "/" {
+		return []string{""}
 	}
 	return parts
 }

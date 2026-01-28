@@ -41,10 +41,7 @@ func NewRadixNode(prefix string) *RadixNode {
 // Register 注册路由到基数树
 func (r *RadixNode) Register(path string, method []string, node *Node) error {
 	// 路径分割
-	parts := strings.Split(path, "/")
-	if parts[0] == "" {
-		parts = parts[1:] // 移除空的第一个元素
-	}
+	parts := Split(path)
 	// 递归插入
 	return r.insert(path, parts, method, node)
 }
@@ -131,7 +128,16 @@ func (r *RadixNode) Match(path string, method string) (*Node, map[string]string)
 // match 递归匹配路由
 func (r *RadixNode) match(parts []string, params map[string]string) *RadixNode {
 	if len(parts) == 0 {
-		return r
+		if len(r.method) > 0 {
+			return r
+		}
+		// 检查是否有通配符子节点
+		if child, exists := r.children[PathMatchVague]; exists && child.nodeType == NodeTypeWild {
+			// 通配符匹配空路径
+			params[PathMatchVague] = ""
+			return child
+		}
+		return nil
 	}
 
 	part := parts[0]
@@ -145,6 +151,7 @@ func (r *RadixNode) match(parts []string, params map[string]string) *RadixNode {
 	}
 
 	// 匹配参数路由
+
 	if child, exists := r.children[PathMatchParam]; exists && child.nodeType == NodeTypeParam {
 		// 提取参数值，对所有参数名赋值
 		for _, paramName := range child.paramNames {
@@ -207,8 +214,8 @@ type Router struct {
 /GET/*
 */
 
-func (this *Router) Static(method string, paths ...string) (route string, node *Node) {
-	route = Route(paths...)
+func (this *Router) Static(method string, path string) (route string, node *Node) {
+	route = Formatter(path)
 	static, ok := this.static[route]
 	if !ok {
 		return
@@ -217,14 +224,14 @@ func (this *Router) Static(method string, paths ...string) (route string, node *
 	return
 }
 func (this *Router) Search(method string, paths ...string) (node *Node, params map[string]string) {
+	originalPath := Join(paths...)
 	// 1. 最高优先级：静态路由查找
-	if _, node = this.Static(method, paths...); node != nil {
+	if _, node = this.Static(method, originalPath); node != nil {
 		return node, nil
 	}
 
 	// 2. 基数树匹配（非静态路径）
 	if this.radix != nil {
-		originalPath := "/" + strings.Join(paths, "/")
 		n, p := this.radix.Match(originalPath, method)
 		if n != nil {
 			return n, p

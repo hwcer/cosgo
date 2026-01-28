@@ -168,7 +168,7 @@ func (this *Service) ParseFun(i interface{}, prefix ...string) (nodes []*Node, e
 		return nil, fmt.Errorf("service filter error:%v", name)
 	}
 	if _, ok := this.nodes[node.name]; ok {
-		return nil, fmt.Errorf("ParseFun exist:%v", node.name)
+		return nil, fmt.Errorf("Service.ParseFun exist:%v", node.name)
 	}
 	nodes = append(nodes, node)
 	this.nodes[node.name] = node
