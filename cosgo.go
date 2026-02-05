@@ -40,16 +40,21 @@ func Start(waitForSystemExit bool, mods ...Module) {
 	if err = writePidFile(); err != nil {
 		logger.Fatal("writePidFile err:%v", err)
 	}
-	emit(EventTypBegin)
+
 	logger.Trace("App Starting")
 	defer func() {
 		if err = deletePidFile(); err != nil {
 			logger.Trace("App delete pid file err:%v", err)
 		}
 		logger.Trace("App Closed")
-		emit(EventTypStopped)
+		_ = emit(EventTypStopped, false)
 		_ = logger.Close()
 	}()
+
+	if err = emit(EventTypBegin, true); err != nil {
+		logger.Fatal("App Start error:%v", err)
+		return
+	}
 	//=========================加载模块=============================
 	if err = pprofStart(); err != nil {
 		logger.Fatal("pprofStart err:%v", err)
@@ -65,7 +70,10 @@ func Start(waitForSystemExit bool, mods ...Module) {
 			logger.Trace("mod[%v] init", v.Id())
 		}
 	}
-	emit(EventTypLoaded)
+	if err = emit(EventTypLoaded, true); err != nil {
+		logger.Fatal("App Start error:%v", err)
+		return
+	}
 	//自定义进程
 	if Options.Process != nil && !Options.Process() {
 		return
@@ -81,7 +89,10 @@ func Start(waitForSystemExit bool, mods ...Module) {
 			logger.Trace("mod[%v] start", v.Id())
 		}
 	}
-	emit(EventTypStarted)
+	if err = emit(EventTypStarted, true); err != nil {
+		logger.Fatal("App Start error:%v", err)
+		return
+	}
 	Options.Banner()
 	if waitForSystemExit {
 		WaitForSystemExit()
@@ -121,7 +132,7 @@ func stop() (stopped bool) {
 	if !scc.Cancel() {
 		return true
 	}
-	emit(EventTypClosing)
+	_ = emit(EventTypClosing, false)
 	logger.Alert("App will stop")
 	for i := len(modules) - 1; i >= 0; i-- {
 		closeModule(modules[i])

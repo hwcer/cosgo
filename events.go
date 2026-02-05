@@ -1,12 +1,11 @@
 package cosgo
 
 import (
-	"runtime/debug"
+	"fmt"
 
 	"github.com/hwcer/logger"
 )
 
-var status EventType //当前状态
 type EventType int32
 type EventFunc func() error
 
@@ -25,7 +24,7 @@ func init() {
 	events = make(map[EventType][]EventFunc)
 }
 
-func emit(e EventType) {
+func emit(e EventType, breakOnError bool) (err error) {
 	hs := events[e]
 	if len(hs) == 0 {
 		return
@@ -34,26 +33,23 @@ func emit(e EventType) {
 	if e == EventTypReload {
 		l = logger.LevelError
 	}
-	var err error
 	defer func() {
 		if s := recover(); s != nil {
-			logger.Sprint(l, logger.Format(s), string(debug.Stack()))
-		} else if err != nil {
-			logger.Sprint(l, logger.Format(err))
+			err = fmt.Errorf("cosgo emit[%d] error: %v", e, s)
 		}
 	}()
 
 	for _, f := range hs {
 		if err = f(); err != nil {
-			return
+			if breakOnError {
+				return err
+			}
+			logger.Sprint(l, logger.Format(err))
 		}
 	}
+	return nil
 }
 
 func On(e EventType, f EventFunc) {
 	events[e] = append(events[e], f)
-}
-
-func Status() EventType {
-	return status
 }
