@@ -45,4 +45,10 @@ func TestGetDayStartTime(t *testing.T) {
 		t.Logf("Expire:%v", ttl.String())
 	}
 
+	daily := Daily(0)
+	sign, _ = daily.Sign(0)
+	t.Logf("Daily:%v  sign:%v", daily.String(), sign)
+	st, _ := daily.ParseSign(sign)
+	t.Logf("ParseSign:%v ", st.String())
+
 }

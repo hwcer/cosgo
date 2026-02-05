@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	signLayout       = "20060102"
+	SignLayout       = "20060102"
 	DateLayout       = "2006-01-02"
 	DaySecond  int64 = 24 * 60 * 60
 	WeekSecond int64 = DaySecond * 7
@@ -79,7 +79,7 @@ func (this *Times) Sign(addDays int) (sign int32, str string) {
 	if addDays > 0 {
 		t = t.AddDate(0, 0, addDays)
 	}
-	str = t.Format(signLayout)
+	str = t.Format(SignLayout)
 	ret, _ := strconv.ParseUint(str, 10, 32)
 	sign = int32(ret)
 	return
@@ -189,7 +189,7 @@ func (this *Times) Start(t ExpireType, v int) (r *Times, err error) {
 		//当前时间开始 v 秒之后开始
 		return this.Add(time.Duration(v) * time.Second), nil
 	case ExpireTypeCustomize:
-		return ParseExpireTypeCustomize(v, this.GetTimeZone())
+		return this.ParseExpire(v)
 	case ExpireTimeTimeStamp:
 		//特定时间（戳）开始
 		return this.Unix(int64(v)), nil
@@ -215,7 +215,7 @@ func (this *Times) Expire(t ExpireType, v int) (ttl *Times, err error) {
 	case ExpireTypeSecond:
 		ttl = this.Add(time.Second * time.Duration(v))
 	case ExpireTypeCustomize:
-		ttl, err = ParseExpireTypeCustomize(v, this.GetTimeZone())
+		ttl, err = this.ParseExpire(v)
 	case ExpireTimeTimeStamp:
 		ttl = this.Unix(int64(v))
 	default:
@@ -230,14 +230,39 @@ func (this *Times) Cycle(t ExpireType, v int) *Cycle {
 	return NewCycle(this, t, v)
 }
 
-func ParseExpireTypeCustomize(v int, tzs ...string) (ttl *Times, err error) {
+func (this *Times) ParseExpire(v int, tzs ...string) (ttl *Times, err error) {
 	if v < 2006010215 {
 		return Unix(0), nil
 	}
-	tz := "+0000"
+	//tz := "+0000"
+	var tz string
 	if len(tzs) > 0 {
 		tz = tzs[0]
+	} else {
+		tz = this.GetTimeZone()
 	}
 	s := fmt.Sprintf("%v%v", v, tz)
 	return Parse(s, "2006010215-0700")
+}
+
+func (this *Times) ParseSign(v int32, tzs ...string) (*Times, error) {
+	if v < 20060102 {
+		return Unix(0), nil
+	}
+	var tz string
+	if len(tzs) > 0 {
+		tz = tzs[0]
+	} else {
+		tz = this.GetTimeZone()
+	}
+	s := fmt.Sprintf("%v%v", v, tz)
+	layout := fmt.Sprintf("%v-0700", SignLayout)
+	ts, err := Parse(s, layout)
+	if err != nil {
+		return nil, err
+	}
+	if this.timeReset != 0 {
+		ts = ts.Add(this.timeReset)
+	}
+	return ts, nil
 }

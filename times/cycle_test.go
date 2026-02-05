@@ -8,7 +8,7 @@ func TestCycle_Cycle(t *testing.T) {
 
 	v := 2025070108
 	t.Logf("===============%d================", v)
-	ts, _ := ParseExpireTypeCustomize(v)
+	ts, _ := ParseExpire(v)
 	//ts.SetTimeReset(5 * 3600)
 	c1 := ts.Cycle(ExpireTypeMonthly, 3)
 
@@ -24,7 +24,7 @@ func TestCycle_Cycle(t *testing.T) {
 	v = 2025101205
 	t.Logf("===============%d================", v)
 
-	ts, _ = ParseExpireTypeCustomize(v)
+	ts, _ = ParseExpire(v)
 	c1 = ts.Cycle(ExpireTypeDaily, 3)
 
 	s, _ = c1.Start()
@@ -41,7 +41,7 @@ func TestCycle_Cycle(t *testing.T) {
 func TestCycle_AllTypes(t *testing.T) {
 	// 使用当前时间作为基准
 	v := 2025070108
-	ts, _ := ParseExpireTypeCustomize(v)
+	ts, _ := ParseExpire(v)
 
 	// 测试1: ExpireTypeDaily
 	t.Logf("\n测试 ExpireTypeDaily:")

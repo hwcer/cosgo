@@ -82,3 +82,11 @@ func SetTimeReset(v int64) {
 func GetTimeZone() string {
 	return Default.GetTimeZone()
 }
+
+func ParseSign(v int32, tzs ...string) (*Times, error) {
+	return Default.ParseSign(v, tzs...)
+}
+
+func ParseExpire(v int, tzs ...string) (*Times, error) {
+	return Default.ParseExpire(v, tzs...)
+}
