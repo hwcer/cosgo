@@ -76,7 +76,7 @@ func (this *Times) Sign(addDays int) (sign int32, str string) {
 	if this.timeReset != 0 {
 		t = t.Add(-this.timeReset)
 	}
-	if addDays > 0 {
+	if addDays != 0 {
 		t = t.AddDate(0, 0, addDays)
 	}
 	str = t.Format(SignLayout)
