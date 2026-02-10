@@ -2,12 +2,13 @@ package schema
 
 import (
 	"encoding/json"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"sort"
 	"strconv"
 	"strings"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // https://www.mongodb.com/zh-cn/docs/manual/core/index-partial/#std-label-index-type-partial
@@ -36,8 +37,8 @@ type IndexField struct {
 	Name     string   // index name
 	DBName   []string // a.b.c
 	Unique   bool     //唯一
-	Sparse   bool     //稀疏索引
-	Partial  string   //{ rating: { $gt: 5 } }
+	Sparse   bool     //稀疏索引：仅包含具有索引字段的文档，节省存储空间，适用于字段存在性较少的场景
+	Partial  string   //部分索引：基于指定的过滤条件创建索引，只包含满足条件的文档，提高查询性能并减少存储开销，格式如：{"rating":{"$gt":5}}
 	Priority int      //排序字段之间的排序ASC
 }
 
@@ -88,8 +89,12 @@ func (this *Index) Build(whereParser ...IndexPartialParse) (index *mongo.IndexMo
 func (this *Index) partialParser(_ *Schema, s []string) (any, error) {
 	q := bson.M{}
 	for _, partial := range s {
-		if err := json.Unmarshal([]byte(partial), &s); err != nil {
+		var filter bson.M
+		if err := json.Unmarshal([]byte(partial), &filter); err != nil {
 			return nil, err
+		}
+		for k, v := range filter {
+			q[k] = v
 		}
 	}
 	return q, nil

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type Values map[string]any
@@ -120,7 +120,7 @@ func (vs Values) Unmarshal(k string, i any) error {
 		return nil
 	}
 	switch s := v.(type) {
-	case primitive.Binary:
+	case bson.Binary:
 		return json.Unmarshal(s.Data, i)
 	case []byte:
 		return json.Unmarshal(s, i)
@@ -143,7 +143,7 @@ func (vs Values) MarshalJSON() ([]byte, error) {
 		switch i := v.(type) {
 		case []byte:
 			_, err = b.Write(i)
-		case primitive.Binary:
+		case bson.Binary:
 			_, err = b.Write(i.Data)
 		case Bytes:
 			_, err = b.Write(i)
