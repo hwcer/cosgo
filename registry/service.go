@@ -27,17 +27,12 @@ func NewService(name string, router *Router, handle ...Handler) *Service {
 }
 
 type Service struct {
-	name string // a/b
-	//prefix  string //  /a/b
+	name    string // a/b
 	nodes   map[string]*Node
 	router  *Router
 	methods []string
 	handler Handler //自定义 Filter等方法
 }
-
-//func (this *Service) Use(i any) {
-//	this.Handler.Use(i)
-//}
 
 func (this *Service) Name() string {
 	return this.name
@@ -47,27 +42,13 @@ func (this *Service) Name() string {
 func (this *Service) SetMethods(s []string) {
 	this.methods = s
 }
-func (this *Service) Handler() Handler {
+func (this *Service) GetHandler() Handler {
 	return this.handler
 }
+func (this *Service) SetHandler(h Handler) {
+	this.handler = h
+}
 
-//func (this *Service) Prefix() string {
-//	return this.prefix
-//}
-
-//	func (this *Service) Merge(s *Service) (err error) {
-//		if s.Handler != nil {
-//			this.Handler = s.Handler
-//		}
-//		for k, v := range s.nodes {
-//			node := &Node{name: v.name, value: v.value, binder: v.binder, Service: this}
-//			this.nodes[k] = node
-//			if err = this.router.Register(node, node.Route()); err != nil {
-//				return
-//			}
-//		}
-//		return
-//	}
 func (this *Service) Register(i any, prefix ...string) error {
 	nodes, err := this.Parse(i, prefix...)
 	if err != nil {
