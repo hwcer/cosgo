@@ -75,6 +75,12 @@ func (this *config) Init() (err error) {
 	if err = this.BindPFlags(pflag.CommandLine); err != nil {
 		return err
 	}
+	//是否重新设置了工作目录
+	dir := Config.GetString(AppWorkerDir)
+	if dir == "" || strings.TrimSuffix(dir, "/") == "." {
+		Config.Set(AppWorkerDir, Config.GetString(AppBinDir))
+	}
+
 	ext := Config.GetString(AppConfigNameConfigFileExt)
 	//通过基础配置读取  config.toml
 	if f, exist := configExist(Abs("config"), ext); exist {
