@@ -32,6 +32,7 @@ const (
 	MIMEMSGPACK         = "application/x-msgpack"
 	MIMEMSGPACK2        = "application/msgpack"
 	MIMEYAML            = "application/x-yaml"
+	MIMEBytes    string = "application/bytes"
 )
 
 func init() {
@@ -44,5 +45,5 @@ func init() {
 
 	SetMimeType(30, "MSGPACK2", MIMEMSGPACK2)
 	SetMimeType(40, "XML2", MIMEXML2)
-
+	SetMimeType(50, "BYTES", MIMEBytes)
 }
