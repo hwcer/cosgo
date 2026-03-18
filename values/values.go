@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
@@ -127,6 +128,19 @@ func (vs Values) Unmarshal(k string, i any) error {
 	case Bytes:
 		return json.Unmarshal(s, i)
 	default:
+		rv := reflect.ValueOf(i)
+		if rv.Kind() != reflect.Ptr || rv.IsNil() {
+			return errors.New("invalid type")
+		}
+
+		targetType := rv.Type().Elem()
+		valueType := reflect.TypeOf(v)
+
+		if valueType.AssignableTo(targetType) {
+			rv.Elem().Set(reflect.ValueOf(v))
+			return nil
+		}
+
 		return errors.New("invalid type")
 	}
 }
