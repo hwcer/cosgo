@@ -10,7 +10,7 @@ import (
 )
 
 var Bytes = bytesBinding{
-	Binary: binary.LittleEndian,
+	Binary: binary.BigEndian,
 }
 
 func init() {
@@ -52,9 +52,14 @@ func (bb bytesBinding) Decode(r io.Reader, i interface{}) error {
 }
 
 func (bb bytesBinding) Marshal(i interface{}) ([]byte, error) {
+	// 如果已经是字节数组，直接返回
+	if b, ok := i.([]byte); ok {
+		return b, nil
+	}
+
 	v := reflect.ValueOf(i)
 	if !v.IsValid() {
-		return json.Marshal(i)
+		return nil, fmt.Errorf("invalid data for marshal")
 	}
 
 	// 根据类型判断使用二进制还是 JSON 序列化
@@ -65,12 +70,42 @@ func (bb bytesBinding) Marshal(i interface{}) ([]byte, error) {
 		}
 		return []byte{0}, nil
 
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int8:
+		buf := make([]byte, 1)
+		buf[0] = byte(v.Int())
+		return buf, nil
+
+	case reflect.Int16:
+		buf := make([]byte, 2)
+		bb.Binary.PutUint16(buf, uint16(v.Int()))
+		return buf, nil
+
+	case reflect.Int32:
+		buf := make([]byte, 4)
+		bb.Binary.PutUint32(buf, uint32(v.Int()))
+		return buf, nil
+
+	case reflect.Int, reflect.Int64:
 		buf := make([]byte, 8)
 		bb.Binary.PutUint64(buf, uint64(v.Int()))
 		return buf, nil
 
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Uint8:
+		buf := make([]byte, 1)
+		buf[0] = byte(v.Uint())
+		return buf, nil
+
+	case reflect.Uint16:
+		buf := make([]byte, 2)
+		bb.Binary.PutUint16(buf, uint16(v.Uint()))
+		return buf, nil
+
+	case reflect.Uint32:
+		buf := make([]byte, 4)
+		bb.Binary.PutUint32(buf, uint32(v.Uint()))
+		return buf, nil
+
+	case reflect.Uint, reflect.Uint64:
 		buf := make([]byte, 8)
 		bb.Binary.PutUint64(buf, v.Uint())
 		return buf, nil
@@ -89,7 +124,7 @@ func (bb bytesBinding) Marshal(i interface{}) ([]byte, error) {
 		return []byte(v.String()), nil
 
 	default:
-		// 容器类型使用 JSON
+		// 容器类型使用JSON
 		return json.Marshal(i)
 	}
 }
@@ -100,8 +135,15 @@ func (bb bytesBinding) Unmarshal(b []byte, i interface{}) error {
 	}
 
 	v := reflect.ValueOf(i)
-	if v.Kind() != reflect.Ptr || v.IsNil() {
-		return json.Unmarshal(b, i)
+	if v.Kind() != reflect.Ptr {
+		return fmt.Errorf("invalid data for unmarshal: must be a pointer")
+	}
+
+	// 如果目标是字节数组，直接复制
+	if dest, ok := i.(*[]byte); ok {
+		*dest = make([]byte, len(b))
+		copy(*dest, b)
+		return nil
 	}
 
 	elem := v.Elem()
@@ -116,16 +158,58 @@ func (bb bytesBinding) Unmarshal(b []byte, i interface{}) error {
 		}
 		return nil
 
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int8:
+		if len(b) < 1 {
+			return fmt.Errorf("insufficient data for int8")
+		}
+		elem.SetInt(int64(int8(b[0])))
+		return nil
+
+	case reflect.Int16:
+		if len(b) < 2 {
+			return fmt.Errorf("insufficient data for int16")
+		}
+		elem.SetInt(int64(bb.Binary.Uint16(b)))
+		return nil
+
+	case reflect.Int32:
+		if len(b) < 4 {
+			return fmt.Errorf("insufficient data for int32")
+		}
+		elem.SetInt(int64(bb.Binary.Uint32(b)))
+		return nil
+
+	case reflect.Int, reflect.Int64:
 		if len(b) < 8 {
-			return fmt.Errorf("insufficient data for int")
+			return fmt.Errorf("insufficient data for int64")
 		}
 		elem.SetInt(int64(bb.Binary.Uint64(b)))
 		return nil
 
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Uint8:
+		if len(b) < 1 {
+			return fmt.Errorf("insufficient data for uint8")
+		}
+		elem.SetUint(uint64(b[0]))
+		return nil
+
+	case reflect.Uint16:
+		if len(b) < 2 {
+			return fmt.Errorf("insufficient data for uint16")
+		}
+		elem.SetUint(uint64(bb.Binary.Uint16(b)))
+		return nil
+
+	case reflect.Uint32:
+		if len(b) < 4 {
+			return fmt.Errorf("insufficient data for uint32")
+		}
+		elem.SetUint(uint64(bb.Binary.Uint32(b)))
+		return nil
+
+	case reflect.Uint, reflect.Uint64:
 		if len(b) < 8 {
-			return fmt.Errorf("insufficient data for uint")
+			return fmt.Errorf("insufficient data for uint64")
 		}
 		elem.SetUint(bb.Binary.Uint64(b))
 		return nil
@@ -149,7 +233,7 @@ func (bb bytesBinding) Unmarshal(b []byte, i interface{}) error {
 		return nil
 
 	default:
-		// 容器类型使用 JSON
+		// 容器类型使用JSON
 		return json.Unmarshal(b, i)
 	}
 }
