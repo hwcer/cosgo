@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// TestZAddPerformance 测试不同模式下的ZADD性能
+// TestZAddPerformance 测试ZADD性能
 func TestZAddPerformance(t *testing.T) {
 	const concurrency = 10000
 	const elementsPerGoroutine = 10
@@ -15,9 +15,9 @@ func TestZAddPerformance(t *testing.T) {
 
 	t.Logf("测试开始: %d 并发，每个goroutine添加 %d 个元素，共 %d 个元素", concurrency, elementsPerGoroutine, totalElements)
 
-	// 测试锁模式
-	t.Run("ZSetMutex (锁)", func(t *testing.T) {
-		set := NewZSetMutex()
+	// 测试ZSet
+	t.Run("ZSet", func(t *testing.T) {
+		set := New()
 		start := time.Now()
 		var wg sync.WaitGroup
 		wg.Add(concurrency)
@@ -33,7 +33,7 @@ func TestZAddPerformance(t *testing.T) {
 		}
 		wg.Wait()
 		totalTime := time.Since(start)
-		t.Logf("锁模式: 总耗时 %v, 每秒操作数: %.2f", totalTime, float64(totalElements)/totalTime.Seconds())
+		t.Logf("ZSet: 总耗时 %v, 每秒操作数: %.2f", totalTime, float64(totalElements)/totalTime.Seconds())
 	})
 }
 
@@ -45,9 +45,9 @@ func TestZAddWithMaxSize(t *testing.T) {
 
 	t.Logf("测试开始: %d 并发，MAXSIZE=%d，测试持续 %v", concurrency, maxSize, testDuration)
 
-	// 测试锁模式
-	t.Run("ZSetMutex (锁) - 带守门员", func(t *testing.T) {
-		set := NewZSetMutexWithMaxSize(maxSize)
+	// 测试ZSet
+	t.Run("ZSet - 带守门员", func(t *testing.T) {
+		set := NewWithMaxSize(maxSize)
 		start := time.Now()
 		endTime := start.Add(testDuration)
 		var wg sync.WaitGroup
@@ -71,7 +71,7 @@ func TestZAddWithMaxSize(t *testing.T) {
 		wg.Wait()
 		totalTime := time.Since(start)
 		finalSize := set.ZCard()
-		t.Logf("锁模式(带守门员): 总耗时 %v, 最终大小: %d, 每秒操作数: %.2f", 
+		t.Logf("ZSet(带守门员): 总耗时 %v, 最终大小: %d, 每秒操作数: %.2f",
 			totalTime, finalSize, float64(concurrency)/totalTime.Seconds())
 	})
 }
@@ -83,10 +83,10 @@ func TestZAddWithIncreasingScore(t *testing.T) {
 
 	t.Logf("测试开始: %d 个元素，倒序排列，MAXSIZE=%d，每个元素分数持续增加", totalElements, maxSize)
 
-	// 测试锁模式
-	t.Run("ZSetMutex (锁) - 分数递增", func(t *testing.T) {
+	// 测试ZSet
+	t.Run("ZSet - 分数递增", func(t *testing.T) {
 		// 创建倒序排列的ZSet（默认就是倒序）
-		set := NewZSetMutexWithMaxSize(maxSize)
+		set := NewWithMaxSize(maxSize)
 
 		// 初始化元素
 		for i := 0; i < totalElements; i++ {
@@ -112,7 +112,7 @@ func TestZAddWithIncreasingScore(t *testing.T) {
 		wg.Wait()
 		totalTime := time.Since(start)
 		finalSize := set.ZCard()
-		t.Logf("锁模式(分数递增): 总耗时 %v, 最终大小: %d, 每秒操作数: %.2f", 
+		t.Logf("ZSet(分数递增): 总耗时 %v, 最终大小: %d, 每秒操作数: %.2f",
 			totalTime, finalSize, float64(totalElements)/totalTime.Seconds())
 	})
 }

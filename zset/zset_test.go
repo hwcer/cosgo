@@ -495,11 +495,11 @@ func TestTrimExcess(t *testing.T) {
 
 // ==================== 线程安全测试 ====================
 
-// 测试 ZSetMutex 线程安全
-func TestZSetMutex(t *testing.T) {
-	t.Log("\n========== ZSetMutex 线程安全测试 ==========")
+// 测试 ZSet 线程安全
+func TestZSetThreadSafe(t *testing.T) {
+	t.Log("\n========== ZSet 线程安全测试 ==========")
 
-	s := NewZSetMutex()
+	s := New()
 
 	const goroutines = 100
 	const operations = 1000
@@ -530,11 +530,11 @@ func TestZSetMutex(t *testing.T) {
 	t.Logf("线程安全测试完成，耗时 %v，最终元素数量 %d", duration, cardinality)
 }
 
-// 测试 ZSetMutex 带 MAXSIZE 线程安全
-func TestZSetMutexWithMaxSize(t *testing.T) {
-	t.Log("\n========== ZSetMutex 带 MAXSIZE 线程安全测试 ==========")
+// 测试 ZSet 带 MAXSIZE 线程安全
+func TestZSetWithMaxSizeThreadSafe(t *testing.T) {
+	t.Log("\n========== ZSet 带 MAXSIZE 线程安全测试 ==========")
 
-	s := NewZSetMutexWithMaxSize(1000)
+	s := NewWithMaxSize(1000)
 
 	const goroutines = 100
 	const operations = 1000
