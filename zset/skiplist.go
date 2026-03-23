@@ -38,7 +38,7 @@ const zSkipListMaxLevel = 32
 // 基于 string 和 int64 的跳表实现
 type zLevel struct {
 	forward *zNode
-	span    uint64
+	span    int64
 }
 
 type zNode struct {
@@ -54,20 +54,6 @@ type skipList struct {
 	length int64
 	level  int16
 	order  int8 // 排序方式，<0 倒序，>0 正序，0 按 key
-}
-
-type zRangeSpec struct {
-	min   int64
-	max   int64
-	minex int32
-	maxex int32
-}
-
-type zLexRangeSpec struct {
-	minKey string
-	maxKey string
-	minex  int
-	maxex  int
 }
 
 func zslCreateNode(level int16, score int64, id string) *zNode {
@@ -86,6 +72,10 @@ func zslCreate(order ...int8) *skipList {
 	zsl := &skipList{
 		level:  1,
 		header: zslCreateNode(zSkipListMaxLevel, 0, ""),
+	}
+	// 初始化 header 节点的 span 为 1（表示到下一个节点的距离）
+	for i := range zsl.header.level {
+		zsl.header.level[i].span = 1
 	}
 	if len(order) > 0 {
 		zsl.order = order[0]
@@ -106,32 +96,20 @@ func randomLevel() int16 {
 	return zSkipListMaxLevel
 }
 
-func (zsl *skipList) compare(existingID, newID string) bool {
-	if zsl.order > 0 {
-		return true
-	} else if zsl.order < 0 {
-		return false
-	} else {
-		return existingID < newID
-	}
-}
-
 // shouldAdvance 判断在跳表遍历时是否应该继续前进
-func (zsl *skipList) shouldAdvance(currentScore, targetScore int64, currentID, targetID string) bool {
+func (zsl *skipList) shouldAdvance(currentScore, targetScore int64) bool {
 	if zsl.order < 0 {
-		// 降序：高分在前
-		return currentScore > targetScore || 
-			(currentScore == targetScore && zsl.compare(currentID, targetID))
+		// 降序：高分在前，分数相同时新元素排在后面
+		return currentScore >= targetScore
 	} else {
-		// 升序：低分在前
-		return currentScore < targetScore || 
-			(currentScore == targetScore && zsl.compare(currentID, targetID))
+		// 升序：低分在前，分数相同时新元素排在后面
+		return currentScore <= targetScore
 	}
 }
 
 func (zsl *skipList) zslInsert(score int64, id string) *zNode {
 	update := make([]*zNode, zSkipListMaxLevel)
-	rank := make([]uint64, zSkipListMaxLevel)
+	rank := make([]int64, zSkipListMaxLevel)
 	x := zsl.header
 	for i := zsl.level - 1; i >= 0; i-- {
 		if i == zsl.level-1 {
@@ -140,8 +118,8 @@ func (zsl *skipList) zslInsert(score int64, id string) *zNode {
 			rank[i] = rank[i+1]
 		}
 		if x.level[i] != nil {
-			for x.level[i].forward != nil && 
-				zsl.shouldAdvance(x.level[i].forward.score, score, x.level[i].forward.id, id) {
+			for x.level[i].forward != nil &&
+				zsl.shouldAdvance(x.level[i].forward.score, score) {
 				rank[i] += x.level[i].span
 				x = x.level[i].forward
 			}
@@ -153,7 +131,7 @@ func (zsl *skipList) zslInsert(score int64, id string) *zNode {
 		for i := zsl.level; i < level; i++ {
 			rank[i] = 0
 			update[i] = zsl.header
-			update[i].level[i].span = uint64(zsl.length)
+			update[i].level[i].span = zsl.length
 		}
 		zsl.level = level
 	}
@@ -205,9 +183,25 @@ func (zsl *skipList) zslDelete(score int64, id string) bool {
 	update := make([]*zNode, zSkipListMaxLevel)
 	x := zsl.header
 	for i := zsl.level - 1; i >= 0; i-- {
-		for x.level[i].forward != nil &&
-			zsl.shouldAdvance(x.level[i].forward.score, score, x.level[i].forward.id, id) {
-			x = x.level[i].forward
+		for x.level[i].forward != nil {
+			forward := x.level[i].forward
+			// 在降序模式下，如果 forward.score > score，继续遍历
+			// 在升序模式下，如果 forward.score < score，继续遍历
+			// 如果分数相等，比较 id（字典序小的排在前面）
+			if zsl.order < 0 {
+				// 降序
+				if forward.score > score || (forward.score == score && forward.id < id) {
+					x = forward
+					continue
+				}
+			} else {
+				// 升序
+				if forward.score < score || (forward.score == score && forward.id < id) {
+					x = forward
+					continue
+				}
+			}
+			break
 		}
 		update[i] = x
 	}
@@ -219,166 +213,151 @@ func (zsl *skipList) zslDelete(score int64, id string) bool {
 	return false
 }
 
-func zslValueGteMin(value int64, spec *zRangeSpec) bool {
-	if spec.minex != 0 {
-		return value > spec.min
-	}
-	return value >= spec.min
-}
-
-func zslValueLteMax(value int64, spec *zRangeSpec) bool {
-	if spec.maxex != 0 {
-		return value < spec.max
-	}
-	return value <= spec.max
-}
-
-func (zsl *skipList) zslIsInRange(ran *zRangeSpec) bool {
-	if ran.min > ran.max ||
-		(ran.min == ran.max && (ran.minex != 0 || ran.maxex != 0)) {
-		return false
-	}
-	x := zsl.tail
-	if x == nil || !zslValueGteMin(x.score, ran) {
-		return false
-	}
-	x = zsl.header.level[0].forward
-	if x == nil || !zslValueLteMax(x.score, ran) {
-		return false
-	}
-	return true
-}
-
-func (zsl *skipList) zslFirstInRange(ran *zRangeSpec) *zNode {
-	if !zsl.zslIsInRange(ran) {
-		return nil
-	}
+// zslRank 获取元素的排名（从0开始）
+func (zsl *skipList) zslRank(score int64, key string) int64 {
+	rank := int64(0)
 	x := zsl.header
 	for i := zsl.level - 1; i >= 0; i-- {
 		for x.level[i].forward != nil &&
-			!zslValueGteMin(x.level[i].forward.score, ran) {
+			zsl.shouldAdvance(x.level[i].forward.score, score) {
+			rank += x.level[i].span
 			x = x.level[i].forward
 		}
 	}
-	x = x.level[0].forward
-	if !zslValueLteMax(x.score, ran) {
-		return nil
-	}
-	return x
-}
-
-func (zsl *skipList) zslLastInRange(ran *zRangeSpec) *zNode {
-	if !zsl.zslIsInRange(ran) {
-		return nil
-	}
-	x := zsl.header
-	for i := zsl.level - 1; i >= 0; i-- {
-		for x.level[i].forward != nil &&
-			zslValueLteMax(x.level[i].forward.score, ran) {
-			x = x.level[i].forward
-		}
-	}
-	if !zslValueGteMin(x.score, ran) {
-		return nil
-	}
-	return x
-}
-
-func (zsl *skipList) zslDeleteRangeByScore(ran *zRangeSpec, dict map[string]int64) uint64 {
-	removed := uint64(0)
-	update := make([]*zNode, zSkipListMaxLevel)
-	x := zsl.header
-	for i := zsl.level - 1; i >= 0; i-- {
-		for x.level[i].forward != nil {
-			var condition bool
-			if ran.minex != 0 {
-				condition = x.level[i].forward.score <= ran.min
-			} else {
-				condition = x.level[i].forward.score < ran.min
-			}
-			if !condition {
-				break
-			}
-			x = x.level[i].forward
-		}
-		update[i] = x
-	}
-	x = x.level[0].forward
-	for x != nil {
-		var condition bool
-		if ran.maxex != 0 {
-			condition = x.score < ran.max
-		} else {
-			condition = x.score <= ran.max
-		}
-		if !condition {
-			break
-		}
-		next := x.level[0].forward
-		zsl.zslDeleteNode(x, update)
-		delete(dict, x.id)
-		removed++
-		x = next
-	}
-	return removed
-}
-
-func (zsl *skipList) zslDeleteRangeByLex(ran *zLexRangeSpec, dict map[string]int64) uint64 {
-	removed := uint64(0)
-	update := make([]*zNode, zSkipListMaxLevel)
-	x := zsl.header
-	for i := zsl.level - 1; i >= 0; i-- {
-		for x.level[i].forward != nil && !zslLexValueGteMin(x.level[i].forward.id, ran) {
-			x = x.level[i].forward
-		}
-		update[i] = x
-	}
-	x = x.level[0].forward
-	for x != nil && zslLexValueLteMax(x.id, ran) {
-		next := x.level[0].forward
-		zsl.zslDeleteNode(x, update)
-		delete(dict, x.id)
-		removed++
-		x = next
-	}
-	return removed
-}
-
-func zslLexValueGteMin(id string, spec *zLexRangeSpec) bool {
-	if spec.minex != 0 {
-		return compareKey(id, spec.minKey) > 0
-	}
-	return compareKey(id, spec.minKey) >= 0
-}
-
-func compareKey(a, b string) int8 {
-	if a == b {
-		return 0
-	} else if a > b {
-		return 1
+	// 检查当前节点是否是目标节点
+	// rank 是从 header 开始的距离，需要减 1 得到从 0 开始的排名
+	if x != zsl.header && x.score == score && x.id == key {
+		return rank - 1
 	}
 	return -1
 }
 
-func zslLexValueLteMax(id string, spec *zLexRangeSpec) bool {
-	if spec.maxex != 0 {
-		return compareKey(id, spec.maxKey) < 0
+// zslElement 获取指定排名的元素（从0开始）
+func (zsl *skipList) zslElement(rank int64) *zNode {
+	// 从 header 的 level[0] 开始遍历，找到第 rank 个元素
+	x := zsl.header.level[0].forward
+	traversed := int64(0)
+	for x != nil && traversed < rank {
+		x = x.level[0].forward
+		traversed++
 	}
-	return compareKey(id, spec.maxKey) <= 0
+	return x
 }
 
-func (zsl *skipList) zslDeleteRangeByRank(start, end uint64, dict map[string]int64) uint64 {
+// zslCount 统计分数在 min 和 max 之间的元素数量
+func (zsl *skipList) zslCount(min, max int64) int64 {
+	var count int64 = 0
+	x := zsl.header.level[0].forward
+	for x != nil {
+		if x.score >= min && x.score <= max {
+			count++
+		} else if zsl.order < 0 {
+			// 降序：当分数小于 min 时可以提前退出
+			if x.score < min {
+				break
+			}
+		} else {
+			// 升序：当分数超过 max 时可以提前退出
+			if x.score > max {
+				break
+			}
+		}
+		x = x.level[0].forward
+	}
+	return count
+}
+
+// zslRange 返回指定排名范围的元素节点
+func (zsl *skipList) zslRange(start, end int64) []ZNode {
+	if start > end {
+		return nil
+	}
+
+	span := (end - start) + 1
+	result := make([]ZNode, 0, span)
+
+	// 获取起始节点
+	x := zsl.header
+	traversed := int64(0)
+	for i := zsl.level - 1; i >= 0; i-- {
+		for x.level[i].forward != nil && (traversed+x.level[i].span) <= start {
+			traversed += x.level[i].span
+			x = x.level[i].forward
+		}
+	}
+
+	x = x.level[0].forward
+	currentRank := start
+
+	for x != nil && span > 0 {
+		result = append(result, ZNode{
+			Score: x.score,
+			Key:   x.id,
+			Rank:  currentRank,
+		})
+		x = x.level[0].forward
+		currentRank++
+		span--
+	}
+
+	return result
+}
+
+// zslRangeByScore 返回指定分数范围的元素节点
+func (zsl *skipList) zslRangeByScore(min, max int64) []ZNode {
+	var result []ZNode
+
+	x := zsl.header.level[0].forward
+	currentRank := int64(0)
+
+	for x != nil {
+		// 根据排序方式判断是否在范围内
+		inRange := false
+		if zsl.order < 0 {
+			// 降序：分数从高到低
+			inRange = x.score <= max && x.score >= min
+		} else {
+			// 升序：分数从低到高
+			inRange = x.score >= min && x.score <= max
+		}
+
+		if inRange {
+			result = append(result, ZNode{
+				Score: x.score,
+				Key:   x.id,
+				Rank:  currentRank,
+			})
+		} else if zsl.order < 0 {
+			// 降序：当分数小于 min 时可以提前退出
+			if x.score < min {
+				break
+			}
+		} else {
+			// 升序：当分数超过 max 时可以提前退出
+			if x.score > max {
+				break
+			}
+		}
+
+		x = x.level[0].forward
+		currentRank++
+	}
+
+	return result
+}
+
+// zslDeleteRangeByRank 删除指定排名范围的元素（从0开始）
+func (zsl *skipList) zslDeleteRangeByRank(start, end int64, dict map[string]int64) int64 {
 	update := make([]*zNode, zSkipListMaxLevel)
-	var traversed, removed uint64
+	var traversed, removed int64
 	x := zsl.header
 	for i := zsl.level - 1; i >= 0; i-- {
-		for x.level[i].forward != nil && (traversed+x.level[i].span) < start {
+		for x.level[i].forward != nil && (traversed+x.level[i].span) <= start {
 			traversed += x.level[i].span
 			x = x.level[i].forward
 		}
 		update[i] = x
 	}
-	traversed++
 	x = x.level[0].forward
 	for x != nil && traversed <= end {
 		next := x.level[0].forward
@@ -391,131 +370,53 @@ func (zsl *skipList) zslDeleteRangeByRank(start, end uint64, dict map[string]int
 	return removed
 }
 
-func (zsl *skipList) zslGetRank(score int64, key string) int64 {
-	rank := uint64(0)
-	x := zsl.header
-	for i := zsl.level - 1; i >= 0; i-- {
-		for x.level[i].forward != nil &&
-			zsl.shouldAdvance(x.level[i].forward.score, score, x.level[i].forward.id, key) {
-			rank += x.level[i].span
-			x = x.level[i].forward
-		}
-		if x.level[i].forward != nil && x.level[i].forward.score == score && x.level[i].forward.id == key {
-			return int64(rank + 1)
-		}
-	}
-	return 0
-}
-
-func (zsl *skipList) zslGetElementByRank(rank uint64) *zNode {
-	traversed := uint64(0)
-	x := zsl.header
-	for i := zsl.level - 1; i >= 0; i-- {
-		for x.level[i].forward != nil && (traversed+x.level[i].span) <= rank {
-			traversed += x.level[i].span
-			x = x.level[i].forward
-		}
-		if traversed == rank {
-			return x
-		}
-	}
-	return nil
-}
-
-func (zsl *skipList) zslForceDeleteById(id string) int {
-	if zsl.length == 0 {
-		return 0
-	}
-	var deletedCount int = 0
+// zslDeleteRangeByScore 删除指定分数范围的元素
+func (zsl *skipList) zslDeleteRangeByScore(min, max int64, dict map[string]int64) int64 {
 	update := make([]*zNode, zSkipListMaxLevel)
-	x := zsl.header.level[0].forward
-	for x != nil {
-		next := x.level[0].forward
-		if x.id == id {
-			for i := range update {
-				update[i] = zsl.header
-			}
-			for i := zsl.level - 1; i >= 0; i-- {
-				current := zsl.header
-				for current.level[i].forward != nil && current.level[i].forward != x {
-					current = current.level[i].forward
-				}
-				update[i] = current
-			}
-			zsl.zslDeleteNode(x, update)
-			deletedCount++
-		}
-		x = next
-	}
-	return deletedCount
-}
+	var removed int64
 
-func (zsl *skipList) zslUpdateScore(oldScore, newScore int64, id string) bool {
-	if zsl.length == 0 {
-		return false
-	}
-	update := make([]*zNode, zSkipListMaxLevel)
 	x := zsl.header
 	for i := zsl.level - 1; i >= 0; i-- {
-		for x.level[i].forward != nil && 
-			zsl.shouldAdvance(x.level[i].forward.score, oldScore, x.level[i].forward.id, id) {
+		for x.level[i].forward != nil {
+			// 根据排序方式判断是否需要继续前进
+			shouldContinue := false
+			if zsl.order < 0 {
+				// 降序：分数从高到低，找到第一个分数 <= max 的节点
+				shouldContinue = x.level[i].forward.score > max
+			} else {
+				// 升序：分数从低到高，找到第一个分数 >= min 的节点
+				shouldContinue = x.level[i].forward.score < min
+			}
+			if !shouldContinue {
+				break
+			}
 			x = x.level[i].forward
 		}
 		update[i] = x
 	}
-	if update[0] != zsl.header {
-		x = update[0].level[0].forward
-	} else {
-		x = zsl.header.level[0].forward
-	}
-	for x != nil && x.score == oldScore {
-		if x.id == id {
-			needReposition := false
-			if zsl.order < 0 {
-				if newScore > oldScore {
-					next := x.level[0].forward
-					if next != nil && next.score < newScore {
-						needReposition = true
-					}
-				} else if newScore < oldScore {
-					prev := update[0]
-					if prev != zsl.header && prev.score < newScore {
-						needReposition = true
-					}
-				}
-			} else {
-				if newScore > oldScore {
-					next := x.level[0].forward
-					if next != nil && next.score > newScore {
-						needReposition = true
-					}
-				} else if newScore < oldScore {
-					prev := update[0]
-					if prev != zsl.header && prev.score > newScore {
-						needReposition = true
-					}
-				}
-			}
-			if !needReposition {
-				x.score = newScore
-				return true
-			}
-			zsl.zslDeleteNode(x, update)
-			zsl.zslInsert(newScore, id)
-			return false
-		}
-		x = x.level[0].forward
-	}
-	return false
-}
 
-func (zsl *skipList) zslUpdateOrInsert(score int64, id string, oldScore int64, exists bool) bool {
-	if !exists {
-		zsl.zslInsert(score, id)
-		return false
+	x = x.level[0].forward
+	for x != nil {
+		// 根据排序方式判断是否在范围内
+		inRange := false
+		if zsl.order < 0 {
+			// 降序：分数从高到低
+			inRange = x.score <= max && x.score >= min
+		} else {
+			// 升序：分数从低到高
+			inRange = x.score >= min && x.score <= max
+		}
+
+		if !inRange {
+			break
+		}
+
+		next := x.level[0].forward
+		zsl.zslDeleteNode(x, update)
+		delete(dict, x.id)
+		removed++
+		x = next
 	}
-	if zsl.zslUpdateScore(oldScore, score, id) {
-		return true
-	}
-	return false
+
+	return removed
 }

@@ -14,6 +14,13 @@ type ZSet struct {
 	guard   guardKeeper // 守门员（最后一名分数）
 }
 
+// ZNode 表示有序集合中的一个节点
+type ZNode struct {
+	Key   string
+	Rank  int64
+	Score int64
+}
+
 // guardKeeper 守门员结构
 type guardKeeper struct {
 	score int64  // 最后一名的分数
@@ -46,7 +53,7 @@ func NewWithMaxSize(maxSize int32, order ...int8) *ZSet {
 }
 
 // canEnter 检查是否能进入排行榜
-func (z *ZSet) canEnter(score int64, key string, exists bool) bool {
+func (z *ZSet) canEnter(score int64) bool {
 	// 未限制人数
 	if z.maxSize <= 0 {
 		return true
@@ -62,18 +69,13 @@ func (z *ZSet) canEnter(score int64, key string, exists bool) bool {
 		return true // 守门员无效，允许
 	}
 
-	// 根据排序方向判断
-	if z.zsl.order < 0 {
-		// 降序：需要比守门员分数高才能进入
-		return score > z.guard.score
-	} else {
-		// 升序：需要比守门员分数低才能进入
-		return score < z.guard.score
-	}
+	// 使用 compareScores 方法判断是否能进入
+	// compareScores 返回 1 表示 score 排在 guard.score 前面
+	return z.compareScores(score, z.guard.score) > 0
 }
 
 // zadd 内部方法，用于添加或更新元素，返回最终的分数
-func (z *ZSet) zadd(score int64, key string) int64 {
+func (z *ZSet) ZAdd(score int64, key string) int64 {
 	// 首先检查 key 是否已存在
 	oldScore, exists := z.dict[key]
 
@@ -83,7 +85,7 @@ func (z *ZSet) zadd(score int64, key string) int64 {
 	}
 
 	// 统一检查是否能进入排行榜（只调用一次）
-	canEnter := z.canEnter(score, key, exists)
+	canEnter := z.canEnter(score)
 
 	// 记录插入前的状态，用于智能更新守门员
 	wasFull := z.maxSize > 0 && z.zsl.length >= int64(z.maxSize)
@@ -144,11 +146,6 @@ func (z *ZSet) zadd(score int64, key string) int64 {
 	return score
 }
 
-// ZAdd 用于添加或更新元素（无锁版本，需要外部同步）
-func (z *ZSet) ZAdd(score int64, key string) {
-	z.zadd(score, key)
-}
-
 // ZIncr 有序集合中对指定成员的分数加上增量 score（无锁版本）
 func (z *ZSet) ZIncr(score int64, key string) int64 {
 	if score == 0 {
@@ -159,7 +156,7 @@ func (z *ZSet) ZIncr(score int64, key string) int64 {
 		return 0
 	}
 	newScore := z.dict[key] + score
-	return z.zadd(newScore, key)
+	return z.ZAdd(newScore, key)
 }
 
 // ZRem 通过 key 从 ZSet 中删除元素（无锁版本）
@@ -174,9 +171,11 @@ func (z *ZSet) ZRem(key string) bool {
 	if deleted {
 		delete(z.dict, key)
 
-		// 如果删除的是守门员，需要重新计算
-		if z.guard.valid && key == z.guard.key {
-			z.updateGuard()
+		// 如果删除的是守门员或者守门员前面的元素，需要重新计算
+		if z.guard.valid {
+			if key == z.guard.key || z.compareScores(score, z.guard.score) == 1 {
+				z.updateGuard()
+			}
 		}
 
 		return true
@@ -188,14 +187,89 @@ func (z *ZSet) ZRem(key string) bool {
 	return true
 }
 
+// ZRemRangeByRank 删除指定排名范围的元素（Redis兼容接口）
+// start 和 stop 都是从0开始的排名
+func (z *ZSet) ZRemRangeByRank(start, stop int64) int64 {
+	l := z.ZCard()
+
+	if start < 0 {
+		start += l
+		if start < 0 {
+			start = 0
+		}
+	}
+	if stop < 0 {
+		stop += l
+	}
+
+	if start > stop || start >= l {
+		return 0
+	}
+	if stop >= l {
+		stop = l - 1
+	}
+
+	// 调用跳表的删除方法
+	removed := z.zsl.zslDeleteRangeByRank(start, stop, z.dict)
+
+	// 删除后可能需要更新守门员
+	if removed > 0 && z.guard.valid {
+		z.updateGuard()
+	}
+
+	return removed
+}
+
+// ZRemRangeByScore 删除指定分数范围的元素（Redis兼容接口）
+func (z *ZSet) ZRemRangeByScore(min, max int64) int64 {
+	// 考虑守门员限制
+	if z.guard.valid {
+		// 根据排序方式调整删除范围，确保不越过守门员
+		if z.zsl.order < 0 {
+			// 降序：守门员是分数最低的，不能删除分数低于守门员的元素
+			if min < z.guard.score {
+				min = z.guard.score
+			}
+		} else {
+			// 升序：守门员是分数最高的，不能删除分数高于守门员的元素
+			if max > z.guard.score {
+				max = z.guard.score
+			}
+		}
+	}
+
+	// 调用跳表的删除方法
+	removed := z.zsl.zslDeleteRangeByScore(min, max, z.dict)
+
+	// 删除后可能需要更新守门员
+	if removed > 0 && z.guard.valid {
+		z.updateGuard()
+	}
+
+	return removed
+}
+
 // ZRank 返回元素的排名（从 0 开始）和分数
+// 如果元素在守门员之外或不存在，返回 -1
 func (z *ZSet) ZRank(key string) (rank int64, score int64) {
 	score, ok := z.dict[key]
 	if !ok {
 		return -1, 0
 	}
-	r := z.zsl.zslGetRank(score, key)
-	return r - 1, score
+
+	// 如果设置了守门员，检查元素是否在守门员之内
+	if z.guard.valid {
+		// 使用 compareScores 判断元素是否在守门员之前或等于守门员
+		// compareScores 返回 1 表示 score 排在 guard.score 前面
+		// 返回 0 表示相等，返回 -1 表示在后面
+		cmp := z.compareScores(score, z.guard.score)
+		if cmp < 0 {
+			// 元素在守门员之后，返回 -1
+			return -1, 0
+		}
+	}
+
+	return z.zsl.zslRank(score, key), score
 }
 
 // ZScore 通过 key 获取分数（无锁版本）
@@ -204,30 +278,31 @@ func (z *ZSet) ZScore(key string) (score int64, ok bool) {
 	return score, ok
 }
 
-// ZData 返回指定排名的元素的 key 和分数
-func (z *ZSet) ZData(rank int64) (key string, score int64) {
-	if rank < 0 || rank >= z.zsl.length {
+// ZElement 返回指定排名的元素的 key 和分数
+func (z *ZSet) ZElement(rank int64) (key string, score int64) {
+	if rank < 0 || rank >= z.ZCard() {
 		return "", 0
 	}
-	n := z.zsl.zslGetElementByRank(uint64(rank + 1))
+
+	// zslElement 从0开始计数
+	n := z.zsl.zslElement(rank)
 	if n == nil {
 		return "", 0
 	}
+
 	score, ok := z.dict[n.id]
 	if !ok {
 		return "", 0
 	}
+
 	return n.id, score
 }
 
-// ZRange 按照跳表顺序遍历指定范围的元素
-func (z *ZSet) ZRange(start, end int64, f func(int64, string)) {
-	z.commonRange(start, end, f)
-}
+// ZRange 按照跳表顺序返回指定范围的元素
+func (z *ZSet) ZRange(start, end int64) []ZNode {
+	// 使用 ZCard() 获取元素个数，确保与 ZCard 方法保持一致
+	l := z.ZCard()
 
-// commonRange 内部方法，实现范围查询的通用逻辑
-func (z *ZSet) commonRange(start, end int64, f func(int64, string)) {
-	l := z.zsl.length
 	if start < 0 {
 		start += l
 		if start < 0 {
@@ -239,84 +314,97 @@ func (z *ZSet) commonRange(start, end int64, f func(int64, string)) {
 	}
 
 	if start > end || start >= l {
-		return
+		return nil
 	}
 	if end >= l {
 		end = l - 1
 	}
-	span := (end - start) + 1
 
-	// 从头部开始向后遍历
-	node := z.zsl.header.level[0].forward
-	if start > 0 {
-		node = z.zsl.zslGetElementByRank(uint64(start + 1))
+	// 调用跳表的范围查询方法
+	return z.zsl.zslRange(start, end)
+}
+
+// ZRangeByScore 按照分数范围返回元素节点
+func (z *ZSet) ZRangeByScore(min, max int64) []ZNode {
+	// 考虑守门员限制
+	if z.guard.valid {
+		// 根据排序方式调整统计范围，确保不越过守门员
+		if z.zsl.order < 0 {
+			// 降序：守门员是分数最低的，不能统计分数低于守门员的元素
+			if min < z.guard.score {
+				min = z.guard.score
+			}
+		} else {
+			// 升序：守门员是分数最高的，不能统计分数高于守门员的元素
+			if max > z.guard.score {
+				max = z.guard.score
+			}
+		}
 	}
 
-	for span > 0 {
-		span--
-		k := node.id
-		s := node.score
-		f(s, k)
-		node = node.level[0].forward
+	// 调用跳表的分数范围查询方法
+	return z.zsl.zslRangeByScore(min, max)
+}
+
+// compareScores 比较两个分数的位置关系，考虑排序方向
+// 返回值：
+//
+//	1: score1 在 score2 前面
+//	0: score1 和 score2 相等
+//
+// -1: score1 在 score2 后面
+func (z *ZSet) compareScores(score1, score2 int64) int {
+	if score1 == score2 {
+		return 0
+	}
+
+	if z.zsl.order < 0 {
+		// 降序：分数大的在前面
+		if score1 > score2 {
+			return 1
+		} else {
+			return -1
+		}
+	} else {
+		// 升序：分数小的在前面
+		if score1 < score2 {
+			return 1
+		} else {
+			return -1
+		}
 	}
 }
 
 // ZCount 返回有序集合中分数在 min 和 max 之间的元素数量
 func (z *ZSet) ZCount(min, max int64) int64 {
-	spec := &zRangeSpec{
-		min:   min,
-		max:   max,
-		minex: 0,
-		maxex: 0,
-	}
-
-	// 直接遍历范围内的元素计数
-	var count int64 = 0
-	for x := z.zsl.header.level[0].forward; x != nil; x = x.level[0].forward {
-		if zslValueGteMin(x.score, spec) && zslValueLteMax(x.score, spec) {
-			count++
-		} else if x.score > max {
-			// 因为是有序的，所以当分数超过 max 时可以提前退出
-			break
+	// 考虑守门员限制
+	if z.guard.valid {
+		// 根据排序方式调整统计范围，确保不越过守门员
+		if z.zsl.order < 0 {
+			// 降序：守门员是分数最低的，不能统计分数低于守门员的元素
+			if min < z.guard.score {
+				min = z.guard.score
+			}
+		} else {
+			// 升序：守门员是分数最高的，不能统计分数高于守门员的元素
+			if max > z.guard.score {
+				max = z.guard.score
+			}
 		}
 	}
+
+	// 使用跳表的范围计数方法
+	count := z.zsl.zslCount(min, max)
+
 	return count
 }
 
-// GetGuardScore 获取守门员分数（最后一名的分数）
-func (z *ZSet) GetGuardScore() (int64, bool) {
-	if !z.guard.valid {
-		return 0, false
-	}
-
-	return z.guard.score, true
-}
-
-// IsFull 检查是否已满员
-func (z *ZSet) IsFull() bool {
-	if z.maxSize <= 0 {
-		return false
-	}
-
-	return int64(len(z.dict)) >= int64(z.maxSize)
-}
-
-// SetMaxSize 设置最大人数限制
-func (z *ZSet) SetMaxSize(maxSize int32) {
-	z.maxSize = maxSize
-	// 重新计算守门员
-	z.updateGuard()
-	// 可能需要裁剪
-	z.tryTrimExcess()
-}
-
-// GetMaxSize 获取最大人数限制
-func (z *ZSet) GetMaxSize() int32 {
-	return z.maxSize
-}
-
-// ZCard 返回元素数量
+// ZCard 返回有序集合的元素个数
 func (z *ZSet) ZCard() int64 {
+	if z.maxSize > 0 && z.zsl.length > int64(z.maxSize) {
+		// 懒裁剪模式下，实际元素个数不应该超过 maxSize
+		return int64(z.maxSize)
+	}
 	return z.zsl.length
 }
 
@@ -330,7 +418,7 @@ func (z *ZSet) updateGuard() {
 
 	// 获取第 maxSize 名（跳表的最后一名）
 	rank := int64(z.maxSize) - 1
-	key, score := z.ZData(rank)
+	key, score := z.ZElement(rank)
 	if key == "" {
 		z.guard.valid = false
 		return
@@ -355,53 +443,11 @@ func (z *ZSet) tryTrimExcess() {
 		return
 	}
 
-	// 触发清理
-	z.trimExcess()
-}
-
-// isAfterGuard 判断元素是否在守门员之后
-func (z *ZSet) isAfterGuard(score int64) bool {
-	if !z.guard.valid {
-		return false
-	}
-
-	if z.zsl.order < 0 {
-		// 降序：分数小于等于守门员分数的元素在守门员之后
-		return score <= z.guard.score
-	} else {
-		// 升序：分数大于等于守门员分数的元素在守门员之后
-		return score >= z.guard.score
-	}
-}
-
-// trimExcess 清理超出阈值的元素
-func (z *ZSet) trimExcess() {
-	if z.maxSize <= 0 {
-		return
-	}
-
-	// 1. 清理跳表中超出 maxSize 的元素
+	// 清理跳表中超出 maxSize 的元素
 	if z.zsl.length > int64(z.maxSize) {
-		// 删除从 maxSize+1 到末尾的元素
-		z.deleteRangeByRank(int64(z.maxSize)+1, z.zsl.length)
+		// 删除从 maxSize 到末尾的元素（从0开始计数）
+		// zslDeleteRangeByRank 会返回成功删除的元素数量，并在内部自动清理 dict
+		// 清理的是守门员后面的元素，不会影响到守门员本身
+		z.zsl.zslDeleteRangeByRank(int64(z.maxSize), z.zsl.length-1, z.dict)
 	}
-
-	// 2. 只有当守门员有效时，才清理 dict 中不在跳表的元素
-	if z.guard.valid {
-		for key, score := range z.dict {
-			if z.isAfterGuard(score) {
-				delete(z.dict, key)
-			}
-		}
-	}
-}
-
-// deleteRangeByRank 删除指定排名范围的元素
-func (z *ZSet) deleteRangeByRank(start, end int64) {
-	if start > end || start == 0 {
-		return
-	}
-
-	// 直接使用跳表的批量删除方法（O(K + log N)）
-	z.zsl.zslDeleteRangeByRank(uint64(start), uint64(end), z.dict)
 }
