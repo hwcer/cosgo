@@ -5,7 +5,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/hwcer/cosgo/scc"
 	"github.com/hwcer/logger"
@@ -137,7 +136,7 @@ func stop() (stopped bool) {
 	for i := len(modules) - 1; i >= 0; i-- {
 		closeModule(modules[i])
 	}
-	if err := scc.Wait(time.Second * 10); err != nil {
+	if err := scc.Wait(0); err != nil {
 		logger.Alert("App Stop Error:%v", err)
 	}
 	return true
