@@ -53,6 +53,9 @@ func Parse(dest interface{}) (*Schema, error) {
 //	opts := &schema.Options{...}
 //	schema, err := schema.GetOrParse(&User{}, opts)
 func GetOrParse(dest interface{}, opts *Options) (*Schema, error) {
+	if opts == nil {
+		opts = config
+	}
 	return ParseWithSpecialTableName(dest, "", opts)
 }
 
@@ -162,6 +165,8 @@ func validateStructType(modelType reflect.Type, dest interface{}) error {
 		}
 		return fmt.Errorf("%w: %s.%s", ErrUnsupportedDataType, modelType.PkgPath(), modelType.Name())
 	}
+	// 允许临时结构体（anonymous struct）通过验证
+	// 临时结构体的 PkgPath() 为空字符串
 	return nil
 }
 

@@ -101,14 +101,46 @@ func (field *Field) compileGetValueFn() {
 	case len(field.Index) == 1:
 		// 简单字段：直接访问
 		idx := field.Index[0]
-		field.getValueFn = func(value reflect.Value) reflect.Value {
-			return reflect.Indirect(value).Field(idx)
+		if idx >= 0 {
+			field.getValueFn = func(value reflect.Value) reflect.Value {
+				v := reflect.Indirect(value)
+				if v.Kind() == reflect.Struct {
+					return v.Field(idx)
+				}
+				return reflect.Value{}
+			}
+		} else {
+			// 处理负数索引（嵌入字段为指针类型）
+			absIdx := -idx - 1
+			field.getValueFn = func(value reflect.Value) reflect.Value {
+				v := reflect.Indirect(value)
+				if v.Kind() == reflect.Struct {
+					v = v.Field(absIdx)
+					if v.Kind() == reflect.Ptr {
+						if v.Type().Elem().Kind() == reflect.Struct {
+							if v.IsNil() {
+								v.Set(reflect.New(v.Type().Elem()))
+							}
+						}
+						v = v.Elem()
+					}
+					return v
+				}
+				return reflect.Value{}
+			}
 		}
 	case len(field.Index) == 2 && field.Index[0] >= 0 && field.FieldType.Kind() != reflect.Ptr:
 		// 两层简单字段：直接访问
 		idx1, idx2 := field.Index[0], field.Index[1]
 		field.getValueFn = func(value reflect.Value) reflect.Value {
-			return reflect.Indirect(value).Field(idx1).Field(idx2)
+			v := reflect.Indirect(value)
+			if v.Kind() == reflect.Struct {
+				v = v.Field(idx1)
+				if v.Kind() == reflect.Struct {
+					return v.Field(idx2)
+				}
+			}
+			return reflect.Value{}
 		}
 	default:
 		// 复杂字段：预编译索引路径
@@ -117,6 +149,9 @@ func (field *Field) compileGetValueFn() {
 		field.getValueFn = func(value reflect.Value) reflect.Value {
 			v := reflect.Indirect(value)
 			for idx, fieldIdx := range indices {
+				if v.Kind() != reflect.Struct {
+					return reflect.Value{}
+				}
 				if fieldIdx >= 0 {
 					v = v.Field(fieldIdx)
 				} else {

@@ -74,7 +74,19 @@ func (schema *Schema) GetValue(obj any, key string, keys ...any) (r any) {
 	for i := 0; i < l; i++ {
 		sk := ToString(keys[i])
 		if field != nil {
-			sch = field.Embedded
+			// 对于指针类型的嵌入字段，需要获取其指向的结构体的Schema
+			if field.FieldType.Kind() == reflect.Ptr && field.IndirectFieldType.Kind() == reflect.Struct {
+				// 获取指针指向的结构体的Schema
+				tempValue := reflect.New(field.IndirectFieldType)
+				tempSchema, err := GetOrParse(tempValue.Interface(), field.Schema.options)
+				if err == nil {
+					sch = tempSchema
+				} else {
+					return nil
+				}
+			} else {
+				sch = field.Embedded
+			}
 		} else {
 			sch = schema
 		}
