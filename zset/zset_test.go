@@ -371,6 +371,87 @@ func TestZIncr(t *testing.T) {
 	t.Log("ZIncr 测试完成")
 }
 
+// 测试同分先到先得（FIFO）
+func TestSameScoreFIFO(t *testing.T) {
+	t.Log("\n========== 同分FIFO测试 ==========")
+
+	// 降序模式
+	s := New(-1)
+	s.ZAdd(100, "first")
+	s.ZAdd(100, "second")
+	s.ZAdd(100, "third")
+
+	// 先到的排名应该靠前
+	rank1, _ := s.ZRank("first")
+	rank2, _ := s.ZRank("second")
+	rank3, _ := s.ZRank("third")
+	if rank1 != 0 || rank2 != 1 || rank3 != 2 {
+		t.Errorf("FIFO 失败(降序)，期望 first=0,second=1,third=2，实际 %d,%d,%d", rank1, rank2, rank3)
+	}
+
+	// ZRange 顺序应该与插入顺序一致
+	nodes := s.ZRange(0, 2)
+	expected := []string{"first", "second", "third"}
+	for i, node := range nodes {
+		if node.Key != expected[i] {
+			t.Errorf("ZRange FIFO 失败，期望第 %d 个 %s，实际 %s", i, expected[i], node.Key)
+		}
+	}
+
+	// 删除中间元素后排名仍正确
+	s.ZRem("second")
+	rank1, _ = s.ZRank("first")
+	rank3, _ = s.ZRank("third")
+	if rank1 != 0 || rank3 != 1 {
+		t.Errorf("FIFO 删除后失败，期望 first=0,third=1，实际 %d,%d", rank1, rank3)
+	}
+
+	// 升序模式
+	s2 := New(1)
+	s2.ZAdd(50, "alpha")
+	s2.ZAdd(50, "beta")
+	s2.ZAdd(50, "gamma")
+
+	r1, _ := s2.ZRank("alpha")
+	r2, _ := s2.ZRank("beta")
+	r3, _ := s2.ZRank("gamma")
+	if r1 != 0 || r2 != 1 || r3 != 2 {
+		t.Errorf("FIFO 失败(升序)，期望 alpha=0,beta=1,gamma=2，实际 %d,%d,%d", r1, r2, r3)
+	}
+
+	t.Log("同分FIFO测试完成")
+}
+
+// 测试守门员同分拒绝
+func TestGuardSameScoreReject(t *testing.T) {
+	t.Log("\n========== 守门员同分拒绝测试 ==========")
+
+	s := NewWithMaxSize(3)
+	s.ZAdd(300, "a")
+	s.ZAdd(200, "b")
+	s.ZAdd(100, "c") // 守门员：100, "c"
+
+	// 新成员分数等于守门员，应被拒绝（先到者优先）
+	result := s.ZAdd(100, "d")
+	if result != 0 {
+		t.Errorf("期望同分新成员被拒绝(返回0)，实际返回 %d", result)
+	}
+
+	// 新成员分数低于守门员，应被拒绝
+	result = s.ZAdd(50, "e")
+	if result != 0 {
+		t.Errorf("期望低分新成员被拒绝(返回0)，实际返回 %d", result)
+	}
+
+	// 新成员分数高于守门员，应被接受
+	result = s.ZAdd(150, "f")
+	if result != 150 {
+		t.Errorf("期望高分新成员被接受(返回150)，实际返回 %d", result)
+	}
+
+	t.Log("守门员同分拒绝测试完成")
+}
+
 // 测试倒序排列
 func TestZSetDescending(t *testing.T) {
 	t.Log("\n========== 倒序排列测试 ==========")

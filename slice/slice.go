@@ -47,8 +47,8 @@ func Roll[T constraints.Ordered](nums []T) (r T) {
 	if l == 0 {
 		return
 	}
-	i := rand.Int31n(int32(l) - 1)
-	return nums[i]
+	// rand.Int31n 要求参数 > 0;l-1 在 l==1 时为 0 会 panic,且会忽略最后一个元素
+	return nums[rand.Int31n(int32(l))]
 }
 
 // Last 取结尾 n 个
@@ -60,8 +60,7 @@ func Last[T comparable](arr []T, n int) []T {
 	if l <= n {
 		return arr
 	}
-	s := l - n
-	return arr[s : n+s]
+	return arr[l-n:]
 }
 
 func IndexOf[T comparable](arr []T, tar T) int {
@@ -160,16 +159,18 @@ func Split(src string, char ...string) []string {
 func SplitInt32(src string, char ...string) (r []int32) {
 	arr := Split(src, char...)
 	for _, v := range arr {
-		in, _ := ParseInt32(v)
-		r = append(r, in)
+		if in, err := ParseInt32(v); err == nil {
+			r = append(r, in)
+		}
 	}
 	return
 }
 func SplitInt64(src string, char ...string) (r []int64) {
 	arr := Split(src, char...)
 	for _, v := range arr {
-		in, _ := ParseInt64(v)
-		r = append(r, in)
+		if in, err := ParseInt64(v); err == nil {
+			r = append(r, in)
+		}
 	}
 	return
 }

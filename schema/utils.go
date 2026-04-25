@@ -7,22 +7,22 @@ import (
 )
 
 // Kind 获取接口或指针指向的底层类型
-func Kind(dest interface{}) reflect.Type {
+func Kind(dest any) reflect.Type {
 	return internal.Kind(dest)
 }
 
 // ValueOf 获取接口或值的 reflect.Value
-func ValueOf(i interface{}) reflect.Value {
+func ValueOf(i any) reflect.Value {
 	return internal.ValueOf(i)
 }
 
-// ToArray 将任意类型转换为 []interface{}
-func ToArray(v interface{}) (r []interface{}) {
+// ToArray 将任意类型转换为 []any
+func ToArray(v any) (r []any) {
 	return internal.ToArray(v)
 }
 
 // ToString 将任意类型转换为字符串
-func ToString(value interface{}) string {
+func ToString(value any) string {
 	return internal.ToString(value)
 }
 

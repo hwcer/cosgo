@@ -1,5 +1,12 @@
 package registry
 
+// Registry 路由/服务注册表。
+//
+// 并发模型(重要):
+//   - 所有注册操作(Service / Register 及底层 Router.Register)约定在服务器启动阶段
+//     以单 goroutine 完成,之后进入只读状态。Search 是 lock-free 的纯读路径。
+//   - 不对 dict / router.static / router.radix 加锁。运行时若需动态注册,
+//     调用方必须自行加锁并承担与并发 Search 的竞态责任。
 type Registry struct {
 	dict   map[string]*Service
 	router *Router
@@ -72,12 +79,14 @@ func (this *Registry) Router() *Router {
 	return this.router
 }
 
-// Search 通过路径匹配Route,path必须是使用 Registry.Clean()处理后的
-func (this *Registry) Search(method string, paths ...string) (*Node, map[string]string) {
+// Search 通过路径匹配路由
+// 返回匹配的 Node 和路由参数（Params 切片，非 map）
+func (this *Registry) Search(method string, paths ...string) (*Node, Params) {
 	return this.router.Search(method, paths...)
 }
 
-// Service GET OR CREATE
+// Service GET OR CREATE。
+// 约定仅在启动阶段单线程调用;运行时动态调用需调用方自己加锁,参见 Registry 注释。
 func (this *Registry) Service(name string, hs ...Handler) *Service {
 	prefix := Route(name)
 	if r, ok := this.dict[prefix]; ok {

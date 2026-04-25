@@ -74,8 +74,8 @@ func TestRouter(t *testing.T) {
 		if params == nil || len(params) != 1 {
 			t.Fatalf("参数路由应返回参数: %v", params)
 		}
-		if params["id"] != "123" {
-			t.Fatalf("参数值错误: 期望 123, 实际 %s", params["id"])
+		if params.ByName("id") != "123" {
+			t.Fatalf("参数值错误: 期望 123, 实际 %s", params.ByName("id"))
 		}
 	})
 
@@ -91,8 +91,8 @@ func TestRouter(t *testing.T) {
 		if params == nil || len(params) != 1 {
 			t.Fatalf("参数提交路由应返回参数: %v", params)
 		}
-		if params["id"] != "456" {
-			t.Fatalf("参数值错误: 期望 456, 实际 %s", params["id"])
+		if params.ByName("id") != "456" {
+			t.Fatalf("参数值错误: 期望 456, 实际 %s", params.ByName("id"))
 		}
 	})
 

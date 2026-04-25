@@ -75,6 +75,9 @@ func (this *Memory) Create(uuid string, data map[string]any) (p *Data, err error
 	return
 }
 
+// Heartbeat 定时清扫过期 session。
+// 刻意"先收集后删除": Range 回调只把过期 *Data 积攒到本地 slice,
+// Range 返回后再逐个 Storage.Delete,避免迭代中修改底层存储。
 func (this *Memory) Heartbeat(i any) {
 	s, _ := i.(int32)
 	if s <= 0 {

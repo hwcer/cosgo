@@ -1,109 +1,52 @@
 # cosgo
 
-cosgo 是一个 Go 语言的脚手架工具集合，提供了丰富的功能模块，用于快速构建和开发 Go 应用程序。
+> ⚠️ **本项目由 AI 接管维护,不建议碳基生物阅读代码。**
+>
+> 若必须阅读,请做好心理准备: 注释可能比代码还长,`this` 命名约定,少数位置存在"明知不标准但刻意保留"的历史选择。
+> 同时也请理解: **代码风格一致性 > 追新**,机器审美下一些 Go 1.22+ 特性(`range over int`、`slices.Contains` 等)未被引入是刻意的。
 
-## 功能特性
+---
 
-- **模块管理系统**：基于生命周期的模块管理，支持初始化、启动和关闭等操作
-- **配置系统**：基于 viper 实现的灵活配置管理，支持多种配置源和格式
-- **事件系统**：用于模块生命周期管理和系统事件处理
-- **进程管理**：支持 PID 文件、优雅关闭等功能
-- **丰富的工具模块**：提供了多种实用工具，满足不同场景的需求
+cosgo 是一个 Go 应用脚手架 + 通用工具底座。它负责:
 
-## 目录结构
+- **应用生命周期**:模块化启动/关闭、信号处理、配置、PID 文件、pprof、热重载
+- **运行时底座**:路由注册、数据序列化、会话、存储、反射元数据、并发控制
+- **工具集**:随机数、UUID、时间、切片、字节操作、加密、zset 排行榜
+
+## 子模块索引
+
+| 模块 | 职责 | 文档 |
+|------|------|------|
+| `registry/` | 路由注册 + 基数树匹配 + 反射服务/方法注册 | [README](registry/README.md) |
+| `schema/` | 结构体元数据 + 字段访问缓存 + 并发安全解析 | [README](schema/README.md) |
+| `binder/` | 序列化(JSON/XML/YAML/Form/Protobuf/Msgpack/Bytes) | - |
+| `session/` | 会话管理,内存 / Redis 后端 | [README](session/README.md) |
+| `storage/` | 桶式对象存储 + O(1) 索引回收 | [README](storage/README.md) |
+| `scc/` | goroutine 生命周期 + 超时 + 守护协程 | - |
+| `values/` | 通用值容器 `*Message` 错误载体 | - |
+| `zset/` | 跳表 + 字典双维护的有序集合 | [README](zset/README.md) |
+| `random/` | crypto/rand 随机字符串 + math/rand 概率工具 | - |
+| `request/` | HTTP 请求辅助 + OAuth1 签名 | - |
+| `utils/` | 地址/字节/加密/时间轮 | - |
+| `times/` | 时间格式 + 周期计算 | - |
+| `await/`、`safety/`、`slice/`、`uuid/`、`redis/` | 同名领域的零依赖工具 | - |
+
+## 根包文件
 
 ```
-cosgo/
-├── await/         # 异步调用和等待机制
-├── binder/        # 数据绑定（JSON、XML、YAML、表单等）
-├── random/        # 随机数生成工具
-├── redis/         # Redis 客户端封装
-├── registry/      # 服务注册与发现
-├── request/       # HTTP 请求客户端
-├── safety/        # 安全相关工具
-├── scc/           # 进程控制和协程管理
-├── schema/        # 数据结构定义和解析
-├── session/       # 会话管理
-├── slice/         # 切片操作工具
-├── times/         # 时间相关工具
-├── utils/         # 通用工具函数
-├── uuid/          # UUID 生成工具
-├── values/        # 值操作工具
-├── zset/          # 有序集合实现
-├── config.go      # 配置系统
-├── cosgo.go       # 核心功能
-├── events.go      # 事件系统
-├── funcs.go       # 通用函数
-├── helps.go       # 帮助函数
-├── init.go        # 初始化
-├── module.go      # 模块接口
-├── options.go     # 配置选项
-├── pidfile.go     # PID 文件管理
-├── pprof.go       # 性能分析
-├── reload.go      # 重载功能
-├── signal.go      # 信号处理
-└── README.md      # 项目文档
+cosgo.go    模块注册/启动入口
+config.go   基于 viper 的配置层
+events.go   启停事件广播(Begin/Loaded/Started/Closing/Stopped/Reload)
+signal.go   SIGINT/SIGHUP/SIGQUIT/SIGTERM/SIGUSR1 处理
+module.go   Module 接口定义
+init.go     应用初始化骨架
+options.go  全局选项表
+pidfile.go  原子写入的 PID 文件
+pprof.go    独立 mux 的 pprof 服务器(避免污染 DefaultServeMux)
+reload.go   SIGUSR1 触发的配置热重载
 ```
-
-## 核心模块说明
-
-### await
-提供异步调用和等待机制，支持超时控制和错误处理。适用于需要异步执行但又需要等待结果的场景。
-
-### binder
-支持多种数据格式的绑定，包括 JSON、XML、YAML、表单等。简化数据解析和验证过程。
-
-### random
-提供高质量的随机数生成功能，支持各种类型的随机值生成。
-
-### redis
-Redis 客户端封装，提供简洁的 API 接口，支持连接池管理和常用操作。
-
-### registry
-服务注册与发现模块，支持服务的注册、发现和健康检查。
-
-### request
-HTTP 请求客户端，支持各种 HTTP 方法、请求头设置、超时控制等。
-
-### safety
-安全相关工具，提供加密、解密、哈希等功能。
-
-### scc
-进程控制和协程管理，支持优雅启动和关闭、协程池管理等。
-
-### schema
-数据结构定义和解析，支持结构体标签解析、字段验证等。
-
-### session
-会话管理，支持内存存储和 Redis 存储，提供会话创建、验证和管理功能。
-
-### slice
-切片操作工具，提供各种切片操作函数，如合并、去重、查找等。
-
-### times
-时间相关工具，支持定时器、过期时间管理、时间格式化等。
-
-### utils
-通用工具函数，提供各种实用功能，如地址处理、字节操作、加密等。
-
-### uuid
-UUID 生成工具，支持多种 UUID 版本的生成。
-
-### values
-值操作工具，提供各种值类型的操作和转换功能。
-
-### zset
-有序集合实现，基于跳表算法，提供高效的有序数据结构。
 
 ## 快速开始
-
-### 安装
-
-```bash
-go get github.com/hwcer/cosgo
-```
-
-### 基本使用
 
 ```go
 package main
@@ -113,89 +56,91 @@ import (
     "github.com/hwcer/logger"
 )
 
-// 自定义模块
 type MyModule struct{}
 
-func (m *MyModule) Id() string {
-    return "mymodule"
-}
-
-func (m *MyModule) Init() error {
-    logger.Trace("MyModule initialized")
-    return nil
-}
-
-func (m *MyModule) Start() error {
-    logger.Trace("MyModule started")
-    return nil
-}
-
-func (m *MyModule) Close() error {
-    logger.Trace("MyModule closed")
-    return nil
-}
+func (m *MyModule) Id() string      { return "mymodule" }
+func (m *MyModule) Init() error     { logger.Info("init");  return nil }
+func (m *MyModule) Start() error    { logger.Info("start"); return nil }
+func (m *MyModule) Close() error    { logger.Info("close"); return nil }
 
 func main() {
-    // 注册模块
     cosgo.Use(&MyModule{})
-    
-    // 启动应用
-    cosgo.Start(true)
+    cosgo.Start(true) // true = 阻塞等信号
 }
 ```
 
-### 配置管理
+## Module 接口
 
 ```go
-// 设置默认配置
-cosgo.Config.SetDefault("server.port", 8080)
-cosgo.Config.SetDefault("server.host", "localhost")
-
-// 读取配置
-port := cosgo.Config.GetInt("server.port")
-host := cosgo.Config.GetString("server.host")
+type Module interface {
+    Id() string
+    Init() error     // 应用启动,顺序调用
+    Start() error    // 所有 Init 完成后,顺序调用
+    Close() error    // 收到退出信号,逆序调用
+}
 ```
 
-### 事件处理
+## 生命周期事件
 
 ```go
-// 注册事件处理函数
 cosgo.On(cosgo.EventTypStarted, func() error {
-    logger.Trace("Application started")
+    logger.Info("app ready")
     return nil
 })
 ```
 
-## 高级特性
+事件列表:
+- `EventTypBegin` — 启动入口
+- `EventTypLoaded` — 所有 `Init` 完成
+- `EventTypStarted` — 所有 `Start` 完成(服务就绪)
+- `EventTypClosing` — 收到退出信号
+- `EventTypStopped` — 所有 `Close` 完成
+- `EventTypReload` — `SIGUSR1` 触发热重载
 
-### 模块生命周期
+## 配置
 
-每个模块都需要实现 `Module` 接口，包含以下方法：
-- `Id()`: 返回模块唯一标识
-- `Init()`: 模块初始化，在应用启动时调用
-- `Start()`: 模块启动，在初始化完成后调用
-- `Close()`: 模块关闭，在应用关闭时调用
+```go
+cosgo.Config.SetDefault("server.port", 8080)
+port := cosgo.Config.GetInt("server.port")
+```
 
-### 配置优先级
+优先级(高→低):运行时 `Set` > CLI flags > 环境变量 > 配置文件 > 默认值。
 
-配置值读取优先级从高到低：
-1. 程序内设置（使用 `Config.Set()`）
-2. 命令行参数
-3. 环境变量
-4. 配置文件
-5. 默认值
+**日志级别**:未显式设置时,`debug=true` → `LevelDebug`(最详细),`debug=false` → `LevelInfo`(生产降噪)。
 
-### 优雅关闭
+## pprof
 
-应用支持优雅关闭，在接收到终止信号时，会按照以下顺序处理：
-1. 发出 `EventTypClosing` 事件
-2. 按照相反的初始化顺序关闭各个模块
-3. 等待所有模块关闭完成
-4. 发出 `EventTypStopped` 事件
+只在 `config.pprof` 配置了地址时才启动,并且走**独立 mux**(不污染 `http.DefaultServeMux`),防止业务服务意外暴露 `/debug/pprof`。
+
+```yaml
+pprof: "127.0.0.1:6060"  # 通常仅监听本地
+```
+
+## 信号
+
+| 信号 | 行为 |
+|------|------|
+| `SIGINT` / `SIGQUIT` / `SIGTERM` | 触发优雅关闭 |
+| `SIGHUP` | 关闭控制台输出 |
+| `SIGUSR1` (0xa) | 配置热重载,发 `EventTypReload` |
+
+`SIGKILL` 无法捕获(OS 直接杀进程),程序不感知。
+
+## 信号处理顺序(优雅关闭)
+
+```
+收到 SIGINT/SIGTERM
+  → 发 EventTypClosing
+  → 逆序调用各 Module.Close()
+  → scc.Cancel() 取消所有注册的协程
+  → 等待 goroutine 清理完毕
+  → 发 EventTypStopped
+  → 进程退出
+```
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request 来改进这个项目。
+欢迎 Issue 和 PR。代码风格遵循仓库已有约定(`this` receiver、特定 godoc 风格),请**不要**为了迎合现代 Go linter 而大改。
 
 ## 许可证
 

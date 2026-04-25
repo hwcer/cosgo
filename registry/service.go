@@ -55,10 +55,8 @@ func (this *Service) Register(i any, prefix ...string) error {
 		return err
 	}
 	for _, node := range nodes {
-		if err = this.router.Register(node, this.methods); err == nil {
-			nodes = append(nodes, node)
-		} else {
-			fmt.Printf("router register error,route:%s error:%v", node.Name(), err)
+		if err := this.router.Register(node, this.methods); err != nil {
+			return fmt.Errorf("router register route=%s: %w", node.Name(), err)
 		}
 	}
 	return nil
@@ -70,10 +68,8 @@ func (this *Service) RegisterWithMethod(i any, method []string, prefix ...string
 		return err
 	}
 	for _, node := range nodes {
-		if err = this.router.Register(node, method); err == nil {
-			nodes = append(nodes, node)
-		} else {
-			fmt.Printf("router register error,route:%s error:%v", node.Name(), err)
+		if err := this.router.Register(node, method); err != nil {
+			return fmt.Errorf("router register route=%s: %w", node.Name(), err)
 		}
 	}
 	return nil
@@ -83,7 +79,7 @@ func (this *Service) RegisterWithMethod(i any, method []string, prefix ...string
 func (this *Service) Parse(i any, prefix ...string) (nodes []*Node, err error) {
 	v := reflect.ValueOf(i)
 	var kind reflect.Kind
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		kind = v.Elem().Kind()
 	} else {
 		kind = v.Kind()
@@ -118,10 +114,12 @@ func (this *Service) format(serviceName, methodName string, prefix ...string) st
 	} else {
 		name = path.Join(serviceName, methodName)
 	}
-	p = strings.Replace(p, "%v", Formatter(name), -1)
-	p = strings.Replace(p, "%s", Formatter(serviceName), -1)
-	p = strings.Replace(p, "%m", Formatter(methodName), -1)
-	return p
+	// 一次扫描完成三个占位符替换
+	return strings.NewReplacer(
+		"%v", Formatter(name),
+		"%s", Formatter(serviceName),
+		"%m", Formatter(methodName),
+	).Replace(p)
 }
 
 // Node 创建Node
@@ -160,7 +158,7 @@ func (this *Service) ParseFun(i interface{}, prefix ...string) (nodes []*Node, e
 // ParseStruct 注册一组handle
 func (this *Service) ParseStruct(i interface{}, prefix ...string) ([]*Node, error) {
 	v := ValueOf(i)
-	if v.Kind() != reflect.Ptr {
+	if v.Kind() != reflect.Pointer {
 		return nil, errors.New("RegisterStruct handle type must be reflect.Struct")
 	}
 	if v.Elem().Kind() != reflect.Struct {
@@ -200,7 +198,7 @@ func (this *Service) ParseStruct(i interface{}, prefix ...string) ([]*Node, erro
 }
 
 func (this *Service) Paths() (r []string) {
-	for k, _ := range this.nodes {
+	for k := range this.nodes {
 		r = append(r, k)
 	}
 	return

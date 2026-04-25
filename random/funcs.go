@@ -30,7 +30,7 @@ func Relative(items map[int32]int32) int32 {
 	if l == 0 {
 		return -1
 	} else if l == 1 {
-		for k, _ := range items {
+		for k := range items {
 			return k
 		}
 	}
@@ -55,7 +55,8 @@ func Relative(items map[int32]int32) int32 {
 	return -1
 }
 
-// RelativeMulti 相对概率，权重 返回多个,repeat 是否可以重复
+// RelativeMulti 相对概率，权重，返回多个。repeat 是否可以重复。
+// 不修改传入的 items map（内部拷贝后操作）。
 func RelativeMulti(items map[int32]int32, num int32, repeat ...bool) []int32 {
 	var total int32 = 0
 	for _, v := range items {
@@ -67,21 +68,28 @@ func RelativeMulti(items map[int32]int32, num int32, repeat ...bool) []int32 {
 		return nil
 	}
 
-	re := false
-	if len(repeat) > 0 && repeat[0] == true {
-		re = true
+	re := len(repeat) > 0 && repeat[0]
+
+	// 不重复时拷贝 map，避免修改调用方数据
+	work := items
+	if !re {
+		work = make(map[int32]int32, len(items))
+		for k, v := range items {
+			work[k] = v
+		}
 	}
+
 	ret := make([]int32, num)
 	for i := 0; i < int(num); i++ {
-		rnd := int32(Roll(1, total))
-		for it, v := range items {
+		rnd := Roll(1, total)
+		for it, v := range work {
 			if v > 0 {
 				rnd -= v
 				if rnd <= 0 {
 					ret[i] = it
 					if !re {
 						total -= v
-						delete(items, it)
+						delete(work, it)
 					}
 					break
 				}

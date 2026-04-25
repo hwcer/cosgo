@@ -22,18 +22,18 @@ func (yamlBinding) Name() string {
 func (yamlBinding) String() string {
 	return MIMEYAML
 }
-func (yamlBinding) Encode(w io.Writer, i interface{}) error {
+func (yamlBinding) Encode(w io.Writer, i any) error {
 	return yaml.NewEncoder(w).Encode(i)
 }
 
-func (yamlBinding) Decode(r io.Reader, i interface{}) error {
+func (yamlBinding) Decode(r io.Reader, i any) error {
 	return yaml.NewDecoder(r).Decode(i)
 }
 
-func (yamlBinding) Marshal(i interface{}) ([]byte, error) {
+func (yamlBinding) Marshal(i any) ([]byte, error) {
 	return yaml.Marshal(i)
 }
 
-func (yamlBinding) Unmarshal(b []byte, obj interface{}) error {
+func (yamlBinding) Unmarshal(b []byte, obj any) error {
 	return yaml.Unmarshal(b, obj)
 }

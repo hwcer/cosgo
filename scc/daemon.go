@@ -18,14 +18,18 @@ func NewDaemon(scc *SCC) *Daemon {
 type Worker struct {
 	Handle  handle
 	Cancel  context.CancelFunc
-	stopped bool
+	stopped int32 // atomic: 0 未停,1 已停
 }
 
 func (w *Worker) Stop() {
-	w.stopped = true
+	atomic.StoreInt32(&w.stopped, 1)
 	if w.Cancel != nil {
 		w.Cancel()
 	}
+}
+
+func (w *Worker) isStopped() bool {
+	return atomic.LoadInt32(&w.stopped) != 0
 }
 
 type Daemon struct {
@@ -45,18 +49,28 @@ func (d *Daemon) Start(f handle) *Worker {
 }
 
 func (d *Daemon) handle(w *Worker) {
+	// Add(1) 必须在 go 之前,避免 Wait 在 goroutine Add 前就看到计数 0
+	d.scc.WaitGroup.Add(1)
 	go func() {
+		defer d.scc.WaitGroup.Done()
 		defer func() {
 			if e := recover(); e != nil {
 				d.scc.Catch(fmt.Errorf("%v\n%v", e, string(debug.Stack())))
 			}
-			w.Cancel()
-			if !w.stopped {
-				d.workers <- w
+			if w.Cancel != nil {
+				w.Cancel()
+			}
+			// worker 未被显式 Stop 且 scc 未退出,则重新入队重启;
+			// 否则直接丢弃,避免向已无消费者的 channel 发送而阻塞
+			if !w.isStopped() && !d.scc.Stopped() {
+				select {
+				case d.workers <- w:
+				default:
+					// 队列已满,记录并放弃重启
+					d.scc.Catch(fmt.Errorf("daemon: workers queue full, drop worker"))
+				}
 			}
 		}()
-		d.scc.WaitGroup.Add(1)
-		defer d.scc.WaitGroup.Done()
 		var ctx context.Context
 		ctx, w.Cancel = d.scc.WithCancel()
 		w.Handle(ctx)

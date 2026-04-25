@@ -13,224 +13,243 @@ const (
 )
 
 const (
-	NodeTypeStatic = iota // 静态节点
-	NodeTypeParam         // 参数节点
-	NodeTypeWild          // 通配符节点
+	NodeTypeStatic = iota
+	NodeTypeParam
+	NodeTypeWild
 )
 
-// RadixNode 基数树节点
+// methodEntry 方法 → 处理节点映射
+// 用切片替代 map：路由通常只注册 1~3 个 HTTP 方法，线性扫描比 hash 更快
+type methodEntry struct {
+	method string
+	node   *Node
+}
+
+// staticChild 静态子节点条目
+type staticChild struct {
+	key  string
+	node *RadixNode
+}
+
+// RadixNode 路由树节点
+// children 拆分为 statics/paramChild/wildChild 三个字段，
+// 匹配时��接按优先级（静态 > 参数 > 通配符）访问，消除 map hash 开销
 type RadixNode struct {
-	prefix     string                // 当前节点的路径前缀
-	children   map[string]*RadixNode // 子节点映射
-	method     map[string]*Node      // HTTP方法到处理节点的映射
-	nodeType   int                   // 节点类型：NodeTypeStatic, NodeTypeParam, NodeTypeWild
-	paramNames []string              // 参数节点的参数名列表
+	prefix     string
+	statics    []staticChild // 静态子节点（按 key 线性扫描，典型 1~5 个）
+	paramChild *RadixNode    // 参数子节点（最多一个 ":"）
+	wildChild  *RadixNode    // 通配符子节点（最多一个 "*"）
+	methods    []methodEntry // HTTP 方法 → Node
+	nodeType   int
+	paramNames []string
 }
 
-// NewRadixNode 创建一个新的基数树节点
 func NewRadixNode(prefix string) *RadixNode {
-	return &RadixNode{
-		prefix:     prefix,
-		children:   make(map[string]*RadixNode),
-		method:     make(map[string]*Node),
-		nodeType:   NodeTypeStatic, // 默认是静态节点
-		paramNames: []string{},     // 参数名列表
-	}
+	return &RadixNode{prefix: prefix}
 }
 
-// Register 注册路由到基数树
+// findStatic 线性扫描静态子节点
+func (r *RadixNode) findStatic(key string) *RadixNode {
+	for i := range r.statics {
+		if r.statics[i].key == key {
+			return r.statics[i].node
+		}
+	}
+	return nil
+}
+
+// findMethod 线性扫描方法
+func (r *RadixNode) findMethod(method string) *Node {
+	for i := range r.methods {
+		if r.methods[i].method == method {
+			return r.methods[i].node
+		}
+	}
+	return nil
+}
+
+// hasMethod 是否有注册的方法
+func (r *RadixNode) hasMethod() bool {
+	return len(r.methods) > 0
+}
+
+// Register 注册路由到树
 func (r *RadixNode) Register(path string, method []string, node *Node) error {
-	// 路径分割
 	parts := Split(path)
-	// 递归插入
 	return r.insert(path, parts, method, node)
 }
 
-// insert 递归插入路由到基数树
 func (r *RadixNode) insert(path string, parts []string, method []string, node *Node) error {
 	if len(parts) == 0 {
-		// 到达路径末尾，注册方法
 		for _, m := range method {
 			m = strings.ToUpper(m)
-			// 检查方法是否已经存在
-			if _, exists := r.method[m]; exists {
+			if r.findMethod(m) != nil {
 				return fmt.Errorf("method already exists: %s for path: %s", m, path)
 			}
-			// 如果方法不存在，那么注册方法
-			r.method[m] = node
+			r.methods = append(r.methods, methodEntry{method: m, node: node})
 		}
 		return nil
 	}
 
 	part := parts[0]
-	// 确定节点前缀
-	var prefix string
+
 	if strings.HasPrefix(part, PathMatchParam) {
-		prefix = PathMatchParam
-	} else if strings.HasPrefix(part, PathMatchVague) {
-		prefix = PathMatchVague
-	} else {
-		prefix = Formatter(part)
-	}
-	child, exists := r.children[prefix]
-
-	if !exists {
-		// 检查是否为参数或通配符
-		nodeType := NodeTypeStatic
-		var paramName string
-		if strings.HasPrefix(part, PathMatchParam) {
-			nodeType = NodeTypeParam
-			paramName = strings.TrimPrefix(part, PathMatchParam)
-		} else if strings.HasPrefix(part, PathMatchVague) {
-			nodeType = NodeTypeWild
-			//paramName = PathMatchVague // 通配符参数名在匹配时固定为 "*"，不需要特意处理
-		}
-
-		// 创建新节点
-		child = NewRadixNode(prefix)
-		child.nodeType = nodeType
-		if paramName != "" {
-			child.paramNames = append(child.paramNames, paramName)
-		}
-		r.children[prefix] = child
-	} else if child.nodeType == NodeTypeParam && strings.HasPrefix(part, PathMatchParam) {
-		// 如果已经存在参数节点但参数名不同，添加新的参数名
 		paramName := strings.TrimPrefix(part, PathMatchParam)
-		// 检查参数名是否已经存在
-		if !slice.Has(child.paramNames, paramName) {
-			child.paramNames = append(child.paramNames, paramName)
+		if r.paramChild == nil {
+			r.paramChild = NewRadixNode(PathMatchParam)
+			r.paramChild.nodeType = NodeTypeParam
 		}
+		if paramName != "" && !slice.Has(r.paramChild.paramNames, paramName) {
+			r.paramChild.paramNames = append(r.paramChild.paramNames, paramName)
+		}
+		return r.paramChild.insert(path, parts[1:], method, node)
 	}
 
-	// 递归插入剩余部分
+	if strings.HasPrefix(part, PathMatchVague) {
+		if r.wildChild == nil {
+			r.wildChild = NewRadixNode(PathMatchVague)
+			r.wildChild.nodeType = NodeTypeWild
+		}
+		return r.wildChild.insert(path, parts[1:], method, node)
+	}
+
+	key := Formatter(part)
+	child := r.findStatic(key)
+	if child == nil {
+		child = NewRadixNode(key)
+		r.statics = append(r.statics, staticChild{key: key, node: child})
+	}
 	return child.insert(path, parts[1:], method, node)
 }
 
 // Match 匹配路由
-func (r *RadixNode) Match(path string, method string) (*Node, map[string]string) {
-	// 使用公共的 Split 方法进行路径分割
-	parts := Split(path)
-
-	// 递归匹配
-	params := make(map[string]string)
-	node := r.match(parts, params)
-
+// 零 Split：直接扫描 path 提取段
+// Params 用切片：回溯仅需 reslice（O(1)），无 map delete
+func (r *RadixNode) Match(path string, method string) (*Node, Params) {
+	var params Params
+	pos := 0
+	if len(path) > 0 && path[0] == '/' {
+		pos = 1
+	}
+	node := r.matchScan(path, pos, &params)
 	if node != nil {
-		// 检查方法是否匹配
-		if n, ok := node.method[method]; ok {
+		if n := node.findMethod(method); n != nil {
 			return n, params
 		}
 	}
-
 	return nil, nil
 }
 
-// match 递归匹配路由
-func (r *RadixNode) match(parts []string, params map[string]string) *RadixNode {
-	if len(parts) == 0 {
-		if len(r.method) > 0 {
+// matchScan 边扫描 path 边递归匹配
+func (r *RadixNode) matchScan(path string, pos int, params *Params) *RadixNode {
+	if pos >= len(path) {
+		if r.hasMethod() {
 			return r
 		}
-		// 检查是否有通配符子节点
-		if child, exists := r.children[PathMatchVague]; exists && child.nodeType == NodeTypeWild {
-			// 通配符匹配空路径
-			params[PathMatchVague] = ""
-			return child
+		if r.wildChild != nil {
+			*params = append(*params, Param{Key: PathMatchVague, Value: ""})
+			return r.wildChild
 		}
 		return nil
 	}
 
-	part := parts[0]
+	end := pos
+	for end < len(path) && path[end] != '/' {
+		end++
+	}
+	segment := path[pos:end]
+	nextPos := end + 1
+	if nextPos > len(path) {
+		nextPos = len(path)
+	}
 
-	// 优先匹配静态路由
-	formattedPart := Formatter(part)
-	if child, exists := r.children[formattedPart]; exists {
-		if result := child.match(parts[1:], params); result != nil {
+	// 优先级 1：静态子节点（直接 slice 扫描，无 hash）
+	if child := r.findStatic(toLowerFast(segment)); child != nil {
+		if result := child.matchScan(path, nextPos, params); result != nil {
 			return result
 		}
 	}
 
-	// 匹配参数路由
-
-	if child, exists := r.children[PathMatchParam]; exists && child.nodeType == NodeTypeParam {
-		// 提取参数值，对所有参数名赋值
-		for _, paramName := range child.paramNames {
-			params[paramName] = part
+	// 优先级 2：参数子节点
+	if r.paramChild != nil {
+		mark := len(*params)
+		for _, name := range r.paramChild.paramNames {
+			*params = append(*params, Param{Key: name, Value: segment})
 		}
-
-		if result := child.match(parts[1:], params); result != nil {
+		if result := r.paramChild.matchScan(path, nextPos, params); result != nil {
 			return result
 		}
-
-		// 回溯参数
-		for _, paramName := range child.paramNames {
-			delete(params, paramName)
-		}
+		// 回溯：reslice 恢复，O(1)，无 map delete
+		*params = (*params)[:mark]
 	}
 
-	// 匹配通配符路由
-	if child, exists := r.children[PathMatchVague]; exists && child.nodeType == NodeTypeWild {
-		// 提取剩余路径作为通配符参数值
-		if len(parts) > 0 {
-			// 构建剩余路径
-			remainingPath := strings.Join(parts, "/")
-			// 通配符参数名在匹配时固定为 "*"
-			params[PathMatchVague] = remainingPath
-		}
-		return child
+	// 优先级 3：通配符子节点
+	if r.wildChild != nil {
+		*params = append(*params, Param{Key: PathMatchVague, Value: path[pos:]})
+		return r.wildChild
 	}
 
 	return nil
 }
 
-//var RouterPrefix = []string{"/"}
+// toLowerFast 快速小写，大多数 URL 段已是小写时直接��回（零分配）
+func toLowerFast(s string) string {
+	for i := 0; i < len(s); i++ {
+		if s[i] >= 'A' && s[i] <= 'Z' {
+			return Formatter(s)
+		}
+	}
+	return s
+}
+
+// ==================== Static Router ====================
+
+// Static 静态路由条目
+type Static struct {
+	methods []methodEntry
+}
+
+func (s *Static) findMethod(method string) *Node {
+	for i := range s.methods {
+		if s.methods[i].method == method {
+			return s.methods[i].node
+		}
+	}
+	return nil
+}
+
+// Router 路由器：静态路由走 O(1) hash map，动态路由走树匹配
+type Router struct {
+	static map[string]*Static
+	radix  *RadixNode
+}
 
 func NewRouter() *Router {
 	return &Router{
 		static: make(map[string]*Static),
-		radix:  NewRadixNode(""), // 初始化基数树
+		radix:  NewRadixNode(""),
 	}
 }
 
-type Static struct {
-	method map[string]*Node
-}
-
-type Router struct {
-	static map[string]*Static // 静态路由,不含糊任何匹配参数
-	radix  *RadixNode         // 基数树路由
-}
-
-// Router is the registry of all registered Routes for an `engine` instance for
-// Request matching and URL path parameter parsing.
-//type Router struct {
-//	root   map[string]*Router //method->Router
-//	static map[string]*Router //静态路由,不含糊任何匹配参数
-//}
-
-/*
-/s/:id/update
-/s/123
-/GET/*
-*/
-
+// Static 静态路由查找
 func (this *Router) Static(method string, path string) (route string, node *Node) {
-	route = Formatter(path)
+	route = toLowerFast(path)
 	static, ok := this.static[route]
 	if !ok {
 		return
 	}
-	node = static.method[method]
+	node = static.findMethod(method)
 	return
 }
-func (this *Router) Search(method string, paths ...string) (node *Node, params map[string]string) {
+
+// Search 路由查��：静态优先，fallback 到树匹配
+func (this *Router) Search(method string, paths ...string) (node *Node, params Params) {
 	originalPath := Join(paths...)
-	// 1. 最高优先级：静态路由查找
+
 	if _, node = this.Static(method, originalPath); node != nil {
 		return node, nil
 	}
 
-	// 2. 基数树匹配（非静态路径）
 	if this.radix != nil {
 		n, p := this.radix.Match(originalPath, method)
 		if n != nil {
@@ -241,39 +260,28 @@ func (this *Router) Search(method string, paths ...string) (node *Node, params m
 	return nil, nil
 }
 
-// Register 注册协议
+// Register 注册路由
 func (this *Router) Register(node *Node, method []string) (err error) {
 	if len(method) == 0 {
 		return fmt.Errorf("route register method empty:%s", node.Name())
 	}
 	route := node.Name()
-	//静态路径
+
 	if !strings.Contains(route, PathMatchParam) && !strings.Contains(route, PathMatchVague) {
-		// 初始化静态路由（如果不存在）
 		static, ok := this.static[route]
 		if !ok {
-			static = &Static{
-				method: make(map[string]*Node),
-			}
+			static = &Static{}
 			this.static[route] = static
 		}
-		// 注册方法
 		for _, v := range method {
 			v = strings.ToUpper(v)
-			if _, ok := static.method[v]; !ok {
-				static.method[v] = node
-			} else {
+			if static.findMethod(v) != nil {
 				return fmt.Errorf("route exist:%s/%s", v, node.Name())
 			}
+			static.methods = append(static.methods, methodEntry{method: v, node: node})
 		}
-		// 静态路径不需要注册到基数树
 		return nil
 	}
 
-	// 注册到基数树（非静态路径）
-	if err := this.radix.Register(route, method, node); err != nil {
-		return err
-	}
-
-	return
+	return this.radix.Register(route, method, node)
 }

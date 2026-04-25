@@ -24,7 +24,8 @@ func WaitForSystemExit() {
 	defer timer.Stop()
 	ctx, cancel := scc.WithCancel()
 	defer cancel()
-	signal.Notify(ch, syscall.SIGINT, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM, SignalReload)
+	// 注意: SIGKILL 不可被用户态捕获(staticcheck SA1016),不应出现在 signal.Notify 里
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, SignalReload)
 	for {
 		select {
 		case sig := <-ch:
@@ -44,8 +45,8 @@ func WaitForSystemExit() {
 // syscall.SIGINT 控制台按下 CTRL+C
 // syscall.SIGHUP 关闭控制台，无论是否以服务模式启动，程序都会收到这个信号，使用nohup 启动避免程序退出
 // syscall.SIGQUIT 退出
-// syscall.SIGKILL  kill -9 系统强制退出程序
 // syscall.SIGTERM  kill 无参数时默认信号
+// 注意: SIGKILL 不可被程序捕获,这里不处理,由操作系统直接强制终止。
 func signalNotify(sig os.Signal) (stopped bool) {
 	logger.Trace("收到信号：%v\n", sig)
 	switch sig {
@@ -53,7 +54,7 @@ func signalNotify(sig os.Signal) (stopped bool) {
 		reload()
 	case syscall.SIGHUP:
 		SIGHUP()
-	case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGTERM:
+	case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM:
 		stopped = true
 	default:
 		logger.Trace("receive signal:%v", sig)

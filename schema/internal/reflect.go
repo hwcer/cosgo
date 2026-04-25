@@ -13,7 +13,7 @@ type ReflectValue = reflect.Value
 // Kind 获取接口或指针指向的底层类型
 func Kind(dest interface{}) reflect.Type {
 	value := ValueOf(dest)
-	if value.Kind() == reflect.Ptr && value.IsNil() {
+	if value.Kind() == reflect.Pointer && value.IsNil() {
 		value = reflect.New(value.Type().Elem())
 	}
 	modelType := reflect.Indirect(value).Type()
@@ -22,7 +22,7 @@ func Kind(dest interface{}) reflect.Type {
 		modelType = reflect.Indirect(reflect.ValueOf(dest)).Elem().Type()
 	}
 
-	for modelType.Kind() == reflect.Slice || modelType.Kind() == reflect.Array || modelType.Kind() == reflect.Ptr {
+	for modelType.Kind() == reflect.Slice || modelType.Kind() == reflect.Array || modelType.Kind() == reflect.Pointer {
 		modelType = modelType.Elem()
 	}
 	return modelType

@@ -2,10 +2,12 @@ package cosgo
 
 import (
 	"fmt"
-	"github.com/shirou/gopsutil/process"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/shirou/gopsutil/process"
 )
 
 var enablePidFile = false
@@ -16,7 +18,7 @@ func writePidFile() (err error) {
 		return
 	}
 	var pid int
-	err, pid = checkPidFile(file)
+	pid, err = checkPidFile(file)
 	if err != nil {
 		return err
 	}
@@ -36,15 +38,29 @@ func writePidFile() (err error) {
 		}
 	}
 
-	var fhdl *os.File
-	fhdl, err = os.OpenFile(file, os.O_RDWR|os.O_CREATE, os.ModePerm)
+	// 原子写入: 先写临时文件,再 rename 替换旧文件。
+	// 避免进程在 WriteString 中途 crash 导致残留半写内容,也避免未 O_TRUNC 造成的尾部残留。
+	content := []byte(strconv.Itoa(os.Getpid()))
+	tmp, err := os.CreateTemp(filepath.Dir(file), filepath.Base(file)+".*.tmp")
 	if err != nil {
 		return err
 	}
-	defer fhdl.Close()
+	tmpName := tmp.Name()
+	if _, err = tmp.Write(content); err != nil {
+		tmp.Close()
+		_ = os.Remove(tmpName)
+		return err
+	}
+	if err = tmp.Close(); err != nil {
+		_ = os.Remove(tmpName)
+		return err
+	}
+	if err = os.Rename(tmpName, file); err != nil {
+		_ = os.Remove(tmpName)
+		return err
+	}
 	enablePidFile = true
-	_, err = fhdl.WriteString(fmt.Sprintf("%v", os.Getpid()))
-	return err
+	return nil
 }
 
 func deletePidFile() error {
@@ -55,25 +71,24 @@ func deletePidFile() error {
 	return os.Remove(file)
 }
 
-func checkPidFile(pidFile string) (error, int) {
+func checkPidFile(pidFile string) (int, error) {
 	if !Exist(pidFile) {
-		return nil, 0
+		return 0, nil
 	}
 	fhdl, err := os.Open(pidFile)
 	if err != nil {
-		return err, 0
+		return 0, err
 	}
 	defer fhdl.Close()
 	buf := make([]byte, 64)
 	n, err := fhdl.Read(buf)
 	if err != nil {
-		return err, 0
+		return 0, err
 	}
-	str := string(buf[:n])
-	str = strings.TrimSpace(str)
+	str := strings.TrimSpace(string(buf[:n]))
 	pid, err := strconv.Atoi(str)
 	if err != nil {
-		return err, 0
+		return 0, err
 	}
-	return nil, pid
+	return pid, nil
 }

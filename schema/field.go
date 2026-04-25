@@ -23,7 +23,7 @@ type Field struct {
 	// 访问信息：字段访问路径和缓存
 	Index      []int                                  // 字段索引路径
 	getValueFn func(reflect.Value) reflect.Value      // 缓存获取值的函数
-	setValueFn func(reflect.Value, interface{}) error // 缓存设置值的函数
+	setValueFn func(reflect.Value, any) error // 缓存设置值的函数
 
 	// 命名缓存：避免重复计算
 	dbName string // 缓存数据库字段名
@@ -77,6 +77,11 @@ func (field *Field) GetEmbeddedFields() (r []*Field) {
 		} else {
 			v.Index = append([]int{-field.StructField.Index[0] - 1}, v.Index...)
 		}
+		// 复制后 Index 已调整,但源字段可能已经预热了 getValueFn/setValueFn,
+		// 那些函数是针对源 Index 编译的,对调整后的 Index 完全错误。
+		// 清空指针,让新字段在下次访问或下次 warmupFieldFns 时按新 Index 重新编译。
+		v.getValueFn = nil
+		v.setValueFn = nil
 		r = append(r, v)
 	}
 	return
@@ -116,7 +121,7 @@ func (field *Field) compileGetValueFn() {
 				v := reflect.Indirect(value)
 				if v.Kind() == reflect.Struct {
 					v = v.Field(absIdx)
-					if v.Kind() == reflect.Ptr {
+					if v.Kind() == reflect.Pointer {
 						if v.Type().Elem().Kind() == reflect.Struct {
 							if v.IsNil() {
 								v.Set(reflect.New(v.Type().Elem()))
@@ -129,7 +134,7 @@ func (field *Field) compileGetValueFn() {
 				return reflect.Value{}
 			}
 		}
-	case len(field.Index) == 2 && field.Index[0] >= 0 && field.FieldType.Kind() != reflect.Ptr:
+	case len(field.Index) == 2 && field.Index[0] >= 0 && field.FieldType.Kind() != reflect.Pointer:
 		// 两层简单字段：直接访问
 		idx1, idx2 := field.Index[0], field.Index[1]
 		field.getValueFn = func(value reflect.Value) reflect.Value {
@@ -157,7 +162,7 @@ func (field *Field) compileGetValueFn() {
 				} else {
 					v = v.Field(-fieldIdx - 1)
 				}
-				if v.Kind() == reflect.Ptr {
+				if v.Kind() == reflect.Pointer {
 					if v.Type().Elem().Kind() == reflect.Struct {
 						if v.IsNil() {
 							v.Set(reflect.New(v.Type().Elem()))
@@ -174,7 +179,7 @@ func (field *Field) compileGetValueFn() {
 }
 
 // Set valuer, setter when parse struct
-func (field *Field) Set(value reflect.Value, v interface{}) error {
+func (field *Field) Set(value reflect.Value, v any) error {
 	// 如果没有缓存的设置函数，编译一个
 	if field.setValueFn == nil {
 		field.compileSetValueFn()
@@ -197,13 +202,13 @@ func (field *Field) compileSetValueFn() {
 	case reflect.String:
 		field.setValueFn = field.SetString
 	default:
-		field.setValueFn = func(value reflect.Value, v interface{}) error {
+		field.setValueFn = func(value reflect.Value, v any) error {
 			return field.fallbackSetter(value, v, field.Set)
 		}
 	}
 }
 
-func (field *Field) fallbackSetter(value reflect.Value, v interface{}, setter func(reflect.Value, interface{}) error) (err error) {
+func (field *Field) fallbackSetter(value reflect.Value, v any, setter func(reflect.Value, any) error) (err error) {
 	if v == nil {
 		field.ReflectValueOf(value).Set(reflect.New(field.FieldType).Elem())
 		return nil
@@ -218,7 +223,7 @@ func (field *Field) fallbackSetter(value reflect.Value, v interface{}, setter fu
 	} else if reflectValType.ConvertibleTo(field.FieldType) {
 		field.ReflectValueOf(value).Set(reflectV.Convert(field.FieldType))
 		return
-	} else if field.FieldType.Kind() == reflect.Ptr {
+	} else if field.FieldType.Kind() == reflect.Pointer {
 		fieldValue := field.ReflectValueOf(value)
 		fieldType := field.FieldType.Elem()
 
@@ -240,7 +245,7 @@ func (field *Field) fallbackSetter(value reflect.Value, v interface{}, setter fu
 		}
 	}
 
-	if reflectV.Kind() == reflect.Ptr {
+	if reflectV.Kind() == reflect.Pointer {
 		if reflectV.IsNil() {
 			field.ReflectValueOf(value).Set(reflect.New(field.FieldType).Elem())
 		} else {
@@ -257,169 +262,180 @@ func (field *Field) fallbackSetter(value reflect.Value, v interface{}, setter fu
 	return
 }
 
-func (field *Field) SetBool(value reflect.Value, v interface{}) error {
+func (field *Field) SetBool(value reflect.Value, v any) error {
+	fv := field.ReflectValueOf(value)
 	switch data := v.(type) {
 	case bool:
-		field.ReflectValueOf(value).SetBool(data)
+		fv.SetBool(data)
 	case *bool:
 		if data != nil {
-			field.ReflectValueOf(value).SetBool(*data)
+			fv.SetBool(*data)
 		} else {
-			field.ReflectValueOf(value).SetBool(false)
+			fv.SetBool(false)
 		}
 	case int64:
-		if data > 0 {
-			field.ReflectValueOf(value).SetBool(true)
-		} else {
-			field.ReflectValueOf(value).SetBool(false)
-		}
+		fv.SetBool(data > 0)
 	case string:
 		b, _ := strconv.ParseBool(data)
-		field.ReflectValueOf(value).SetBool(b)
+		fv.SetBool(b)
 	default:
 		return field.fallbackSetter(value, v, field.Set)
 	}
 	return nil
 }
-func (field *Field) SetInt(value reflect.Value, v interface{}) error {
+func (field *Field) SetInt(value reflect.Value, v any) error {
+	// []byte 和 default 走 field.Set,会重新调用 field.ReflectValueOf,不能复用 fv
 	switch data := v.(type) {
-	case int64:
-		field.ReflectValueOf(value).SetInt(data)
-	case int:
-		field.ReflectValueOf(value).SetInt(int64(data))
-	case int8:
-		field.ReflectValueOf(value).SetInt(int64(data))
-	case int16:
-		field.ReflectValueOf(value).SetInt(int64(data))
-	case int32:
-		field.ReflectValueOf(value).SetInt(int64(data))
-	case uint:
-		field.ReflectValueOf(value).SetInt(int64(data))
-	case uint8:
-		field.ReflectValueOf(value).SetInt(int64(data))
-	case uint16:
-		field.ReflectValueOf(value).SetInt(int64(data))
-	case uint32:
-		field.ReflectValueOf(value).SetInt(int64(data))
-	case uint64:
-		field.ReflectValueOf(value).SetInt(int64(data))
-	case float32:
-		field.ReflectValueOf(value).SetInt(int64(data))
-	case float64:
-		field.ReflectValueOf(value).SetInt(int64(data))
 	case []byte:
 		return field.Set(value, string(data))
 	case string:
 		if data == "" {
 			data = "0"
 		}
-		if i, err := strconv.ParseInt(data, 0, 64); err == nil {
-			field.ReflectValueOf(value).SetInt(i)
-		} else {
+		i, err := strconv.ParseInt(data, 0, 64)
+		if err != nil {
 			return err
 		}
+		field.ReflectValueOf(value).SetInt(i)
+		return nil
+	}
+	fv := field.ReflectValueOf(value)
+	switch data := v.(type) {
+	case int64:
+		fv.SetInt(data)
+	case int:
+		fv.SetInt(int64(data))
+	case int8:
+		fv.SetInt(int64(data))
+	case int16:
+		fv.SetInt(int64(data))
+	case int32:
+		fv.SetInt(int64(data))
+	case uint:
+		fv.SetInt(int64(data))
+	case uint8:
+		fv.SetInt(int64(data))
+	case uint16:
+		fv.SetInt(int64(data))
+	case uint32:
+		fv.SetInt(int64(data))
+	case uint64:
+		fv.SetInt(int64(data))
+	case float32:
+		fv.SetInt(int64(data))
+	case float64:
+		fv.SetInt(int64(data))
 	default:
 		return field.fallbackSetter(value, v, field.Set)
 	}
 	return nil
 }
 
-func (field *Field) SetUint(value reflect.Value, v interface{}) error {
+func (field *Field) SetUint(value reflect.Value, v any) error {
 	switch data := v.(type) {
-	case uint64:
-		field.ReflectValueOf(value).SetUint(data)
-	case uint:
-		field.ReflectValueOf(value).SetUint(uint64(data))
-	case uint8:
-		field.ReflectValueOf(value).SetUint(uint64(data))
-	case uint16:
-		field.ReflectValueOf(value).SetUint(uint64(data))
-	case uint32:
-		field.ReflectValueOf(value).SetUint(uint64(data))
-	case int64:
-		field.ReflectValueOf(value).SetUint(uint64(data))
-	case int:
-		field.ReflectValueOf(value).SetUint(uint64(data))
-	case int8:
-		field.ReflectValueOf(value).SetUint(uint64(data))
-	case int16:
-		field.ReflectValueOf(value).SetUint(uint64(data))
-	case int32:
-		field.ReflectValueOf(value).SetUint(uint64(data))
-	case float32:
-		field.ReflectValueOf(value).SetUint(uint64(data))
-	case float64:
-		field.ReflectValueOf(value).SetUint(uint64(data))
 	case []byte:
 		return field.Set(value, string(data))
 	case string:
 		if data == "" {
 			data = "0"
 		}
-		if i, err := strconv.ParseUint(data, 0, 64); err == nil {
-			field.ReflectValueOf(value).SetUint(i)
-		} else {
+		i, err := strconv.ParseUint(data, 0, 64)
+		if err != nil {
 			return err
 		}
+		field.ReflectValueOf(value).SetUint(i)
+		return nil
+	}
+	fv := field.ReflectValueOf(value)
+	switch data := v.(type) {
+	case uint64:
+		fv.SetUint(data)
+	case uint:
+		fv.SetUint(uint64(data))
+	case uint8:
+		fv.SetUint(uint64(data))
+	case uint16:
+		fv.SetUint(uint64(data))
+	case uint32:
+		fv.SetUint(uint64(data))
+	case int64:
+		fv.SetUint(uint64(data))
+	case int:
+		fv.SetUint(uint64(data))
+	case int8:
+		fv.SetUint(uint64(data))
+	case int16:
+		fv.SetUint(uint64(data))
+	case int32:
+		fv.SetUint(uint64(data))
+	case float32:
+		fv.SetUint(uint64(data))
+	case float64:
+		fv.SetUint(uint64(data))
 	default:
 		return field.fallbackSetter(value, v, field.Set)
 	}
 	return nil
 }
 
-func (field *Field) SetFloat(value reflect.Value, v interface{}) error {
+func (field *Field) SetFloat(value reflect.Value, v any) error {
 	switch data := v.(type) {
-	case float64:
-		field.ReflectValueOf(value).SetFloat(data)
-	case float32:
-		field.ReflectValueOf(value).SetFloat(float64(data))
-	case int64:
-		field.ReflectValueOf(value).SetFloat(float64(data))
-	case int:
-		field.ReflectValueOf(value).SetFloat(float64(data))
-	case int8:
-		field.ReflectValueOf(value).SetFloat(float64(data))
-	case int16:
-		field.ReflectValueOf(value).SetFloat(float64(data))
-	case int32:
-		field.ReflectValueOf(value).SetFloat(float64(data))
-	case uint:
-		field.ReflectValueOf(value).SetFloat(float64(data))
-	case uint8:
-		field.ReflectValueOf(value).SetFloat(float64(data))
-	case uint16:
-		field.ReflectValueOf(value).SetFloat(float64(data))
-	case uint32:
-		field.ReflectValueOf(value).SetFloat(float64(data))
-	case uint64:
-		field.ReflectValueOf(value).SetFloat(float64(data))
 	case []byte:
 		return field.Set(value, string(data))
 	case string:
 		if data == "" {
 			data = "0"
 		}
-		if i, err := strconv.ParseFloat(data, 64); err == nil {
-			field.ReflectValueOf(value).SetFloat(i)
-		} else {
+		i, err := strconv.ParseFloat(data, 64)
+		if err != nil {
 			return err
 		}
+		field.ReflectValueOf(value).SetFloat(i)
+		return nil
+	}
+	fv := field.ReflectValueOf(value)
+	switch data := v.(type) {
+	case float64:
+		fv.SetFloat(data)
+	case float32:
+		fv.SetFloat(float64(data))
+	case int64:
+		fv.SetFloat(float64(data))
+	case int:
+		fv.SetFloat(float64(data))
+	case int8:
+		fv.SetFloat(float64(data))
+	case int16:
+		fv.SetFloat(float64(data))
+	case int32:
+		fv.SetFloat(float64(data))
+	case uint:
+		fv.SetFloat(float64(data))
+	case uint8:
+		fv.SetFloat(float64(data))
+	case uint16:
+		fv.SetFloat(float64(data))
+	case uint32:
+		fv.SetFloat(float64(data))
+	case uint64:
+		fv.SetFloat(float64(data))
 	default:
 		return field.fallbackSetter(value, v, field.Set)
 	}
 	return nil
 }
 
-func (field *Field) SetString(value reflect.Value, v interface{}) error {
+func (field *Field) SetString(value reflect.Value, v any) error {
+	fv := field.ReflectValueOf(value)
 	switch data := v.(type) {
 	case string:
-		field.ReflectValueOf(value).SetString(data)
+		fv.SetString(data)
 	case []byte:
-		field.ReflectValueOf(value).SetString(string(data))
+		fv.SetString(string(data))
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-		field.ReflectValueOf(value).SetString(ToString(data))
+		fv.SetString(ToString(data))
 	case float64, float32:
-		field.ReflectValueOf(value).SetString(fmt.Sprintf("%v", data))
+		fv.SetString(fmt.Sprintf("%v", data))
 	default:
 		return field.fallbackSetter(value, v, field.Set)
 	}

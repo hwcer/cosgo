@@ -112,8 +112,12 @@ func (this *config) Init() (err error) {
 	if this.IsSet(AppConfigNameLogsLevel) {
 		level := this.GetInt32(AppConfigNameLogsLevel)
 		logger.SetLevel(logger.Level(level))
-	} else if !debug {
-		logger.SetLevel(logger.LevelTrace)
+	} else if debug {
+		// dev 模式默认最详细
+		logger.SetLevel(logger.LevelDebug)
+	} else {
+		// 生产模式默认 Info+,避免 Debug/Trace 噪音
+		logger.SetLevel(logger.LevelInfo)
 	}
 
 	//设置pidFile

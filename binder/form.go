@@ -30,7 +30,7 @@ func (*formBinding) Name() string {
 func (*formBinding) String() string {
 	return MIMEPOSTForm
 }
-func (this *formBinding) Encode(w io.Writer, i interface{}) error {
+func (this *formBinding) Encode(w io.Writer, i any) error {
 	b, e := this.Marshal(i)
 	if e != nil {
 		return e
@@ -40,7 +40,7 @@ func (this *formBinding) Encode(w io.Writer, i interface{}) error {
 	return err
 }
 
-func (this *formBinding) Marshal(i interface{}) ([]byte, error) {
+func (this *formBinding) Marshal(i any) ([]byte, error) {
 	vs := url.Values{}
 	m, err := this.ToMap(i)
 	if err != nil {
@@ -52,7 +52,7 @@ func (this *formBinding) Marshal(i interface{}) ([]byte, error) {
 	return []byte(vs.Encode()), nil
 }
 
-func (f *formBinding) Decode(r io.Reader, i interface{}) (err error) {
+func (f *formBinding) Decode(r io.Reader, i any) (err error) {
 	var b []byte
 	b, err = io.ReadAll(r)
 	if err != nil {
@@ -61,7 +61,7 @@ func (f *formBinding) Decode(r io.Reader, i interface{}) (err error) {
 	return f.Unmarshal(b, i)
 }
 
-func (f *formBinding) Unmarshal(b []byte, i interface{}) (err error) {
+func (f *formBinding) Unmarshal(b []byte, i any) (err error) {
 	if len(b) == 0 {
 		return nil
 	}
@@ -79,7 +79,7 @@ func (f *formBinding) UnmarshalFromValues(vs url.Values, i any) (err error) {
 	}
 	vf := reflect.ValueOf(i)
 	if iv := reflect.Indirect(vf); iv.Kind() == reflect.Map {
-		for k, _ := range vs {
+		for k := range vs {
 			if v := vs.Get(k); v != "" {
 				iv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v))
 			}
@@ -134,7 +134,7 @@ func (this *formBinding) fromStruct(i any) (map[string]string, error) {
 		return nil, err
 	}
 	r := make(map[string]string)
-	for k, _ := range vs {
+	for k := range vs {
 		r[k] = fmt.Sprintf("%v", vs[k])
 	}
 	return r, nil

@@ -12,14 +12,12 @@ import (
 // handle 处理函数类型，接收一个上下文参数
 type handle func(context.Context)
 
-// defaultCatchError 默认的错误捕获函数，将错误打印到控制台
+// defaultCatchError 默认的错误捕获函数,将错误打印到控制台。
 func defaultCatchError(err error) {
 	fmt.Printf("%v", err)
 }
 
-// New 创建一个新的SCC实例
-// @param ctx 上下文，如果为nil则使用context.Background()
-// @return *SCC 返回创建的SCC实例
+// New 创建一个新的 SCC 实例。ctx 为 nil 时使用 context.Background()。
 func New(ctx context.Context) *SCC {
 	if ctx == nil {
 		ctx = context.Background()
@@ -40,21 +38,20 @@ type SCC struct {
 	handle  []func()      // 服务器关闭时执行的函数列表
 }
 
-// GO 启动一个普通的协程
-// @param f 要执行的函数
+// GO 启动一个普通的协程。
+// 注意: Add(1) 必须在 go 之前执行,否则主线程 Wait 可能看到计数 0 提前返回。
 func (s *SCC) GO(f func()) {
+	s.WaitGroup.Add(1)
 	go func() {
-		s.WaitGroup.Add(1)
 		defer s.WaitGroup.Done()
 		f()
 	}()
 }
 
-// CGO 启动一个带有取消通道的协程
-// @param f 要执行的处理函数，接收一个上下文参数
+// CGO 启动一个带有取消通道的协程。
 func (s *SCC) CGO(f handle) {
+	s.WaitGroup.Add(1)
 	go func() {
-		s.WaitGroup.Add(1)
 		defer s.WaitGroup.Done()
 		ctx, cancel := s.WithCancel()
 		defer cancel()
@@ -62,16 +59,25 @@ func (s *SCC) CGO(f handle) {
 	}()
 }
 
-// SGO 启动一个使用recover保护的协程，防止主进程崩溃
-// @param f 要执行的处理函数，接收一个上下文参数
+// SGO 启动一个使用 recover 保护的协程,防止主进程崩溃。
 func (s *SCC) SGO(f handle) {
+	s.WaitGroup.Add(1)
 	go func() {
-		s.Try(f)
+		defer s.WaitGroup.Done()
+		defer func() {
+			if e := recover(); e != nil {
+				s.Catch(fmt.Errorf("%v\n%v", e, string(debug.Stack())))
+			}
+		}()
+		ctx, cancel := s.WithCancel()
+		defer cancel()
+		f(ctx)
 	}()
 }
 
-// Try 尝试执行一个处理函数，使用recover捕获异常
-// @param f 要执行的处理函数，接收一个上下文参数
+// Try 在当前 goroutine 同步执行 f,使用 recover 保护。
+// 与 GO/CGO/SGO 不同,本函数不启动新 goroutine。
+// WaitGroup 的 Add/Done 在同一线程内,无竞态。
 func (s *SCC) Try(f handle) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -85,11 +91,8 @@ func (s *SCC) Try(f handle) {
 	f(ctx)
 }
 
-// Wait 阻塞模式等待所有协程结束
-// 一般只在启动后主进程中使用
-// 请不要在SCC创建的协程中使用，否者会无限等待
-// @param timeout 超时时间，如果为0则无限等待
-// @return error 错误信息，可能是超时错误
+// Wait 阻塞等待所有协程结束,timeout=0 表示无限等待。
+// 只能在主进程中调用;在 SCC 启动的协程内调用会自己等自己,死循环。
 func (s *SCC) Wait(timeout time.Duration) (err error) {
 	if timeout == 0 {
 		s.WaitGroup.Wait()
@@ -102,8 +105,7 @@ func (s *SCC) Wait(timeout time.Duration) (err error) {
 	return
 }
 
-// Cancel 关闭所有协程
-// @return bool 是否成功关闭，如果已经关闭过则返回false
+// Cancel 关闭所有协程。已关闭过返回 false,首次关闭返回 true。
 func (s *SCC) Cancel() bool {
 	if !atomic.CompareAndSwapInt32(&s.stop, 0, 1) {
 		return false
@@ -116,49 +118,39 @@ func (s *SCC) Cancel() bool {
 	return true
 }
 
-// Trigger 注册一个在服务器关闭时执行的函数
-// @param f 要执行的函数
+// Trigger 注册一个在服务器关闭时执行的函数。
+// 调用假定:Trigger 在启动阶段单线程注册;Cancel 由 CAS 保证只执行一次。
+// 已 Cancel 后再调用 Trigger 会被直接丢弃,不做追加(避免与 Cancel 遍历 handle 切片产生 race)。
 func (s *SCC) Trigger(f func()) {
+	if atomic.LoadInt32(&s.stop) != 0 {
+		return
+	}
 	s.handle = append(s.handle, f)
 }
 
-// Stopped 判断是否已经关闭
-// @return bool 是否已关闭
+// Stopped 返回是否已经关闭。
 func (s *SCC) Stopped() bool {
 	return s.stop > 0
 }
 
-// Deadline 返回上下文的截止时间
-// @return deadline 截止时间
-// @return ok 是否有截止时间
+// Deadline 返回上下文的截止时间。
 func (s *SCC) Deadline() (deadline time.Time, ok bool) {
 	return s.Context.Deadline()
 }
 
-// WithCancel 创建一个带有取消功能的子上下文
-// @return context.Context 创建的子上下文
-// @return context.CancelFunc 取消函数
+// WithCancel 创建带取消功能的子上下文。
 func (s *SCC) WithCancel() (context.Context, context.CancelFunc) {
 	return context.WithCancel(s.Context)
 }
 
-// WithTimeout 创建一个带有超时功能的子上下文
-// @param t 超时时间
-// @return context.Context 创建的子上下文
-// @return context.CancelFunc 取消函数
+// WithTimeout 创建带超时功能的子上下文。
 func (s *SCC) WithTimeout(t time.Duration) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(s.Context, t)
 }
 
-// WithValue 创建一个带有键值对的子上下文
-// @param parent 父上下文，如果为nil则使用SCC的根上下文
-// @param key 键
-// @param val 值
-// @return context.Context 创建的子上下文
-func (s *SCC) WithValue(parent context.Context, key, val any) context.Context {
-	if parent == nil {
-		return context.WithValue(s.Context, key, val)
-	} else {
-		return context.WithValue(parent, key, val)
-	}
+// WithValue 基于 SCC 的根上下文创建带键值对的子上下文。
+// 签名对齐 stdlib: 参数仅为 key/val。若需基于自定义父 context,
+// 直接使用 context.WithValue(parent, key, val) 即可。
+func (s *SCC) WithValue(key, val any) context.Context {
+	return context.WithValue(s.Context, key, val)
 }

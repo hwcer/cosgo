@@ -90,7 +90,7 @@ func CloneMap[T1 comparable, T2 comparable](src map[T1]T2) map[T1]T2 {
 
 func MapKeys[T1 comparable, T2 comparable](src map[T1]T2) []T1 {
 	r := make([]T1, 0, len(src))
-	for k, _ := range src {
+	for k := range src {
 		r = append(r, k)
 	}
 	return r

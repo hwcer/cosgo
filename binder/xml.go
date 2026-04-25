@@ -24,18 +24,18 @@ func (xmlBinding) Name() string {
 func (xmlBinding) String() string {
 	return MIMEXML
 }
-func (xmlBinding) Encode(w io.Writer, i interface{}) error {
+func (xmlBinding) Encode(w io.Writer, i any) error {
 	return xml.NewEncoder(w).Encode(i)
 }
 
-func (xmlBinding) Decode(r io.Reader, i interface{}) error {
+func (xmlBinding) Decode(r io.Reader, i any) error {
 	return xml.NewDecoder(r).Decode(i)
 }
 
-func (xmlBinding) Marshal(i interface{}) ([]byte, error) {
+func (xmlBinding) Marshal(i any) ([]byte, error) {
 	return xml.Marshal(i)
 }
 
-func (xmlBinding) Unmarshal(b []byte, i interface{}) error {
+func (xmlBinding) Unmarshal(b []byte, i any) error {
 	return xml.Unmarshal(b, i)
 }

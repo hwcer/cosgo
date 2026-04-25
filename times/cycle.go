@@ -136,20 +136,22 @@ func (this *Cycle) secondCycle(era *Times, n int) (r int) {
 	return int(t-s) / n
 }
 
-// monthlyCycle 计算到当前时间累计有几个月，包含开始时间点，和当前月
-// 0开始,第一届为0
+// monthlyCycle 计算从 era 到现在累计的月数差,从 0 开始计届。
+//
+// 时区说明:
+//   - `era.Now()` 和 `time.Now()` 都使用 time.Local 解释 Year/Month/Day。
+//   - 若 era 记录时与查询时进程所在时区不同(例如生产/测试服位于不同时区),
+//     月份/日期切换边界可能偏移 1 天,进而偏移 1 个月的届数。
+//   - DST(夏令时)切换影响在小时级,不影响 Month/Day 计算。
+//   - 如果调用方需要跨时区确定性,应保证 era 和查询方同处 time.Local,
+//     或 fork 本函数改为显式在 UTC 下计算。
 func (this *Cycle) monthlyCycle(era *Times) int {
-	// 计算总月数差
-	y1, y2 := era.Now().Year(), time.Now().Year()
-	m1, m2 := int(era.Now().Month()), int(time.Now().Month())
-	r := (y2-y1)*12 + (m2 - m1)
-
-	// 考虑日期因素：如果当前日期早于开始日期，月数减1
-	if time.Now().Day() < era.Now().Day() {
+	eraTime := era.Now()
+	now := time.Now()
+	// 用单次 time.Now() 快照，避免 Year/Month/Day 分别调用时跨秒/跨日
+	r := (now.Year()-eraTime.Year())*12 + int(now.Month()) - int(eraTime.Month())
+	if now.Day() < eraTime.Day() {
 		r--
 	}
-
-	// 计算届数，从0开始计数
-	v := r / this.v
-	return v
+	return r / this.v
 }

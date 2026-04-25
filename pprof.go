@@ -2,10 +2,11 @@ package cosgo
 
 import (
 	"fmt"
-	"github.com/hwcer/cosgo/utils"
 	"net/http"
-	_ "net/http/pprof"
+	"net/http/pprof"
 	"time"
+
+	"github.com/hwcer/cosgo/utils"
 )
 
 // Copyright 2010 The Go Authors. All rights reserved.
@@ -66,18 +67,30 @@ import (
 //	https://blog.golang.org/2011/06/profiling-go-programs.html
 var pprofServer *http.Server
 
+// pprofStart 在 config.pprof 配置了监听地址时启动独立的 pprof HTTP 服务。
+// 刻意不使用 `import _ "net/http/pprof"` 的副作用注册,避免 pprof handler
+// 污染 http.DefaultServeMux(否则业务 server 若复用 DefaultServeMux 会意外暴露
+// /debug/pprof 端点)。改为手动注册到专用 mux,接入面仅限本服务地址。
 func pprofStart() error {
-	pprof := Config.GetString("pprof")
-	if pprof == "" {
+	addr := Config.GetString("pprof")
+	if addr == "" {
 		return nil
 	}
-	pprofServer = new(http.Server)
-	pprofServer.Addr = pprof
-	pprofServer.Handler = http.DefaultServeMux
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	pprofServer = &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
 	_ = utils.Timeout(time.Second, func() error {
 		return pprofServer.ListenAndServe()
 	})
-	fmt.Printf("pprof server start:%v\n", pprof)
+	fmt.Printf("pprof server start:%v\n", addr)
 	return nil
 }
 

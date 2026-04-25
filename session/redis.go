@@ -9,21 +9,15 @@ import (
 
 	"github.com/hwcer/cosgo/redis"
 	"github.com/hwcer/cosgo/scc"
+	"github.com/hwcer/logger"
 )
-
-// 注意：
-// 1. Redis 存储实现中，会话数据会设置过期时间，避免内存泄漏
-// 2. 在 Create、Get 和 Update 方法中都会设置/续约过期时间
-// 3. 过期时间由 Options.MaxAge 控制，单位为秒
-
-const redisSessionKeyTokenName = "_cookie_key_token"
 
 type Redis struct {
 	prefix []string
 	client *redis.Client
 }
 
-func NewRedis(address interface{}, prefix ...string) (c *Redis, err error) {
+func NewRedis(address any, prefix ...string) (c *Redis, err error) {
 	c = &Redis{
 		prefix: prefix,
 	}
@@ -71,7 +65,9 @@ func (this *Redis) Get(uuid string) (p *Data, err error) {
 	}
 	//续约
 	if Options.MaxAge > 0 {
-		this.client.Expire(context.Background(), rk, time.Duration(Options.MaxAge)*time.Second)
+		if e := this.client.Expire(context.Background(), rk, time.Duration(Options.MaxAge)*time.Second).Err(); e != nil {
+			logger.Alert("session.redis Expire renew failed uuid=%s: %v", uuid, e)
+		}
 	}
 	p = NewData(uuid, data)
 	return
@@ -94,7 +90,9 @@ func (this *Redis) Create(uuid string, data map[string]any) (p *Data, err error)
 	}
 	// 设置过期时间
 	if Options.MaxAge > 0 {
-		this.client.Expire(context.Background(), rk, time.Duration(Options.MaxAge)*time.Second)
+		if e := this.client.Expire(context.Background(), rk, time.Duration(Options.MaxAge)*time.Second).Err(); e != nil {
+			logger.Alert("session.redis Expire set failed uuid=%s: %v", uuid, e)
+		}
 	}
 	p = NewData(uuid, data)
 	return
@@ -113,7 +111,9 @@ func (this *Redis) Update(p *Data, data map[string]any) (err error) {
 	}
 	// 更新过期时间
 	if Options.MaxAge > 0 {
-		this.client.Expire(context.Background(), rk, time.Duration(Options.MaxAge)*time.Second)
+		if e := this.client.Expire(context.Background(), rk, time.Duration(Options.MaxAge)*time.Second).Err(); e != nil {
+			logger.Alert("session.redis Expire update failed uuid=%s: %v", uuid, e)
+		}
 	}
 	return
 }

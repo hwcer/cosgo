@@ -15,7 +15,8 @@ type TimeWheel struct {
 	currentPos     int
 	slotNum        int
 	addTaskChannel chan *task
-	stopChannel    chan bool
+	stopChannel    chan struct{}
+	stopOnce       sync.Once
 	taskRecord     *sync.Map
 }
 
@@ -46,7 +47,7 @@ func New(interval time.Duration, slotNum int) *TimeWheel {
 		currentPos:     0,
 		slotNum:        slotNum,
 		addTaskChannel: make(chan *task),
-		stopChannel:    make(chan bool),
+		stopChannel:    make(chan struct{}),
 		taskRecord:     &sync.Map{},
 	}
 
@@ -61,9 +62,13 @@ func (tw *TimeWheel) Start() {
 	go tw.start()
 }
 
-// Stop stop the time wheel
+// Stop 停止时间轮,幂等:重复调用安全。
+// 注意: 已启动的 task.job goroutine(见 scanAddRunTask)是 fire-and-forget,
+// Stop 不会等待它们,也无法中断其运行。调用方需要同步等待的话应自行协调 context。
 func (tw *TimeWheel) Stop() {
-	tw.stopChannel <- true
+	tw.stopOnce.Do(func() {
+		close(tw.stopChannel)
+	})
 }
 
 func (tw *TimeWheel) start() {

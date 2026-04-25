@@ -18,13 +18,14 @@ func (b *Bytes) MarshalJSON() ([]byte, error) {
 }
 
 func (b *Bytes) UnmarshalJSON(v []byte) error {
-	if len(*b) != len(BytesEmptyJson) && string(v) != BytesEmptyJson {
+	// 输入是 JSON "null" 时保持接收器为空,否则原样存入
+	if string(v) != BytesEmptyJson {
 		*b = v
 	}
 	return nil
 }
 
-func (b *Bytes) Marshal(v interface{}) error {
+func (b *Bytes) Marshal(v any) error {
 	if v == nil {
 		return nil
 	}
@@ -35,7 +36,7 @@ func (b *Bytes) Marshal(v interface{}) error {
 	return err
 }
 
-func (b *Bytes) Unmarshal(i interface{}) error {
+func (b *Bytes) Unmarshal(i any) error {
 	if len(*b) == 0 {
 		return nil
 	}

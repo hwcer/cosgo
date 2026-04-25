@@ -8,18 +8,26 @@ import (
 	"unicode/utf8"
 )
 
+// Join 将多段路径拼接并规范化为 "/a/b/c" 形式。
+//
+// Fast path: 单个参数、已 "/" 开头、无 "//"、无尾斜杠时直接返回,零分配。
+// 典型 HTTP 请求 URL.Path 几乎都命中这一路径。
 func Join(paths ...string) string {
-
+	if len(paths) == 1 {
+		p := paths[0]
+		if p == "" {
+			return "/"
+		}
+		if p[0] == '/' && !strings.Contains(p, "//") && (len(p) == 1 || p[len(p)-1] != '/') {
+			return p
+		}
+	}
 	r := strings.Join(paths, "/")
-	// 处理重复的斜杠
-	r = strings.Replace(r, "//", "/", -1)
-
+	r = strings.ReplaceAll(r, "//", "/")
 	if !strings.HasPrefix(r, "/") {
 		r = "/" + r
 	}
-
 	r = strings.TrimSuffix(r, "/")
-	// 确保空路径返回根路径 "/"
 	if r == "" {
 		return "/"
 	}
@@ -84,13 +92,22 @@ func IsExported(name string) bool {
 	return unicode.IsUpper(r)
 }
 
-// Split 路径分割优化：减少内存分配
+// Split 按 '/' 分割路径,忽略空段。
+// 根路径 "/" 返回 [""] 以与 Register 语义一致。
+// 按 '/' 个数预估容量,单次分配,避免 append 扩容。
 func Split(path string) []string {
-	// 路径分割优化：减少内存分配
-	var parts []string
+	if path == "/" {
+		return []string{""}
+	}
+	if path == "" {
+		return nil
+	}
+	// '/' 个数上限即段数上限(实际可能少于,因首尾斜杠和空段)
+	n := strings.Count(path, "/") + 1
+	parts := make([]string, 0, n)
 	var start int
-	for i, c := range path {
-		if c == '/' {
+	for i := 0; i < len(path); i++ {
+		if path[i] == '/' {
 			if i > start {
 				parts = append(parts, path[start:i])
 			}
@@ -99,10 +116,6 @@ func Split(path string) []string {
 	}
 	if start < len(path) {
 		parts = append(parts, path[start:])
-	}
-	// 特殊处理根路径 "/"，返回 [""] 与 Register 方法保持一致
-	if path == "/" {
-		return []string{""}
 	}
 	return parts
 }

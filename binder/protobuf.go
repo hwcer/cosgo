@@ -24,7 +24,7 @@ func (*protobufBinding) Name() string {
 func (*protobufBinding) String() string {
 	return MIMEPROTOBUF
 }
-func (this *protobufBinding) Encode(w io.Writer, i interface{}) error {
+func (this *protobufBinding) Encode(w io.Writer, i any) error {
 	b, err := this.Marshal(i)
 	if err != nil {
 		return err
@@ -33,7 +33,7 @@ func (this *protobufBinding) Encode(w io.Writer, i interface{}) error {
 	return err
 }
 
-func (this *protobufBinding) Decode(body io.Reader, obj interface{}) error {
+func (this *protobufBinding) Decode(body io.Reader, obj any) error {
 	buf, err := io.ReadAll(body)
 	if err != nil {
 		return err
@@ -41,7 +41,7 @@ func (this *protobufBinding) Decode(body io.Reader, obj interface{}) error {
 	return this.Unmarshal(buf, obj)
 }
 
-func (*protobufBinding) Marshal(i interface{}) ([]byte, error) {
+func (*protobufBinding) Marshal(i any) ([]byte, error) {
 	if i == nil {
 		return []byte{}, nil
 	}
@@ -52,7 +52,7 @@ func (*protobufBinding) Marshal(i interface{}) ([]byte, error) {
 	return proto.Marshal(pb)
 }
 
-func (*protobufBinding) Unmarshal(b []byte, i interface{}) error {
+func (*protobufBinding) Unmarshal(b []byte, i any) error {
 	if len(b) == 0 {
 		return nil
 	}

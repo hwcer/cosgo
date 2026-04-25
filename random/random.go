@@ -102,31 +102,34 @@ func (this *Random) Probability(args ...int32) (r []int32) {
 }
 
 // Multi 随机多个不重复
+// 用 bitmap 标记已选中项，避免拷贝 items 切片和分配新 Data
 func (this *Random) Multi(num int) (r []int32) {
 	if this.total == 0 {
 		return nil
 	}
-	if num >= len(this.items) {
+	n := len(this.items)
+	if num >= n {
+		r = make([]int32, 0, n)
 		for _, d := range this.items {
 			r = append(r, d.Key)
 		}
 		return
 	}
-	items := make([]*Data, len(this.items))
+	used := make([]bool, n)
 	limit := this.total
-	copy(items, this.items)
+	r = make([]int32, 0, num)
 
 	for i := 0; i < num; i++ {
 		rnd := Roll(1, limit)
-		for j, d := range items {
-			if d.Val <= 0 {
+		for j, d := range this.items {
+			if used[j] || d.Val <= 0 {
 				continue
 			}
 			rnd -= d.Val
 			if rnd <= 0 {
 				r = append(r, d.Key)
 				limit -= d.Val
-				items[j] = &Data{Key: d.Key, Val: 0}
+				used[j] = true
 				break
 			}
 		}

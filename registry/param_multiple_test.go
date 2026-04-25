@@ -34,11 +34,11 @@ func TestParamMultiple(t *testing.T) {
 		if len(params) != 2 {
 			t.Fatalf("GET 参数路由应返回2个参数: %v", params)
 		}
-		if params["id"] != "USER123" {
-			t.Fatalf("GET 参数id值错误: 期望 USER123, 实际 %s", params["id"])
+		if params.ByName("id") != "USER123" {
+			t.Fatalf("GET 参数id值错误: 期望 USER123, 实际 %s", params.ByName("id"))
 		}
-		if params["user"] != "USER123" {
-			t.Fatalf("GET 参数user值错误: 期望 USER123, 实际 %s", params["user"])
+		if params.ByName("user") != "USER123" {
+			t.Fatalf("GET 参数user值错误: 期望 USER123, 实际 %s", params.ByName("user"))
 		}
 
 		// 测试 POST 方法
@@ -49,11 +49,11 @@ func TestParamMultiple(t *testing.T) {
 		if len(params) != 2 {
 			t.Fatalf("POST 参数路由应返回2个参数: %v", params)
 		}
-		if params["id"] != "USER123" {
-			t.Fatalf("POST 参数id值错误: 期望 USER123, 实际 %s", params["id"])
+		if params.ByName("id") != "USER123" {
+			t.Fatalf("POST 参数id值错误: 期望 USER123, 实际 %s", params.ByName("id"))
 		}
-		if params["user"] != "USER123" {
-			t.Fatalf("POST 参数user值错误: 期望 USER123, 实际 %s", params["user"])
+		if params.ByName("user") != "USER123" {
+			t.Fatalf("POST 参数user值错误: 期望 USER123, 实际 %s", params.ByName("user"))
 		}
 	})
 }

@@ -31,7 +31,7 @@ func (bytesBinding) Name() string {
 func (bytesBinding) String() string {
 	return MIMEBytes
 }
-func (bb bytesBinding) Encode(w io.Writer, i interface{}) error {
+func (bb bytesBinding) Encode(w io.Writer, i any) error {
 	data, err := bb.Marshal(i)
 	if err != nil {
 		return err
@@ -41,7 +41,7 @@ func (bb bytesBinding) Encode(w io.Writer, i interface{}) error {
 	return err
 }
 
-func (bb bytesBinding) Decode(r io.Reader, i interface{}) error {
+func (bb bytesBinding) Decode(r io.Reader, i any) error {
 	// 读取所有字节
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -51,7 +51,7 @@ func (bb bytesBinding) Decode(r io.Reader, i interface{}) error {
 	return bb.Unmarshal(data, i)
 }
 
-func (bb bytesBinding) Marshal(i interface{}) ([]byte, error) {
+func (bb bytesBinding) Marshal(i any) ([]byte, error) {
 	// 如果已经是字节数组，直接返回
 	if b, ok := i.([]byte); ok {
 		return b, nil
@@ -129,13 +129,13 @@ func (bb bytesBinding) Marshal(i interface{}) ([]byte, error) {
 	}
 }
 
-func (bb bytesBinding) Unmarshal(b []byte, i interface{}) error {
+func (bb bytesBinding) Unmarshal(b []byte, i any) error {
 	if len(b) == 0 {
 		return nil
 	}
 
 	v := reflect.ValueOf(i)
-	if v.Kind() != reflect.Ptr {
+	if v.Kind() != reflect.Pointer {
 		return fmt.Errorf("invalid data for unmarshal: must be a pointer")
 	}
 
@@ -169,14 +169,15 @@ func (bb bytesBinding) Unmarshal(b []byte, i interface{}) error {
 		if len(b) < 2 {
 			return fmt.Errorf("insufficient data for int16")
 		}
-		elem.SetInt(int64(bb.Binary.Uint16(b)))
+		// 先转 int16 保留符号位,再扩展到 int64;直接 int64(Uint16) 会把负数变成大正数
+		elem.SetInt(int64(int16(bb.Binary.Uint16(b))))
 		return nil
 
 	case reflect.Int32:
 		if len(b) < 4 {
 			return fmt.Errorf("insufficient data for int32")
 		}
-		elem.SetInt(int64(bb.Binary.Uint32(b)))
+		elem.SetInt(int64(int32(bb.Binary.Uint32(b))))
 		return nil
 
 	case reflect.Int, reflect.Int64:

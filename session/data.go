@@ -29,10 +29,14 @@ var MaxDataIndex = int32(math.MaxInt32 - 1000)
 
 // Data 用户登录信息,不要直接修改 Player.Values 信息
 type Data struct {
-	id        string        // session id
-	uuid      string        // GUID
-	index     int32         // socket server id
-	values    values.Values //私有字段，外部通过方法访问
+	id     string        // session id
+	uuid   string        // GUID
+	index  int32         // socket server id
+	values values.Values // 私有字段，外部通过方法访问
+	// heartbeat 掉线检测计数器
+	// 心跳协程每 N 秒 += N，请求协程随时归零（KeepAlive）。
+	// 故意不使用 atomic：x86-64 上 aligned int32 读写是单指令完成的，
+	// 最坏情况丢失一次累加或归零（差 ±1 个心跳周期），对粗粒度掉线判断无实际影响。
 	heartbeat int32
 	mutex     sync.Mutex
 }

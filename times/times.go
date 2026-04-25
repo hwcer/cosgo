@@ -1,7 +1,6 @@
 package times
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 
@@ -79,9 +78,9 @@ func (this *Times) Sign(addDays int) (sign int32, str string) {
 	if addDays != 0 {
 		t = t.AddDate(0, 0, addDays)
 	}
+	y, m, d := t.Date()
+	sign = int32(y)*10000 + int32(m)*100 + int32(d)
 	str = t.Format(SignLayout)
-	ret, _ := strconv.ParseUint(str, 10, 32)
-	sign = int32(ret)
 	return
 }
 
@@ -234,14 +233,13 @@ func (this *Times) ParseExpire(v int, tzs ...string) (ttl *Times, err error) {
 	if v < 2006010215 {
 		return Unix(0), nil
 	}
-	//tz := "+0000"
 	var tz string
 	if len(tzs) > 0 {
 		tz = tzs[0]
 	} else {
 		tz = this.GetTimeZone()
 	}
-	s := fmt.Sprintf("%v%v", v, tz)
+	s := strconv.Itoa(v) + tz
 	return Parse(s, "2006010215-0700")
 }
 
@@ -255,9 +253,8 @@ func (this *Times) ParseSign(v int32, tzs ...string) (*Times, error) {
 	} else {
 		tz = this.GetTimeZone()
 	}
-	s := fmt.Sprintf("%v%v", v, tz)
-	layout := fmt.Sprintf("%v-0700", SignLayout)
-	ts, err := Parse(s, layout)
+	s := strconv.FormatInt(int64(v), 10) + tz
+	ts, err := Parse(s, SignLayout+"-0700")
 	if err != nil {
 		return nil, err
 	}

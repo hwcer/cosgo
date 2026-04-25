@@ -95,13 +95,13 @@ func (this *Await) process(ctx context.Context) {
 // @param msg 消息对象
 func (this *Await) handle(msg *Message) {
 	if !atomic.CompareAndSwapInt32(&msg.state, 0, 1) {
-		return //对方等待超时已经放弃执行
+		return // 对方等待超时已放弃
 	}
 	defer func() {
 		if e := recover(); e != nil {
 			msg.err = values.Errorf(0, e)
 		}
+		close(msg.done) // 必须在 defer 内：panic 时也要通知等待者
 	}()
 	msg.reply, msg.err = msg.handle(msg.args)
-	close(msg.done)
 }

@@ -3,12 +3,12 @@ package request
 import (
 	"bytes"
 	"crypto/hmac"
+	cryptorand "crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"io"
-	"math/rand"
 	"net/http"
 	"strconv"
 	"strings"
@@ -21,10 +21,10 @@ import (
 
 const OAuthSignatureName = "oauth_signature"
 const (
-	HeaderXForwardedProto    = "X-Forwarded-Code"
+	HeaderXForwardedProto    = "X-Forwarded-Proto"
 	HeaderXForwardedProtocol = "X-Forwarded-Protocol"
 	HeaderXForwardedSsl      = "X-Forwarded-Ssl"
-	HeaderXUrlScheme         = "X-Url-Protocol"
+	HeaderXUrlScheme         = "X-Url-Scheme"
 )
 
 func NewOAuth(key, secret string, strict ...bool) *OAuth {
@@ -50,10 +50,18 @@ var oauthParams = []string{"oauth_consumer_key", "oauth_nonce", "oauth_timestamp
 
 func (this *OAuth) NewOAuthParams() map[string]string {
 	args := make(map[string]string)
-	args["oauth_nonce"] = strconv.FormatInt(int64(rand.Int31n(8999)+1000), 10)
+	// nonce: 16 字节 crypto/rand → hex,128 bits 熵,防重放;
+	// 若 crypto/rand 异常,退化到时间戳+纳秒序列作为兜底(极不稳健,但避免 nil)
+	var nb [16]byte
+	if _, err := cryptorand.Read(nb[:]); err != nil {
+		args["oauth_nonce"] = strconv.FormatInt(time.Now().UnixNano(), 10)
+	} else {
+		args["oauth_nonce"] = hex.EncodeToString(nb[:])
+	}
 	args["oauth_version"] = "1.0"
 	args["oauth_consumer_key"] = this.key
-	args["oauth_signature_method"] = "HMAC-SHA1"
+	// 实际签名使用 HMAC-SHA256,名称要与之一致
+	args["oauth_signature_method"] = "HMAC-SHA256"
 	args["oauth_timestamp"] = strconv.FormatInt(time.Now().Unix(), 10)
 	return args
 }
@@ -139,7 +147,8 @@ func (this *OAuth) Verify(req *http.Request, body *bytes.Buffer) (err error) {
 		}
 		data = body.String()
 	}
-	if signature != this.Signature(address, OAuthMap, data) {
+	// 使用 hmac.Equal 做定长时间比较,防时序侧信道
+	if !hmac.Equal([]byte(signature), []byte(this.Signature(address, OAuthMap, data))) {
 		return errors.New("OAuth signature error")
 	}
 	return

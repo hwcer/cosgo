@@ -129,7 +129,7 @@ func (vs Values) Unmarshal(k string, i any) error {
 		return json.Unmarshal(s, i)
 	default:
 		rv := reflect.ValueOf(i)
-		if rv.Kind() != reflect.Ptr || rv.IsNil() {
+		if rv.Kind() != reflect.Pointer || rv.IsNil() {
 			return errors.New("invalid type")
 		}
 

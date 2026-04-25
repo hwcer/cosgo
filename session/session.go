@@ -2,8 +2,6 @@
 package session
 
 import (
-	"strings"
-
 	"github.com/hwcer/cosgo/random"
 	"github.com/hwcer/logger"
 )
@@ -33,7 +31,7 @@ func (this *Session) Refresh() (string, error) {
 		return "", ErrorSessionNotCreate
 	}
 	secret := random.Strings.String(ContextRandomStringLength)
-	token := strings.Join([]string{secret, this.Data.Id()}, "")
+	token := secret + this.Data.Id()
 
 	this.Data.Set(TokenSecretName, secret, func() {
 		this.markDirty(TokenSecretName)
@@ -50,7 +48,7 @@ func (this *Session) Token() (string, error) {
 	if secret == "" {
 		return this.Refresh()
 	}
-	return strings.Join([]string{secret, this.Data.Id()}, ""), nil
+	return secret + this.Data.Id(), nil
 }
 
 // Verify 验证TOKEN信息是否有效,并初始化session
@@ -75,7 +73,9 @@ func (this *Session) Verify(token string) (err error) {
 	if secret == "" {
 		return ErrorSessionIllegal
 	}
-	if secret != token[0:ContextRandomStringLength] {
+	// 常量时间比较，防时序侧信道探测 secret 前缀
+	// 直接比较字符串字节，零堆分配（避免 []byte 转换的 2 次分配）
+	if !constantTimeStringEqual(secret, token[:ContextRandomStringLength]) {
 		return ErrorSessionReplaced
 	}
 	return nil
@@ -90,40 +90,32 @@ func (this *Session) Set(key string, val any) {
 	})
 }
 
-// markDirty 标记修改过的键，使用Copy-on-Write模式避免并发问题
+// markDirty 标记修改过的键。
+// Session 绑定单次请求上下文(参见文件头注释 #1),dirty 字段不会被并发读写,
+// 直接 mutate 即可;原先的 Copy-on-Write 在此语义下是无意义的额外分配。
 func (this *Session) markDirty(keys ...string) {
-	// 检查是否有新的键
-	l := len(this.dirty)
-	for _, k := range keys {
-		if _, ok := this.dirty[k]; !ok {
-			l += 1
-		}
-	}
-	if l == len(this.dirty) {
+	if len(keys) == 0 {
 		return
 	}
-	// 创建一个新的副本
-	newDirty := make(map[string]struct{}, l)
-	for k := range this.dirty {
-		newDirty[k] = struct{}{}
+	if this.dirty == nil {
+		this.dirty = make(map[string]struct{}, len(keys))
 	}
 	for _, k := range keys {
-		newDirty[k] = struct{}{}
+		this.dirty[k] = struct{}{}
 	}
-	this.dirty = newDirty
 }
 
 func (this *Session) Update(vs map[string]any) {
 	if this.Data == nil {
 		return
 	}
-	// 提取所有键
-	keys := make([]string, 0, len(vs))
-	for k := range vs {
-		keys = append(keys, k)
-	}
 	this.Data.Update(vs, func() {
-		this.markDirty(keys...)
+		if this.dirty == nil {
+			this.dirty = make(map[string]struct{}, len(vs))
+		}
+		for k := range vs {
+			this.dirty[k] = struct{}{}
+		}
 	})
 }
 
@@ -194,4 +186,18 @@ func (this *Session) Release() {
 func (this *Session) release() {
 	this.dirty = nil
 	this.Data = nil
+}
+
+// constantTimeStringEqual 常量时间字符串比较，零堆分配
+// 功能等价于 subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+// 但避免了 string → []byte 转换产生的 2 次堆分配
+func constantTimeStringEqual(a, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	var v byte
+	for i := 0; i < len(a); i++ {
+		v |= a[i] ^ b[i]
+	}
+	return v == 0
 }

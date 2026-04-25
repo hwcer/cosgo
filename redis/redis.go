@@ -13,8 +13,9 @@ type Client struct {
 	address string
 }
 
+// IsNil 判断 redis 返回的错误是否表示 key 不存在
 func IsNil(err error) bool {
-	return err.Error() == "redis: nil"
+	return err == redis.Nil
 }
 
 func (c *Client) Select(db int) (client *Client, err error) {

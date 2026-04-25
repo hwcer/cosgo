@@ -50,33 +50,32 @@ func ParseInt64(v any) int64 {
 func ParseFloat32(v any) (r float32) {
 	return float32(ParseFloat64(v))
 }
-func ParseFloat64(v any) (r float64) {
+func ParseFloat64(v any) float64 {
 	if v == nil {
 		return 0
 	}
-	switch v.(type) {
+	switch d := v.(type) {
 	case float32:
-		r = float64(v.(float32))
+		return float64(d)
 	case float64:
-		r = v.(float64)
+		return d
 	case string:
-		r, _ = strconv.ParseFloat(v.(string), 10)
+		r, _ := strconv.ParseFloat(d, 64)
+		return r
 	default:
 		return float64(ParseInt64(v))
 	}
-	return
 }
-func ParseString(v any) (r string) {
+func ParseString(v any) string {
 	if v == nil {
 		return ""
 	}
-	switch v.(type) {
+	switch d := v.(type) {
 	case string:
-		r = v.(string)
+		return d
 	default:
-		r = fmt.Sprintf("%v", v)
+		return fmt.Sprintf("%v", d)
 	}
-	return
 }
 
 func Sprintf(format any, args ...any) (text string) {
