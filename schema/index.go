@@ -42,6 +42,26 @@ type IndexField struct {
 	Priority int      //排序字段之间的排序ASC
 }
 
+type Indexes map[string]*Index
+
+func (is Indexes) AddField(sch *Schema, field *IndexField) {
+	idx := is[field.Name]
+	if idx == nil {
+		idx = &Index{sch: sch, Name: field.Name}
+		is[field.Name] = idx
+	}
+	idx.Fields = append(idx.Fields, field)
+	if field.Unique {
+		idx.Unique = field.Unique
+	}
+	if field.Sparse {
+		idx.Sparse = field.Sparse
+	}
+	if field.Partial != "" {
+		idx.Partial = append(idx.Partial, field.Partial)
+	}
+}
+
 func (this *IndexField) GetDBName() string {
 	return strings.Join(this.DBName, ".")
 }
@@ -59,7 +79,6 @@ func (this *Index) Build(whereParser ...IndexPartialParse) (index *mongo.IndexMo
 		}
 		keys = append(keys, bson.E{Key: k, Value: v})
 	}
-	//fmt.Printf("index:%+v\n\n\n", index)
 	index.Keys = keys
 	index.Options = options.Index()
 	index.Options.SetName(this.Name)
@@ -119,24 +138,19 @@ func (schema *Schema) LookIndex(name string) *Index {
 
 // ParseIndexes parse schema indexes
 func (schema *Schema) ParseIndexes() map[string]*Index {
-	indexes := map[string]*Index{}
+	if schema.indexes != nil {
+		return schema.indexes
+	}
+	indexes := Indexes{}
 	for _, field := range schema.Fields {
 		for _, indexField := range schema.parseFieldIndexes(field, "") {
-			idx := indexes[indexField.Name]
-			if idx == nil {
-				idx = &Index{sch: schema, Name: indexField.Name}
-				indexes[indexField.Name] = idx
-			}
-			idx.Fields = append(idx.Fields, indexField)
-			if indexField.Unique {
-				idx.Unique = indexField.Unique
-			}
-			if indexField.Sparse {
-				idx.Sparse = indexField.Sparse
-			}
-			if indexField.Partial != "" {
-				idx.Partial = append(idx.Partial, indexField.Partial)
-			}
+			indexes.AddField(schema, indexField)
+		}
+	}
+	i := schema.New().Interface()
+	if getIndexes, ok := i.(GetIndexes); ok {
+		for _, indexField := range getIndexes.GetIndexes() {
+			indexes.AddField(schema, indexField)
 		}
 	}
 
@@ -146,6 +160,7 @@ func (schema *Schema) ParseIndexes() map[string]*Index {
 		})
 	}
 
+	schema.indexes = indexes
 	return indexes
 }
 

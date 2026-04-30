@@ -120,27 +120,6 @@ func waitSchemaInit(s *Schema) (*Schema, error) {
 	}
 }
 
-// ParseWithSpecialTableName 从目标结构体解析 Schema 信息，支持自定义表名
-//
-// 参数:
-//
-//	dest: 目标结构体实例或指针，用于解析其字段信息
-//	specialTableName: 自定义表名，优先级高于结构体的 Tabler 接口
-//	opts: 解析选项，包含缓存、表名生成等配置
-//
-// 返回:
-//
-//	*Schema: 解析生成的 Schema 实例，包含结构体的所有字段信息
-//	error: 解析过程中发生的错误，如类型不支持、字段名重复等
-//
-// 示例:
-//
-//	type User struct {
-//	    ID   int    `json:"id" db:"user_id"`
-//	    Name string `json:"name" db:"user_name"`
-//	}
-//	opts := &schema.Options{...}
-//	schema, err := schema.ParseWithSpecialTableName(&User{}, "custom_users", opts)
 // ParseWithSpecialTableName 从目标结构体解析 Schema 信息，支持自定义表名。
 // 缓存命中时走零分配快路径（不设置 defer/recover），仅缓存未命中时进入完整解析。
 func ParseWithSpecialTableName(dest any, specialTableName string, opts *Options) (*Schema, error) {
@@ -269,7 +248,7 @@ func determineTableName(modelType reflect.Type, specialTableName string, opts *O
 
 // processFields 处理结构体字段
 func processFields(schema *Schema, modelType reflect.Type) error {
-	for i := 0; i < modelType.NumField(); i++ {
+	for i := range modelType.NumField() {
 		fieldStruct := modelType.Field(i)
 		if ast.IsExported(fieldStruct.Name) {
 			field := schema.ParseField(fieldStruct)

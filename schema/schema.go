@@ -20,6 +20,9 @@ type Schema struct {
 	// dbFields 保留带 db 标签字段的列表,供 Schema.Range 高效迭代(slice 迭代比 map 快)。
 	// 顺序与 Fields 迭代一致,但只包含 DBName() != "" 的字段。
 	dbFields []*Field
+	// indexes 缓存 ParseIndexes 的结果,避免每次调用都重新解析 tag。
+	// Schema 构建完成后字段不变,索引结果也不变,安全缓存。
+	indexes map[string]*Index
 	// initDone 在 Schema 创建时分配,构建者在 Parse 返回前 close()。
 	// 并发等待者通过 <-initDone 阻塞到构建完成,O(μs) 唤醒;
 	// 构建完成后 close 的 chan 对后续读者零开销(立即返回 zero value)。
@@ -34,8 +37,7 @@ func (schema *Schema) String() string {
 }
 
 func (schema *Schema) New() reflect.Value {
-	results := reflect.New(schema.ModelType)
-	return results
+	return reflect.New(schema.ModelType)
 }
 
 // Make Make a Slice
@@ -67,6 +69,7 @@ func (schema *Schema) JSName(k string) (r string) {
 	}
 	return
 }
+
 // GetValue 按路径取值。单 key 的 common case(len(keys)==0)走快路径,不分配合并 slice。
 func (schema *Schema) GetValue(obj any, key string, keys ...any) (r any) {
 	vf := ValueOf(obj)
@@ -82,21 +85,10 @@ func (schema *Schema) GetValue(obj any, key string, keys ...any) (r any) {
 	if len(keys) == 0 {
 		return vf.Interface()
 	}
-	// 多段路径,走通用逻辑
 	var sch *Schema
-	for i := 0; i < len(keys); i++ {
-		sk := ToString(keys[i])
-		// 对于指针类型的嵌入字段,获取其 Schema
-		if field.FieldType.Kind() == reflect.Pointer && field.IndirectFieldType.Kind() == reflect.Struct {
-			tempValue := reflect.New(field.IndirectFieldType)
-			tempSchema, err := GetOrParse(tempValue.Interface(), field.Schema.options)
-			if err != nil {
-				return nil
-			}
-			sch = tempSchema
-		} else {
-			sch = field.Embedded
-		}
+	for _, k := range keys {
+		sk := ToString(k)
+		sch = field.embeddedSchema()
 		if sch == nil {
 			return nil
 		}
@@ -127,13 +119,12 @@ func (schema *Schema) SetValue(obj any, val any, key string, keys ...any) (err e
 	if len(keys) == 0 {
 		return field.Set(vf, val)
 	}
-	// 多段路径: 中间段 Get 向下钻,末段 Set
 	n := len(keys)
 	vf = field.Get(vf)
 	var sch *Schema
-	for i := 0; i < n; i++ {
+	for i := range n {
 		sk := ToString(keys[i])
-		sch = field.Embedded
+		sch = field.embeddedSchema()
 		if sch == nil {
 			return fmt.Errorf("field not object at %v", key)
 		}
@@ -149,8 +140,6 @@ func (schema *Schema) SetValue(obj any, val any, key string, keys ...any) (err e
 }
 
 func (schema *Schema) ParseField(fieldStruct reflect.StructField) *Field {
-	//var err error
-
 	field := &Field{
 		Name:              fieldStruct.Name,
 		FieldType:         fieldStruct.Type,
@@ -164,16 +153,8 @@ func (schema *Schema) ParseField(fieldStruct reflect.StructField) *Field {
 	}
 	fieldValue := reflect.New(field.IndirectFieldType)
 	field.Index = field.StructField.Index
-	kind := reflect.Indirect(fieldValue).Kind()
-	switch kind {
-	case reflect.Struct:
+	if reflect.Indirect(fieldValue).Kind() == reflect.Struct {
 		field.Embedded, schema.err = GetOrParse(fieldValue.Interface(), schema.options)
-	case reflect.Map, reflect.Slice, reflect.Array:
-		//初始化子结构
-	case reflect.Invalid, reflect.Uintptr, reflect.Chan, reflect.Func, reflect.Interface, reflect.UnsafePointer, reflect.Complex64, reflect.Complex128:
-		//schema.err = fmt.Errorf("invalid embedded struct for %s's field %s, should be struct, but got %v", field.Schema.Name, field.Name, field.FieldType)
-	default:
-
 	}
 	return field
 }

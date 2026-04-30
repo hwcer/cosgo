@@ -6,7 +6,7 @@ import (
 )
 
 type Sex struct {
-	Hair int `json:"hair" json:"hair"`
+	Hair int `json:"hair" bson:"hair"`
 }
 
 type A struct {

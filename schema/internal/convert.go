@@ -9,19 +9,19 @@ import (
 // 直接使用 strconv 进行转换，不使用缓存以避免内存使用不可控
 
 // ToArray 将任意类型转换为 []interface{}
-func ToArray(v interface{}) (r []interface{}) {
+func ToArray(v any) (r []any) {
 	vf := reflect.Indirect(reflect.ValueOf(v))
 	if vf.Kind() != reflect.Array && vf.Kind() != reflect.Slice {
-		return []interface{}{v}
+		return []any{v}
 	}
-	for i := 0; i < vf.Len(); i++ {
+	for i := range vf.Len() {
 		r = append(r, vf.Index(i).Interface())
 	}
 	return
 }
 
 // ToString 将任意类型转换为字符串
-func ToString(value interface{}) string {
+func ToString(value any) string {
 	switch v := value.(type) {
 	case string:
 		return v

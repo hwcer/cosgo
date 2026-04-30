@@ -65,6 +65,18 @@ func (field *Field) GetTagName(k string) string {
 	return name
 }
 
+func (field *Field) embeddedSchema() *Schema {
+	if field.FieldType.Kind() == reflect.Pointer && field.IndirectFieldType.Kind() == reflect.Struct {
+		v := reflect.New(field.IndirectFieldType)
+		sch, err := GetOrParse(v.Interface(), field.Schema.options)
+		if err != nil {
+			return nil
+		}
+		return sch
+	}
+	return field.Embedded
+}
+
 func (field *Field) GetEmbeddedFields() (r []*Field) {
 	if !field.StructField.Anonymous || field.Embedded == nil {
 		return
