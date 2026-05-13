@@ -10,6 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
+// Deprecated: Use Map[string] instead.
 type Values map[string]any
 
 func (vs Values) Key(k any) string {
