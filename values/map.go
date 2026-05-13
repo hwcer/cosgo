@@ -13,23 +13,23 @@ type MapKey interface {
 	~string | ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
 }
 
-type Map[K MapKey] map[K]any
+type Attach[K MapKey] map[K]any
 
-func (m Map[K]) Has(k K) bool {
+func (m Attach[K]) Has(k K) bool {
 	_, ok := m[k]
 	return ok
 }
 
-func (m Map[K]) Get(k K) any {
+func (m Attach[K]) Get(k K) any {
 	return m[k]
 }
 
-func (m Map[K]) Set(k K, v any) any {
+func (m Attach[K]) Set(k K, v any) any {
 	m[k] = v
 	return v
 }
 
-func (m Map[K]) Range(f func(k K, v any) bool) {
+func (m Attach[K]) Range(f func(k K, v any) bool) {
 	for k, v := range m {
 		if !f(k, v) {
 			return
@@ -37,15 +37,15 @@ func (m Map[K]) Range(f func(k K, v any) bool) {
 	}
 }
 
-func (m Map[K]) Clone() Map[K] {
-	r := make(Map[K], len(m))
+func (m Attach[K]) Clone() Attach[K] {
+	r := make(Attach[K], len(m))
 	for k, v := range m {
 		r[k] = v
 	}
 	return r
 }
 
-func (m Map[K]) Merge(from Map[K], replace bool) {
+func (m Attach[K]) Merge(from Attach[K], replace bool) {
 	for k, v := range from {
 		if replace {
 			m[k] = v
@@ -55,7 +55,11 @@ func (m Map[K]) Merge(from Map[K], replace bool) {
 	}
 }
 
-func (m Map[K]) GetInt32(k K) int32 {
+func (m Attach[K]) GetInt(k K) int {
+	return int(m.GetInt64(k))
+}
+
+func (m Attach[K]) GetInt32(k K) int32 {
 	v, ok := m[k]
 	if !ok {
 		return 0
@@ -63,7 +67,7 @@ func (m Map[K]) GetInt32(k K) int32 {
 	return ParseInt32(v)
 }
 
-func (m Map[K]) GetInt64(k K) int64 {
+func (m Attach[K]) GetInt64(k K) int64 {
 	v, ok := m[k]
 	if !ok {
 		return 0
@@ -71,7 +75,7 @@ func (m Map[K]) GetInt64(k K) int64 {
 	return ParseInt64(v)
 }
 
-func (m Map[K]) GetFloat32(k K) float32 {
+func (m Attach[K]) GetFloat32(k K) float32 {
 	v, ok := m[k]
 	if !ok {
 		return 0
@@ -79,7 +83,7 @@ func (m Map[K]) GetFloat32(k K) float32 {
 	return ParseFloat32(v)
 }
 
-func (m Map[K]) GetFloat64(k K) float64 {
+func (m Attach[K]) GetFloat64(k K) float64 {
 	v, ok := m[k]
 	if !ok {
 		return 0
@@ -87,7 +91,7 @@ func (m Map[K]) GetFloat64(k K) float64 {
 	return ParseFloat64(v)
 }
 
-func (m Map[K]) GetString(k K) string {
+func (m Attach[K]) GetString(k K) string {
 	v, ok := m[k]
 	if !ok {
 		return ""
@@ -115,7 +119,7 @@ func reflectCopy(src reflect.Value) reflect.Value {
 }
 
 // Unmarshal 将 key 对应的值反序列化到 i（必须是非空指针）。
-func (m Map[K]) Unmarshal(k K, i any) error {
+func (m Attach[K]) Unmarshal(k K, i any) error {
 	v := m[k]
 	if v == nil {
 		return nil
@@ -148,10 +152,10 @@ func (m Map[K]) Unmarshal(k K, i any) error {
 	if s, ok := v.([]byte); ok {
 		return json.Unmarshal(s, i)
 	}
-	return fmt.Errorf("values.Map.Unmarshal: unsupported type %T", v)
+	return fmt.Errorf("values.Attach.Unmarshal: unsupported type %T", v)
 }
 
-func (m Map[K]) MarshalJSON() ([]byte, error) {
+func (m Attach[K]) MarshalJSON() ([]byte, error) {
 	l := len(m)
 	if l == 0 {
 		return []byte("{}"), nil

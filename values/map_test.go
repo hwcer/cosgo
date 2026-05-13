@@ -13,12 +13,85 @@ type TestEquipProperty struct {
 	Val int64 `bson:"val" json:"val"`
 }
 
+// TestValuesMapCompatibility 测试 Values 与 Map 的兼容性：
+// Values 存对象 -> BSON 序列化 -> Map 反序列化 -> Map.Unmarshal 验证
+func TestValuesMapCompatibility(t *testing.T) {
+	type PlayerInfo struct {
+		Name  string `bson:"name" json:"name"`
+		Level int32  `bson:"level" json:"level"`
+		Score int64  `bson:"score" json:"score"`
+	}
+
+	// 1. 使用 Values 储存一个对象
+	vs := make(Values)
+	info := PlayerInfo{Name: "alice", Level: 10, Score: 9999}
+	vs.Set("info", info)
+
+	props := []TestEquipProperty{
+		{Id: 1, Val: 100},
+		{Id: 2, Val: 200},
+	}
+	vs.Set("props", props)
+	vs.Set("gold", int64(12345))
+
+	t.Logf("Values original: info=%+v, props=%+v, gold=%v", vs["info"], vs["props"], vs["gold"])
+
+	// 2. 使用 BSON 序列化
+	raw, err := bson.Marshal(vs)
+	if err != nil {
+		t.Fatalf("bson.Marshal(Values): %v", err)
+	}
+	t.Logf("BSON bytes len: %d", len(raw))
+
+	// 3. 使用 Map 反序列化二进制
+	m := make(Attach[string])
+	if err = bson.Unmarshal(raw, &m); err != nil {
+		t.Fatalf("bson.Unmarshal -> Map: %v", err)
+	}
+	t.Logf("Map keys after unmarshal: info(%T), props(%T), gold(%T)", m["info"], m["props"], m["gold"])
+
+	// 4. 使用 Map.Unmarshal 观察值是不是正确
+
+	// 4a. 结构体
+	var gotInfo PlayerInfo
+	if err = m.Unmarshal("info", &gotInfo); err != nil {
+		t.Fatalf("Map.Unmarshal info: %v", err)
+	}
+	if gotInfo.Name != "alice" || gotInfo.Level != 10 || gotInfo.Score != 9999 {
+		t.Fatalf("info mismatch: got %+v, want {alice 10 9999}", gotInfo)
+	}
+	t.Logf("info OK: %+v", gotInfo)
+
+	// 4b. 切片
+	var gotProps []TestEquipProperty
+	if err = m.Unmarshal("props", &gotProps); err != nil {
+		t.Fatalf("Map.Unmarshal props: %v", err)
+	}
+	if len(gotProps) != 2 {
+		t.Fatalf("props len: got %d, want 2", len(gotProps))
+	}
+	if gotProps[0].Id != 1 || gotProps[0].Val != 100 {
+		t.Fatalf("props[0] mismatch: %+v", gotProps[0])
+	}
+	if gotProps[1].Id != 2 || gotProps[1].Val != 200 {
+		t.Fatalf("props[1] mismatch: %+v", gotProps[1])
+	}
+	t.Logf("props OK: %+v", gotProps)
+
+	// 4c. 基础类型
+	gold := m.GetInt64("gold")
+	if gold != 12345 {
+		t.Fatalf("gold mismatch: got %d, want 12345", gold)
+	}
+	t.Logf("gold OK: %d", gold)
+}
+
 func TestMapUnmarshalRoundTrip(t *testing.T) {
 	type AttachKey int32
 	const keyProps AttachKey = 6003
 
 	// 1. 写入 Go 对象
-	m := make(Map[AttachKey])
+	m := make(Attach[AttachKey])
 	props := []TestEquipProperty{
 		{Id: 1, Val: 100},
 		{Id: 2, Val: 200},
@@ -43,7 +116,7 @@ func TestMapUnmarshalRoundTrip(t *testing.T) {
 		t.Fatalf("bson.Unmarshal: %v", err)
 	}
 
-	m2 := make(Map[AttachKey])
+	m2 := make(Attach[AttachKey])
 	for k, v := range loaded.Attach {
 		var ki int32
 		if _, err := fmt.Sscanf(k, "%d", &ki); err == nil {
