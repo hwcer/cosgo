@@ -1,9 +1,93 @@
 package values
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
+
+// Unmarshal 将 raw (bson.D/bson.A/[]byte 或已解码的 Go 对象) 反序列化为 V。
+// 若 raw 已经是 V 类型则直接返回（零反射）。
+func Unmarshal[V any](raw any) (r V, err error) {
+	if raw == nil {
+		return
+	}
+	if v, ok := raw.(V); ok {
+		return v, nil
+	}
+	switch v := raw.(type) {
+	case bson.D, bson.A:
+		t, data, e := bson.MarshalValue(v)
+		if e != nil {
+			return r, e
+		}
+		err = bson.UnmarshalValue(t, data, &r)
+	case []byte:
+		err = json.Unmarshal(v, &r)
+	default:
+		err = fmt.Errorf("values.Unmarshal: cannot unmarshal %T into %T", raw, r)
+	}
+	return
+}
+
+// Clone 复制 reflect.Value。deep 为 true 时递归深拷贝，否则浅拷贝。
+func Clone(src reflect.Value, deep bool) reflect.Value {
+	if !deep {
+		dst := reflect.New(src.Type()).Elem()
+		dst.Set(src)
+		return dst
+	}
+	return deepClone(src)
+}
+
+func deepClone(src reflect.Value) reflect.Value {
+	switch src.Kind() {
+	case reflect.Pointer:
+		if src.IsNil() {
+			return reflect.Zero(src.Type())
+		}
+		dst := reflect.New(src.Type().Elem())
+		dst.Elem().Set(deepClone(src.Elem()))
+		return dst
+	case reflect.Slice:
+		if src.IsNil() {
+			return reflect.Zero(src.Type())
+		}
+		dst := reflect.MakeSlice(src.Type(), src.Len(), src.Len())
+		for i := range src.Len() {
+			dst.Index(i).Set(deepClone(src.Index(i)))
+		}
+		return dst
+	case reflect.Map:
+		if src.IsNil() {
+			return reflect.Zero(src.Type())
+		}
+		dst := reflect.MakeMapWithSize(src.Type(), src.Len())
+		iter := src.MapRange()
+		for iter.Next() {
+			dst.SetMapIndex(iter.Key(), deepClone(iter.Value()))
+		}
+		return dst
+	case reflect.Struct:
+		dst := reflect.New(src.Type()).Elem()
+		for i := range src.NumField() {
+			if dst.Field(i).CanSet() {
+				dst.Field(i).Set(deepClone(src.Field(i)))
+			}
+		}
+		return dst
+	case reflect.Interface:
+		if src.IsNil() {
+			return reflect.Zero(src.Type())
+		}
+		return deepClone(src.Elem())
+	default:
+		return src
+	}
+}
 
 func ParseInt32(v any) int32 {
 	return int32(ParseInt64(v))
