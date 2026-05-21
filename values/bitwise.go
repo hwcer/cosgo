@@ -21,60 +21,62 @@ type Bitwise []Byte
 //}
 
 // Has bit位是否设置值
-func (m *Byte) Has(bit int) (r bool) {
-	if bit < MaxBitwiseUnit {
-		r = *m&(1<<bit) > 0
+func (m *Byte) Has(bit int) bool {
+	if bit >= 0 && bit < MaxBitwiseUnit {
+		return *m&(1<<bit) != 0
 	}
-	return
+	return false
 }
 
 // Set bit位设置为1
 func (m *Byte) Set(bit int) {
-	if bit < MaxBitwiseUnit {
+	if bit >= 0 && bit < MaxBitwiseUnit {
 		*m |= 1 << bit
 	}
 }
 
 // Delete bit位设置为0
 func (m *Byte) Delete(bit int) {
-	if m.Has(bit) {
-		*m -= 1 << bit
+	if bit >= 0 && bit < MaxBitwiseUnit {
+		*m &^= 1 << bit
 	}
 }
 
 // Has bit位是否设置值
 func (m *Bitwise) Has(bit int) bool {
+	if bit < 0 {
+		return false
+	}
 	i := bit / MaxBitwiseUnit
 	if i >= len(*m) {
 		return false
 	}
-	j := bit % MaxBitwiseUnit
-	return (*m)[i].Has(j)
+	return (*m)[i]&(1<<(bit%MaxBitwiseUnit)) != 0
 }
 
 // Set bit位设置为1
 func (m *Bitwise) Set(bit int) {
-	b := *m
+	if bit < 0 {
+		return
+	}
 	i := bit / MaxBitwiseUnit
 	j := bit % MaxBitwiseUnit
+	b := *m
 	if i >= len(b) {
-		c := i + 1
-		v := make(Bitwise, c)
-		copy(v, b)
-		b = v
+		b = append(b, make(Bitwise, i+1-len(b))...)
+		*m = b
 	}
-	v := b[i]
-	v.Set(j)
-	b[i] = v
-	*m = b
+	b[i] |= 1 << j
 }
 
 // Delete bit位设置为0
 func (m *Bitwise) Delete(bit int) {
+	if bit < 0 {
+		return
+	}
 	i := bit / MaxBitwiseUnit
 	if i >= len(*m) {
 		return
 	}
-	j := bit % MaxBitwiseUnit
-	(*m)[i].Delete(j)
+	(*m)[i] &^= 1 << (bit % MaxBitwiseUnit)
 }
