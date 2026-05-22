@@ -21,9 +21,9 @@ type Field struct {
 	Embedded *Schema // 嵌入子对象的 Schema
 
 	// 访问信息：字段访问路径和缓存
-	Index      []int                                  // 字段索引路径
-	getValueFn func(reflect.Value) reflect.Value      // 缓存获取值的函数
-	setValueFn func(reflect.Value, any) error // 缓存设置值的函数
+	Index      []int                             // 字段索引路径
+	getValueFn func(reflect.Value) reflect.Value // 缓存获取值的函数
+	setValueFn func(reflect.Value, any) error    // 缓存设置值的函数
 
 	// 命名缓存：避免重复计算
 	dbName string // 缓存数据库字段名
@@ -36,9 +36,21 @@ func (field *Field) JSName() string {
 	}
 	return field.jsName
 }
-func (field *Field) DBName() string {
+func (field *Field) DBName(useJSONStructTags ...bool) string {
 	if field.dbName == "" {
-		field.dbName = field.GetName("bson", "json")
+		tags := []string{"bson"}
+		if len(useJSONStructTags) > 0 && useJSONStructTags[0] {
+			tags = append(tags, "json")
+		}
+		for _, tag := range tags {
+			if v := field.GetTagName(tag); v != "" {
+				field.dbName = v
+				break
+			}
+		}
+		if field.dbName == "" {
+			field.dbName = strings.ToLower(field.Name)
+		}
 	}
 	return field.dbName
 }
