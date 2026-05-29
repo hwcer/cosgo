@@ -160,7 +160,13 @@ func (m Attach[K]) MarshalJSON() ([]byte, error) {
 	b := bytes.NewBuffer([]byte("{"))
 	var err error
 	for k, v := range m {
-		if _, err = fmt.Fprintf(b, `"%v":`, k); err != nil {
+		switch v := any(k).(type) {
+		case string:
+			_, err = fmt.Fprintf(b, `"%s":`, v)
+		default:
+			_, err = fmt.Fprintf(b, `"%d":`, v)
+		}
+		if err != nil {
 			return nil, err
 		}
 		if raw, ok := v.([]byte); ok {
