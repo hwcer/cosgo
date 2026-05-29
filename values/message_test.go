@@ -101,7 +101,31 @@ func TestMessage_Unmarshal(t *testing.T) {
 		t.Logf("客户端收到错误: code=%d, err=%v", client.Code, err)
 	})
 
-	// 3. Data 为空
+	// 3. 网络反序列化后 Code>0 使用 fmt 打印错误信息（非二进制）
+	t.Run("error_string_not_binary", func(t *testing.T) {
+		server := Errorf(1001, "余额不足")
+		b, err := json.Marshal(server)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("服务器JSON: %s", b)
+
+		client := &Message{}
+		if err = json.Unmarshal(b, client); err != nil {
+			t.Fatal(err)
+		}
+		// Data 此时是 json.RawMessage
+		t.Logf("Data类型: %T", client.Data)
+
+		got := client.String()
+		if got != "余额不足" {
+			t.Errorf("String() = %q, want %q", got, "余额不足")
+		}
+		t.Logf("fmt.Println: %s", client)
+		t.Logf("Error(): %s", client.Error())
+	})
+
+	// 4. Data 为空
 	t.Run("empty_data", func(t *testing.T) {
 		server := &Message{Code: 0}
 		b, err := json.Marshal(server)

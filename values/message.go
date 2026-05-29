@@ -34,6 +34,12 @@ func (this *Message) String() string {
 	switch v := this.Data.(type) {
 	case string:
 		return v
+	case json.RawMessage:
+		var s string
+		if json.Unmarshal(v, &s) == nil {
+			return s
+		}
+		return string(v)
 	case []byte:
 		return string(v)
 	default:
