@@ -34,47 +34,6 @@ func (this *Registry) Has(name string) (ok bool) {
 	return
 }
 
-//	func (this *Registry) Merge(r *Registry) (err error) {
-//		this.Range(func(s *Service) bool {
-//			prefix := s.prefix
-//			if _, ok := this.dict[prefix]; !ok {
-//				this.dict[prefix] = NewService(prefix, this.router)
-//			}
-//			if err = this.dict[prefix].Merge(s); err != nil {
-//				return false
-//			}
-//			return true
-//		})
-//		return
-//	}
-//type ssr map[string]*Node
-
-//	func (this *Registry) Reload(nodes map[string]*Node) (err error) {
-//		ssc := make(map[string]ssr)
-//		for _, v := range nodes {
-//			sr := ssc[v.Service.Name()]
-//			if sr == nil {
-//				sr = make(ssr)
-//				ssc[v.Service.Name()] = sr
-//			}
-//			sr[v.Name()] = v
-//		}
-//		for k, v := range ssc {
-//			service, ok := this.Get(k)
-//			if !ok {
-//				return fmt.Errorf("service not found:%v", k)
-//			}
-//			if err = service.Reload(v); err != nil {
-//				return err
-//			}
-//		}
-//
-//		return
-//	}
-
-//	func (this *Registry) Method() Method {
-//		return this.router.Method()
-//	}
 func (this *Registry) Router() *Router {
 	return this.router
 }
@@ -83,6 +42,11 @@ func (this *Registry) Router() *Router {
 // 返回匹配的 Node 和路由参数（Params 切片，非 map）
 func (this *Registry) Search(method string, paths ...string) (*Node, Params) {
 	return this.router.Search(method, paths...)
+}
+
+// SearchAll 返回所有匹配路由，按优先级排序
+func (this *Registry) SearchAll(method string, paths ...string) []SearchResult {
+	return this.router.SearchAll(method, paths...)
 }
 
 // Service GET OR CREATE。

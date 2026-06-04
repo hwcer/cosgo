@@ -260,6 +260,87 @@ func (this *Router) Search(method string, paths ...string) (node *Node, params P
 	return nil, nil
 }
 
+// SearchResult 单个路由匹配结果
+type SearchResult struct {
+	Node   *Node
+	Params Params
+}
+
+func copyParams(p Params) Params {
+	if len(p) == 0 {
+		return nil
+	}
+	c := make(Params, len(p))
+	copy(c, p)
+	return c
+}
+
+// MatchAll 收集所有匹配路由，按优先级排序（静态 > 参数 > 通配符）
+func (r *RadixNode) MatchAll(path string, method string) []SearchResult {
+	var results []SearchResult
+	pos := 0
+	if len(path) > 0 && path[0] == '/' {
+		pos = 1
+	}
+	r.matchScanAll(path, pos, nil, method, &results)
+	return results
+}
+
+func (r *RadixNode) matchScanAll(path string, pos int, params Params, method string, results *[]SearchResult) {
+	if pos >= len(path) {
+		if n := r.findMethod(method); n != nil {
+			*results = append(*results, SearchResult{Node: n, Params: copyParams(params)})
+		}
+		if r.wildChild != nil {
+			if n := r.wildChild.findMethod(method); n != nil {
+				p := append(copyParams(params), Param{Key: PathMatchVague, Value: ""})
+				*results = append(*results, SearchResult{Node: n, Params: p})
+			}
+		}
+		return
+	}
+
+	end := pos
+	for end < len(path) && path[end] != '/' {
+		end++
+	}
+	segment := path[pos:end]
+	nextPos := end + 1
+	if nextPos > len(path) {
+		nextPos = len(path)
+	}
+
+	if child := r.findStatic(toLowerFast(segment)); child != nil {
+		child.matchScanAll(path, nextPos, params, method, results)
+	}
+	if r.paramChild != nil {
+		p := copyParams(params)
+		for _, name := range r.paramChild.paramNames {
+			p = append(p, Param{Key: name, Value: segment})
+		}
+		r.paramChild.matchScanAll(path, nextPos, p, method, results)
+	}
+	if r.wildChild != nil {
+		if n := r.wildChild.findMethod(method); n != nil {
+			p := append(copyParams(params), Param{Key: PathMatchVague, Value: path[pos:]})
+			*results = append(*results, SearchResult{Node: n, Params: p})
+		}
+	}
+}
+
+// SearchAll 返回所有匹配路由：static map 在前，radix tree 按优先级在后
+func (this *Router) SearchAll(method string, paths ...string) []SearchResult {
+	var results []SearchResult
+	originalPath := Join(paths...)
+	if _, node := this.Static(method, originalPath); node != nil {
+		results = append(results, SearchResult{Node: node})
+	}
+	if this.radix != nil {
+		results = append(results, this.radix.MatchAll(originalPath, method)...)
+	}
+	return results
+}
+
 // Register 注册路由
 func (this *Router) Register(node *Node, method []string) (err error) {
 	if len(method) == 0 {
