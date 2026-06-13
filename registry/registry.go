@@ -24,12 +24,12 @@ func (this *Registry) Len() int {
 }
 
 func (this *Registry) Get(name string) (srv *Service, ok bool) {
-	prefix := Join(name)
+	prefix := Route(name)
 	srv, ok = this.dict[prefix]
 	return
 }
 func (this *Registry) Has(name string) (ok bool) {
-	prefix := Join(name)
+	prefix := Route(name)
 	_, ok = this.dict[prefix]
 	return
 }
