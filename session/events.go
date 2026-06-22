@@ -9,10 +9,11 @@ type Event int8
 type Listener func(any)
 
 const (
-	EventSessionNew     Event = iota //SESSION New,参数 *Data
-	EventSessionCreated              //SESSION Create时,参数 *Data
-	EventSessionRelease              //销毁SESSION时,参数 *Data
-	EventHeartbeat                   //心跳,参数 心跳间隔 int32
+	EventSessionNew        Event = iota //SESSION New,参数 *Data
+	EventSessionCreated                 //SESSION Create时,参数 *Data
+	EventSessionRelease                 //销毁SESSION时,参数 *Data（超时后触发）
+	EventSessionDisconnect              //SESSION 掉线时,参数 *Data（连接断开立即触发，早于Release）
+	EventHeartbeat                      //心跳,参数 心跳间隔 int32
 )
 
 // listeners 事件订阅表,Copy-on-Write 发布:
