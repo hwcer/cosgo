@@ -40,12 +40,12 @@ func Start(waitForSystemExit bool, mods ...Module) {
 		logger.Fatal("writePidFile err:%v", err)
 	}
 
-	logger.Trace("App Starting")
+	logger.Info("App Starting")
 	defer func() {
 		if err = deletePidFile(); err != nil {
-			logger.Trace("App delete pid file err:%v", err)
+			logger.Warn("App delete pid file err:%v", err)
 		}
-		logger.Trace("App Closed")
+		logger.Info("App Closed")
 		_ = emit(EventTypStopped, false)
 		_ = logger.Close()
 	}()
@@ -61,12 +61,11 @@ func Start(waitForSystemExit bool, mods ...Module) {
 	defer func() {
 		_ = pprofClose()
 	}()
-	//assert(emit(EventTypInitBefore))
 	for _, v := range modules {
 		if err = v.Init(); err != nil {
 			logger.Fatal("mod[%v] init err:%v", v.Id(), err)
 		} else {
-			logger.Trace("mod[%v] init", v.Id())
+			logger.Info("mod[%v] init", v.Id())
 		}
 	}
 	if err = emit(EventTypLoaded, true); err != nil {
@@ -85,7 +84,7 @@ func Start(waitForSystemExit bool, mods ...Module) {
 		if err = v.Start(); err != nil {
 			logger.Fatal("mod[%v] start err:%v", v.Id(), err)
 		} else {
-			logger.Trace("mod[%v] start", v.Id())
+			logger.Info("mod[%v] start", v.Id())
 		}
 	}
 	if err = emit(EventTypStarted, true); err != nil {
@@ -93,6 +92,7 @@ func Start(waitForSystemExit bool, mods ...Module) {
 		return
 	}
 	Options.Banner()
+
 	if waitForSystemExit {
 		WaitForSystemExit()
 	}
@@ -105,7 +105,7 @@ func Close() bool {
 
 func showConfig() {
 	var log []string
-	log = append(log, "\n============================Show App Config============================")
+	log = append(log, "Show App Config\n========================================================================")
 	log = append(log, fmt.Sprintf(">> App : %v", Name()))
 	pidFile := ""
 	if enablePidFile {
@@ -124,7 +124,7 @@ func showConfig() {
 	log = append(log, fmt.Sprintf(">> Version : %v", Version))
 	log = append(log, fmt.Sprintf(">> Runtime GO:%v  CPU:%v  Pid:%v", runtime.Version(), runtime.NumCPU(), os.Getpid()))
 	log = append(log, "========================================================================")
-	logger.Trace(strings.Join(log, "\n"))
+	logger.Info(strings.Join(log, "\n"))
 }
 
 func stop() (stopped bool) {
@@ -132,12 +132,12 @@ func stop() (stopped bool) {
 		return true
 	}
 	_ = emit(EventTypClosing, false)
-	logger.Alert("App will stop")
+	logger.Info("App will stop")
 	for i := len(modules) - 1; i >= 0; i-- {
 		closeModule(modules[i])
 	}
 	if err := scc.Wait(0); err != nil {
-		logger.Alert("App Stop Error:%v", err)
+		logger.Warn("App Stop Error:%v", err)
 	}
 	return true
 }
@@ -146,12 +146,12 @@ func closeModule(m Module) {
 	defer scc.Done()
 	defer func() {
 		if err := recover(); err != nil {
-			logger.Trace("mod[%v] close err:%v", m.Id(), err)
+			logger.Info("mod[%v] close err:%v", m.Id(), err)
 		}
 	}()
 	if err := m.Close(); err != nil {
-		logger.Trace("mod[%v] close err:%v", m.Id(), err)
+		logger.Info("mod[%v] close err:%v", m.Id(), err)
 	} else {
-		logger.Trace("mod [%v] stopped", m.Id())
+		logger.Info("mod [%v] stopped", m.Id())
 	}
 }

@@ -16,14 +16,14 @@ func reload() {
 		if err := recover(); err != nil {
 			logger.Error(err)
 		}
-		logger.Trace("Reload Config Finish\n")
+		logger.Info("Reload Config Finish\n")
 	}()
-	logger.Trace("Start reload Config\n")
+	logger.Info("Start reload Config\n")
 	_ = emit(EventTypReload, false)
 	for _, m := range modules {
 		if r, ok := m.(Reload); ok {
 			if err := r.Reload(); err != nil {
-				logger.Trace("[%v]reload error:%v\n", m.Id(), err)
+				logger.Info("[%v]reload error:%v\n", m.Id(), err)
 			}
 		}
 	}

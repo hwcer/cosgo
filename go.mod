@@ -4,11 +4,11 @@ go 1.25.0
 
 require (
 	github.com/go-redis/redis/v8 v8.11.5
-	github.com/hwcer/logger v0.2.8
+	github.com/hwcer/logger v0.2.9-0.20260626033726-42e0a5927245
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
-	go.mongodb.org/mongo-driver/v2 v2.6.0
+	go.mongodb.org/mongo-driver/v2 v2.7.0
 	golang.org/x/exp v0.0.0-20260603202125-055de637280b
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v2 v2.4.0

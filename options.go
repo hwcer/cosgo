@@ -21,5 +21,5 @@ func SetProcess(f func() bool) {
 }
 
 func defaultBanner() {
-	logger.Trace("congratulations on successful startup\n")
+	logger.Info("congratulations on successful startup\n")
 }

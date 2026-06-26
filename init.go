@@ -5,8 +5,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/hwcer/logger"
 )
 
 const (
@@ -23,26 +21,15 @@ const (
 
 )
 
-//var (
-//	//debug   bool
-//	appDir  string
-//	appName string
-//	//workDir string
-//)
-
 func init() {
-	logger.SetCallDepth(4)
 	Config.Flags(AppName, "", "", "app name")
 	Config.Flags(AppPprof, "", "", "pprof server address")
 	Config.Flags(AppDebug, "", false, "developer model")
 	Config.Flags(AppWorkerDir, "", "", "working directory")
 	Config.Flags(AppConfigNamePidFile, "", "", "pid file")
-	//Config.Flags(AppConfigNameLogsPath, "", "", "logs dir")
 	Config.Flags(AppConfigNameConfigFileName, "c", "", "use config file")
 	Config.SetDefault(AppConfigNameConfigFileExt, "toml")
-	//var (
-	//	tmpDir string
-	//)
+
 	workDir, _ := os.Getwd()
 	appBinFile, _ := exec.LookPath(os.Args[0])
 	appDir, appName := filepath.Split(appBinFile)

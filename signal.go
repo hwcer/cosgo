@@ -48,7 +48,7 @@ func WaitForSystemExit() {
 // syscall.SIGTERM  kill 无参数时默认信号
 // 注意: SIGKILL 不可被程序捕获,这里不处理,由操作系统直接强制终止。
 func signalNotify(sig os.Signal) (stopped bool) {
-	logger.Trace("收到信号：%v\n", sig)
+	logger.Info("收到信号：%v\n", sig)
 	switch sig {
 	case SignalReload:
 		reload()
@@ -57,14 +57,14 @@ func signalNotify(sig os.Signal) (stopped bool) {
 	case syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM:
 		stopped = true
 	default:
-		logger.Trace("receive signal:%v", sig)
+		logger.Info("receive signal:%v", sig)
 	}
 	return
 }
 
 // SIGHUP 关闭控制台
 func SIGHUP() {
-	logger.Trace("停止控制台输出")
+	logger.Info("停止控制台输出")
 	logger.Console.Disable = true
 }
 
