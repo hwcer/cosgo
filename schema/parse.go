@@ -139,12 +139,57 @@ func ParseWithSpecialTableName(dest any, specialTableName string, opts *Options)
 		return waitSchemaInit(v.(*Schema))
 	}
 
-	// 缓存未命中，进入完整解析（含 panic 保护）
-	return parseSchemaSlow(modelType, schemaCacheKey, specialTableName, opts)
+	// 缓存未命中，进入完整解析（含 panic 保护）；顶层调用,解析链为空
+	return parseSchemaSlow(modelType, schemaCacheKey, specialTableName, opts, nil)
 }
 
-// parseSchemaSlow 缓存未命中时的完整解析路径，独立函数以隔离 defer/recover 开销
-func parseSchemaSlow(modelType reflect.Type, cacheKey any, specialTableName string, opts *Options) (res *Schema, err error) {
+// parsing 记录**当前 goroutine 这条解析链**上已经开工、尚未完成的 Schema。
+//
+// 为什么必须显式往下传:缓存里的 in-progress 记录,对**别的 goroutine** 是「schema 还没建好,
+// 必须等」,对**本 goroutine** 才是「撞上环了」。二者语义相反,而 Go 没有 goroutine-local,
+// 只能把链沿调用栈带下去。光靠 opts.Store 区分不出来 —— 这正是自引用结构会一路等到
+// SchemaInitTimeout 的根因。
+//
+// 链深度一般 2~3 层,线性扫比 map 快,也省一次 map 分配。
+type parsing []*Schema
+
+// find 返回链上正在解析该类型的 Schema;不在链上返回 nil。
+// ModelType 在 initializeSchemaBasicInfo 里就已写入,早于 processFields,故必定可比。
+func (p parsing) find(t reflect.Type) *Schema {
+	for _, s := range p {
+		if s.ModelType == t {
+			return s
+		}
+	}
+	return nil
+}
+
+// parseType 与 GetOrParse 等价,但直接吃 reflect.Type。
+//
+// 调用方已经握有类型时(按 map 值 / slice 元素类型逐段下钻就是这种),用它可以省掉
+// 「reflect.New 造一个实例 → Kind() 再把类型取回来」这一次纯浪费的堆分配。
+// 缓存键与 generateSchemaCacheKey(modelType, "") 一致,与 Parse 共用同一份缓存。
+//
+// chain 为本次解析链,顶层调用传 nil。
+func parseType(modelType reflect.Type, opts *Options, chain parsing) (*Schema, error) {
+	if opts == nil {
+		opts = config
+	}
+	for modelType.Kind() == reflect.Pointer {
+		modelType = modelType.Elem()
+	}
+	if modelType.Kind() != reflect.Struct {
+		return nil, fmt.Errorf("%w: %v", ErrUnsupportedDataType, modelType)
+	}
+	if v, ok := opts.Store.Load(modelType); ok {
+		return waitSchemaInit(v.(*Schema))
+	}
+	return parseSchemaSlow(modelType, modelType, "", opts, chain)
+}
+
+// parseSchemaSlow 缓存未命中时的完整解析路径，独立函数以隔离 defer/recover 开销。
+// chain 是调用方那条解析链，本层会把自己追加进去再往下传，用于环检测。
+func parseSchemaSlow(modelType reflect.Type, cacheKey any, specialTableName string, opts *Options, chain parsing) (res *Schema, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = fmt.Errorf("schema parse panic: %v", e)
@@ -171,7 +216,13 @@ func parseSchemaSlow(modelType reflect.Type, cacheKey any, specialTableName stri
 	if err := initializeSchemaBasicInfo(schema, modelType, specialTableName); err != nil {
 		return nil, err
 	}
-	if err := processFields(schema, modelType); err != nil {
+	//本层入链后再解析字段：字段里若回指到链上任一类型，即为自引用/互引用，由 parseField 处理。
+	//必须在 initializeSchemaBasicInfo 之后，ModelType 那时才写好、可供比对。
+	//
+	//三下标切片强制每次都复制：否则 len<cap 时兄弟字段的递归会共享底层数组、
+	//在同一下标上互相覆写。当前是串行的、覆写也正确，但那是「靠时序才对」——
+	//解析是冷路径，一次小分配换掉这份推演负担。
+	if err := processFields(schema, modelType, append(chain[:len(chain):len(chain)], schema)); err != nil {
 		return nil, err
 	}
 	processEmbeddedFields(schema)
@@ -246,12 +297,12 @@ func determineTableName(modelType reflect.Type, specialTableName string, opts *O
 	return opts.TableName(modelType.Name())
 }
 
-// processFields 处理结构体字段
-func processFields(schema *Schema, modelType reflect.Type) error {
+// processFields 处理结构体字段。chain 为含本层在内的解析链，用于环检测。
+func processFields(schema *Schema, modelType reflect.Type, chain parsing) error {
 	for i := range modelType.NumField() {
 		fieldStruct := modelType.Field(i)
 		if ast.IsExported(fieldStruct.Name) {
-			field := schema.ParseField(fieldStruct)
+			field := schema.parseField(fieldStruct, chain)
 
 			if field.StructField.Anonymous {
 				schema.Embedded = append(schema.Embedded, field)
