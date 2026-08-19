@@ -198,7 +198,15 @@ func (this *Times) Start(t ExpireType, v int) (r *Times, err error) {
 	}
 }
 
-// Expire 过期时间
+// Expire 过期时间点，语义为左闭右开区间 [Start, Expire) 的右端点
+//
+// 该时间点【本身不属于】本届：判定有效一律用 now < expire，判定过期用 now >= expire。
+// 与业界惯例一致——JWT exp(RFC 7519 要求 current time MUST be before expiration)、
+// HTTP Expires、Cookie、Redis EXPIREAT、Go context.Deadline 都是这个口径。
+//
+// 历史：此处曾返回 Daily(v).Add(-1) 即"本届最后一纳秒"。因调用方普遍取 .Now().Unix()
+// 做秒截断，23:59:59.999999999 会落成 23:59:59，1 纳秒被放大成 1 秒，导致用 now < expire
+// 判定的调用方提前 1 秒过期。现回归惯例：直接返回区间右端点，不再减。
 func (this *Times) Expire(t ExpireType, v int) (ttl *Times, err error) {
 	if v == 0 && (t == ExpireTypeDaily || t == ExpireTypeWeekly || t == ExpireTypeMonthly) {
 		v = 1 //默认1天，1周，1月
@@ -206,11 +214,11 @@ func (this *Times) Expire(t ExpireType, v int) (ttl *Times, err error) {
 
 	switch t {
 	case ExpireTypeDaily:
-		ttl = this.Daily(v).Add(-1)
+		ttl = this.Daily(v)
 	case ExpireTypeWeekly:
-		ttl = this.Weekly(v).Add(-1)
+		ttl = this.Weekly(v)
 	case ExpireTypeMonthly:
-		ttl = this.Monthly(v).Add(-1)
+		ttl = this.Monthly(v)
 	case ExpireTypeSecond:
 		ttl = this.Add(time.Second * time.Duration(v))
 	case ExpireTypeCustomize:

@@ -103,9 +103,8 @@ func (this *Cycle) Expire() (r *Times, err error) {
 			r = r.Add(time.Duration(diff*this.v) * time.Second)
 		}
 	}
-	if r != nil {
-		r = r.Add(-1) //减去1纳秒确保时间点回到本届最后一纳秒，而不是下一届的第一纳秒
-	}
+	//本届结束时间点即下一届的开始时间点，语义为左闭右开 [Start, Expire)：
+	//该点本身不属于本届，判定一律用 now < expire。与 Times.Expire 保持同一口径。
 	return
 }
 
