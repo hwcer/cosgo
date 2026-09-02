@@ -2,7 +2,6 @@ package values
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 )
 
@@ -75,26 +74,41 @@ func (this *Message) UnmarshalJSON(b []byte) error {
 }
 
 // Unmarshal 反序列化Data，如果Code!=0则返回错误信息
+// Unmarshal 把回包解进调用方要的结构;Code 非 0 时把**本 Message 自己**当错误返回。
+//
+// # 🔴 错误分支必须 return this,不能 errors.New(文案)
+//
+// 后者是本函数从前的写法,它**把错误码扔了**。而这里是 RPC 的返回路径
+// (cosrpc/client.XCall 在 reply 非 nil 时就调本函数),于是**任何跨进程返回的业务
+// 错误码都在这一跳被抹平**,调用方只剩一个裸 error:
+//
+//	social 返回 Message{Code:7011, Data:"职位权限不足"}
+//	  → errors.New("职位权限不足")   码没了
+//	  → 上层按「不带码的普通 error」处置 → 落到默认码 9999
+//	  → 玩家界面:ErrDefault(9999): 职位权限不足
+//
+// 2026-09-02 实测:公会新加的那一整批业务码(7001~7024)一条都没到客户端,
+// 症状与「压根没配码」完全一样 —— **文案对、只有码错**,极难往这一跳上想。
+// 对照组是同一个接口里游戏服本地返回的 ErrArgEmpty:那条不过 RPC,码 123 好好的。
+//
+// `*Message` 本身满足 error,且 Error() 走 String(),对 json.RawMessage 会解出那个
+// 字符串 —— 所以**错误文案与旧写法逐字一致**,只是多带了 Code,调用方不受影响。
+//
+// 顺带修掉旧写法的一处窄坑:Data 不是 JSON 字符串时(顶号回包的 Data 是剩余秒数),
+// 旧写法的 json.Unmarshal(v, &s) 会失败,于是把**解码错误**当业务错误返回、连文案都丢;
+// 现在原样返回 Message,String() 自己回落到 string(v)。
 func (this *Message) Unmarshal(i interface{}) (err error) {
 	switch v := this.Data.(type) {
 	case json.RawMessage:
 		if this.Code != 0 {
-			var s string
-			if err = json.Unmarshal(v, &s); err != nil {
-				return
-			}
-			return errors.New(s)
+			return this
 		}
 		if len(v) > 0 {
 			err = json.Unmarshal(v, i)
 		}
 	case []byte:
 		if this.Code != 0 {
-			var s string
-			if err = json.Unmarshal(v, &s); err != nil {
-				return
-			}
-			return errors.New(s)
+			return this
 		}
 		if len(v) > 0 {
 			err = json.Unmarshal(v, i)
