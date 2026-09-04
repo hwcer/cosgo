@@ -194,8 +194,8 @@ func TestMessage_UnmarshalKeepsCode(t *testing.T) {
 
 // TestMessage_UnmarshalNonStringData Data 不是 JSON 字符串时也要保住码与文案。
 //
-// 顶号回包的 Data 是**剩余秒数**（数字）。旧写法先 json.Unmarshal 进 string、失败就
-// 把解码错误当业务错误返回 —— 码和文案一起丢，客户端连「被顶号了」都认不出来。
+// 旧写法先 json.Unmarshal 进 string、失败就把**解码错误**当业务错误返回 —— 码和文案一起丢，
+// 客户端连出了什么事都认不出来。任何把数字、对象等非字符串放进 Data 的错误回包都会踩到。
 func TestMessage_UnmarshalNonStringData(t *testing.T) {
 	b, err := json.Marshal(&Message{Code: 209, Data: 30})
 	if err != nil {
@@ -216,5 +216,89 @@ func TestMessage_UnmarshalNonStringData(t *testing.T) {
 	}
 	if m.Error() != "30" {
 		t.Fatalf("Error() = %q, want %q（剩余秒数应原样可读）", m.Error(), "30")
+	}
+}
+
+// TestMessage_ArgsSurviveJSON 🔴 Args 必须活着穿过一次完整的序列化往返。
+//
+// 守的是 rawMessage 漏字段那个坑：UnmarshalJSON 不走默认反射，而是先解进 rawMessage
+// 再逐字段搬运，任何忘了搬的字段都在**每一次 RPC 回程**被静默丢掉，而且不报错、
+// 症状只是「客户端拿不到参数」，与「服务器压根没填」完全一样，极难往这一跳上想。
+//
+// ⚠ 判据必须落在 Args 的**值**上。断言 `Args != nil` 是空洞守卫 —— 真出问题时它是 nil，
+// 但更常见的退化是长度对、内容错（比如嵌套成 [[1001 5 2]]），那种断言照样放过去。
+func TestMessage_ArgsSurviveJSON(t *testing.T) {
+	server := Errorf(1002, "Item Not Enough:%v", 1001).WithArgs(1001, 5, 2)
+
+	b, err := json.Marshal(server)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("服务器错误响应: %s", b)
+
+	client := &Message{}
+	if err = json.Unmarshal(b, client); err != nil {
+		t.Fatal(err)
+	}
+	if client.Code != 1002 {
+		t.Fatalf("Code = %d, want 1002", client.Code)
+	}
+	if len(client.Args) != 3 {
+		t.Fatalf("Args = %v, want 长度 3 —— 字段大概率没搬进 rawMessage", client.Args)
+	}
+	//过一次 JSON 之后数字是 float64，Go 侧按约定用 ParseInt32 取值
+	want := []int32{1001, 5, 2}
+	for i, w := range want {
+		if got := ParseInt32(client.Args[i]); got != w {
+			t.Fatalf("Args[%d] = %v(%T), want %d", i, client.Args[i], client.Args[i], w)
+		}
+	}
+	t.Logf("客户端拿到道具参数: iid=%v need=%v have=%v", client.Args[0], client.Args[1], client.Args[2])
+}
+
+// TestMessage_ArgsOmittedWhenEmpty 无参消息的线上报文必须一字节不变。
+//
+// 心跳、重连回包这类 Message{Code:0, Data:…} 在长连接上每秒都在发，
+// 加字段不能让这些热路径的包变大，也不能让老客户端见到没见过的键。
+func TestMessage_ArgsOmittedWhenEmpty(t *testing.T) {
+	b, err := json.Marshal(&Message{Code: 0, Data: 1700000000000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := string(b); s != `{"code":0,"data":1700000000000}` {
+		t.Fatalf("心跳报文 = %s，多出了字段", s)
+	}
+}
+
+// TestErrorf_SentinelNotMutated 🔴 Errorf 不得改写传进来的包级哨兵。
+//
+// 上层惯用 var ErrXxx = Errorf(...) 在 init 期建一份哨兵、全进程复用，那是**进程内唯一的
+// 共享指针**。Errorf 从前直接在参数上改 Code，加了 Args 之后还要改 Args——
+// 那是跨 goroutine 的全局写：一次 Errorf(500, ErrXxx) 就能把哨兵的码永久改掉，
+// 之后所有请求拿到的都是被污染的值，而且污染只在特定调用顺序下出现，测不出、看不见。
+func TestErrorf_SentinelNotMutated(t *testing.T) {
+	sentinel := Errorf(404, "page not found")
+
+	got := Errorf(0, sentinel, 1001)
+
+	if sentinel.Args != nil {
+		t.Fatalf("哨兵被写入了 Args = %v —— 全局状态被污染", sentinel.Args)
+	}
+	if got == sentinel {
+		t.Fatal("需要改写字段时必须返回副本，不能返回哨兵本身")
+	}
+	if len(got.Args) != 1 || ParseInt32(got.Args[0]) != 1001 {
+		t.Fatalf("副本 Args = %v, want [1001]", got.Args)
+	}
+	if got.Code != 404 {
+		t.Fatalf("Code = %d, want 404（未指定新码时沿用哨兵的码）", got.Code)
+	}
+	if got.Error() != "page not found" {
+		t.Fatalf("Error() = %q, want %q（文案不该被改动）", got.Error(), "page not found")
+	}
+
+	//不需要改写任何字段时保持原指针，不平白多一次分配
+	if same := Errorf(0, sentinel); same != sentinel {
+		t.Fatal("无改写时应原样返回哨兵指针")
 	}
 }

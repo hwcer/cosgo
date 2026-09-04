@@ -5,9 +5,13 @@ import (
 	"fmt"
 )
 
+// rawMessage UnmarshalJSON 的影子结构。
+// 🔴 Message 每加一个字段,这里必须同步加,否则该字段在每一次反序列化(即每一次 RPC 回程、
+// 每一次客户端解包)被静默丢掉 —— 与 Unmarshal 上方注释记录的 2026-09-02 丢码事故同一类。
 type rawMessage struct {
-	Code int32            `json:"code"`
-	Data json.RawMessage  `json:"data"`
+	Code int32           `json:"code"`
+	Data json.RawMessage `json:"data"`
+	Args []any           `json:"args,omitempty"`
 }
 
 const MessageErrorCodeDefault int32 = 9999
@@ -15,6 +19,13 @@ const MessageErrorCodeDefault int32 = 9999
 type Message struct {
 	Code int32 `json:"code"`
 	Data any   `json:"data"`
+	// Args 错误参数,客户端据此定位出错的具体对象(道具ID、需要数量等),不必去解 Data 里的文案。
+	// 位置参数:同一个 Code 每次给出的参数个数与含义必须一致,由定义该 Code 的那一层写进文档,
+	// 本层不做任何约束。无参时 omitempty 不落到报文里,心跳这类无参消息的线上字节数不变。
+	//
+	// ⚠ 过一次 JSON 之后数字一律变 float64(1001 → float64(1001))。
+	// Go 侧消费方用本包的 ParseInt32/ParseInt64 转换,不要直接做 .(int32) 断言。
+	Args []any `json:"args,omitempty"`
 }
 
 func (this *Message) Parse(v any) *Message {
@@ -58,6 +69,19 @@ func (this *Message) Errorf(code int32, format any, args ...any) {
 		this.Code = code
 	}
 	this.Data = Sprintf(format, args...)
+	//无条件赋值:Errorf 是在重新定义整个错误,Args 与 Data 同进同出,
+	//避免复用同一个 Message 时残留上一次的参数。
+	this.Args = args
+}
+
+// WithArgs 覆盖错误参数,返回自身便于链式调用。
+//
+// 用于「格式化实参 ≠ 语义参数」的场合:Errorf 会把收到的 args 原样灌进 Args,
+// 但 func ErrXxx(args ...any) 这类变参包装往往把整个切片当**一个** %v 实参传下来,
+// 自动灌入得到的是嵌套的 [[1001 5 2]],需要在这里拍平成 [1001 5 2]。
+func (this *Message) WithArgs(args ...any) *Message {
+	this.Args = args
+	return this
 }
 
 func (this *Message) UnmarshalJSON(b []byte) error {
@@ -70,6 +94,7 @@ func (this *Message) UnmarshalJSON(b []byte) error {
 	}
 	this.Code = raw.Code
 	this.Data = raw.Data
+	this.Args = raw.Args
 	return nil
 }
 
@@ -94,7 +119,7 @@ func (this *Message) UnmarshalJSON(b []byte) error {
 // `*Message` 本身满足 error,且 Error() 走 String(),对 json.RawMessage 会解出那个
 // 字符串 —— 所以**错误文案与旧写法逐字一致**,只是多带了 Code,调用方不受影响。
 //
-// 顺带修掉旧写法的一处窄坑:Data 不是 JSON 字符串时(顶号回包的 Data 是剩余秒数),
+// 顺带修掉旧写法的一处窄坑:Data 不是 JSON 字符串时(数字、对象等),
 // 旧写法的 json.Unmarshal(v, &s) 会失败,于是把**解码错误**当业务错误返回、连文案都丢;
 // 现在原样返回 Message,String() 自己回落到 string(v)。
 func (this *Message) Unmarshal(i interface{}) (err error) {
@@ -140,10 +165,22 @@ func Errorf(code int32, format any, args ...any) (r *Message) {
 		r = &v
 	}
 	if r != nil {
+		//🔴 写时复制。传进来的 *Message 极可能是包级共享哨兵 —— 上层惯用
+		//var ErrXxx = Errorf(...) 在 init 期建一份、全进程复用。直接往上面写 Code 或 Args
+		//就是跨 goroutine 改全局:一次 Errorf(500, ErrXxx) 能把那个哨兵的码永久改掉,
+		//之后所有人拿到的都是被污染的值。
+		//不需要写任何字段时保持返回原指针,不平白多一次分配。
+		if code != 0 || r.Code == 0 || len(args) > 0 {
+			v := *r
+			r = &v
+		}
 		if code != 0 {
 			r.Code = code
 		} else if r.Code == 0 {
 			r.Code = MessageErrorCodeDefault
+		}
+		if len(args) > 0 {
+			r.Args = args
 		}
 		return r
 	}
