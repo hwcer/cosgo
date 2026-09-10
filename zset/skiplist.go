@@ -58,9 +58,9 @@ type zLevel struct {
 
 // zNode 跳表节点
 type zNode struct {
-	id       string  // 元素唯一标识（key）
-	score    int64   // 元素分数，决定排序位置
-	backward *zNode  // 第 0 层的前驱节点指针，用于反向遍历
+	id       string   // 元素唯一标识（key）
+	score    int64    // 元素分数，决定排序位置
+	backward *zNode   // 第 0 层的前驱节点指针，用于反向遍历
 	level    []zLevel // 各层索引（值类型切片），level[0] 是最底层
 }
 
@@ -195,7 +195,7 @@ func (zsl *skipList) zslInsert(score int64, id string) *zNode {
 	}
 
 	x = zslCreateNode(level, score, id)
-	for i := int16(0); i < level; i++ {
+	for i := range level {
 		x.level[i].forward = update[i].level[i].forward
 		update[i].level[i].forward = x
 		x.level[i].span = update[i].level[i].span - (rank[0] - rank[i])

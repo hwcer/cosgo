@@ -52,6 +52,8 @@ func New(address string) (client *Client, err error) {
 
 	_, err = c.Ping(context.Background()).Result()
 	if err != nil {
+		//Ping失败时关闭已创建的连接池,避免底层连接与goroutine残留
+		_ = c.Close()
 		return
 	}
 	client = &Client{Client: c, address: uri.String()}

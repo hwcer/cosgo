@@ -71,7 +71,7 @@ func TestSizeAndFree(t *testing.T) {
 	}
 
 	var ids []string
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		setter := s.New(i)
 		ids = append(ids, setter.Id())
 	}
@@ -97,7 +97,7 @@ func TestSizeAndFree(t *testing.T) {
 func TestBucketExpansion(t *testing.T) {
 	s := New(5)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		r := s.New(i)
 		if r == nil {
 			t.Fatalf("New returned nil at i=%d", i)
@@ -164,7 +164,7 @@ func TestRange(t *testing.T) {
 	s := New(10)
 
 	ids := make(map[string]bool)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		setter := s.New(i)
 		ids[setter.Id()] = true
 	}
@@ -184,7 +184,7 @@ func TestRange(t *testing.T) {
 
 func TestRangeEarlyStop(t *testing.T) {
 	s := New(10)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		s.New(i)
 	}
 
@@ -212,7 +212,7 @@ func TestInvalidGet(t *testing.T) {
 func TestRemove(t *testing.T) {
 	s := New(10)
 	var ids []string
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		setter := s.New(i)
 		ids = append(ids, setter.Id())
 	}
@@ -236,10 +236,10 @@ func TestConcurrentReadWrite(t *testing.T) {
 	wg.Add(goroutines * 2)
 
 	// 写 goroutines: 循环 New + Delete
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < opsPerGoroutine; j++ {
+			for j := range opsPerGoroutine {
 				setter := s.New(fmt.Sprintf("data_%d_%d", id, j))
 				if setter != nil {
 					s.Delete(setter.Id())
@@ -249,10 +249,10 @@ func TestConcurrentReadWrite(t *testing.T) {
 	}
 
 	// 读 goroutines: 循环 Range + Size
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		go func() {
 			defer wg.Done()
-			for j := 0; j < opsPerGoroutine; j++ {
+			for range opsPerGoroutine {
 				s.Range(func(setter Setter) bool {
 					_ = setter.Id()
 					return true
@@ -282,10 +282,10 @@ func TestConcurrentExpansion(t *testing.T) {
 	var allIds []string
 
 	wg.Add(goroutines)
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < opsPerGoroutine; j++ {
+			for j := range opsPerGoroutine {
 				setter := s.New(fmt.Sprintf("item_%d_%d", id, j))
 				if setter != nil {
 					mu.Lock()
@@ -316,7 +316,7 @@ func TestFillAndDrain(t *testing.T) {
 	s := New(100)
 
 	var ids []string
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		setter := s.New(i)
 		if setter == nil {
 			t.Fatalf("New returned nil at i=%d", i)
@@ -359,7 +359,7 @@ func BenchmarkBucketNew(b *testing.B) {
 func BenchmarkBucketGet(b *testing.B) {
 	bucket := NewBucket(0, 10000)
 	ids := make([]string, 10000)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		s := bucket.New(i)
 		ids[i] = s.Id()
 	}
@@ -381,7 +381,7 @@ func BenchmarkStorageNewDelete(b *testing.B) {
 func BenchmarkStorageGet(b *testing.B) {
 	s := New(10000)
 	ids := make([]string, 10000)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		setter := s.New(i)
 		ids[i] = setter.Id()
 	}
@@ -393,7 +393,7 @@ func BenchmarkStorageGet(b *testing.B) {
 
 func BenchmarkStorageSizeFree(b *testing.B) {
 	s := New(10000)
-	for i := 0; i < 5000; i++ {
+	for i := range 5000 {
 		s.New(i)
 	}
 	b.ResetTimer()

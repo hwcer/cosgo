@@ -3,6 +3,7 @@ package schema
 import (
 	"fmt"
 	"go/ast"
+	"maps"
 	"reflect"
 	"time"
 
@@ -190,13 +191,6 @@ func parseType(modelType reflect.Type, opts *Options, chain parsing) (*Schema, e
 // parseSchemaSlow 缓存未命中时的完整解析路径，独立函数以隔离 defer/recover 开销。
 // chain 是调用方那条解析链，本层会把自己追加进去再往下传，用于环检测。
 func parseSchemaSlow(modelType reflect.Type, cacheKey any, specialTableName string, opts *Options, chain parsing) (res *Schema, err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			err = fmt.Errorf("schema parse panic: %v", e)
-			logger.Alert("schema parse panic: %v", e)
-		}
-	}()
-
 	schema := &Schema{
 		options:  opts,
 		initDone: make(chan struct{}),
@@ -206,14 +200,27 @@ func parseSchemaSlow(modelType reflect.Type, cacheKey any, specialTableName stri
 		return waitSchemaInit(actual.(*Schema))
 	}
 
+	//三个defer按注册逆序执行:recover → 清理 → close。
+	//recover最先执行,panic被捕获后写入命名返回值err;
+	//清理defer把err回写到schema.err并删除缓存,避免残缺Schema(err==nil的半成品)被永久固化;
+	//close最后执行,并发等待者在initDone关闭时一定能读到最终的schema.err
 	defer close(schema.initDone)
 	defer func() {
+		if err != nil {
+			schema.setErr(err)
+		}
 		if schema.err != nil {
 			opts.Store.Delete(cacheKey)
 		}
 	}()
+	defer func() {
+		if e := recover(); e != nil {
+			err = fmt.Errorf("schema parse panic: %v", e)
+			logger.Alert("schema parse panic: %v", e)
+		}
+	}()
 
-	if err := initializeSchemaBasicInfo(schema, modelType, specialTableName); err != nil {
+	if err = initializeSchemaBasicInfo(schema, modelType, specialTableName); err != nil {
 		return nil, err
 	}
 	//本层入链后再解析字段：字段里若回指到链上任一类型，即为自引用/互引用，由 parseField 处理。
@@ -222,11 +229,11 @@ func parseSchemaSlow(modelType reflect.Type, cacheKey any, specialTableName stri
 	//三下标切片强制每次都复制：否则 len<cap 时兄弟字段的递归会共享底层数组、
 	//在同一下标上互相覆写。当前是串行的、覆写也正确，但那是「靠时序才对」——
 	//解析是冷路径，一次小分配换掉这份推演负担。
-	if err := processFields(schema, modelType, append(chain[:len(chain):len(chain)], schema)); err != nil {
+	if err = processFields(schema, modelType, append(chain[:len(chain):len(chain)], schema)); err != nil {
 		return nil, err
 	}
 	processEmbeddedFields(schema)
-	if err := buildFieldMappings(schema); err != nil {
+	if err = buildFieldMappings(schema); err != nil {
 		return nil, err
 	}
 	return schema, schema.err
@@ -299,8 +306,8 @@ func determineTableName(modelType reflect.Type, specialTableName string, opts *O
 
 // processFields 处理结构体字段。chain 为含本层在内的解析链，用于环检测。
 func processFields(schema *Schema, modelType reflect.Type, chain parsing) error {
-	for i := range modelType.NumField() {
-		fieldStruct := modelType.Field(i)
+	for fieldStruct := range modelType.Fields() {
+		fieldStruct := fieldStruct
 		if ast.IsExported(fieldStruct.Name) {
 			field := schema.parseField(fieldStruct, chain)
 
@@ -337,9 +344,7 @@ func buildFieldMappings(schema *Schema) error {
 	// unifiedFields 容量最多是 n*3(每字段最多 3 个 alias),保守预分配
 	unified := make(map[string]*Field, n*2)
 	// 先以 Go 名占位(最高优先级),避免后续 db/json alias 覆盖
-	for k, v := range schema.Fields {
-		unified[k] = v
-	}
+	maps.Copy(unified, schema.Fields)
 	// dbSeen 仅用于 dup 检测,构建完即 GC;dbFields 保留给 Schema.Range
 	dbSeen := make(map[string]*Field, n)
 	schema.dbFields = make([]*Field, 0, n)

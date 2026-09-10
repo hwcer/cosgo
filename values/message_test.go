@@ -20,7 +20,7 @@ func TestMessage_Error(t *testing.T) {
 	t.Log(msg.String())
 	msg.Code = 0
 
-	v := map[string]interface{}{}
+	v := map[string]any{}
 	v["k"] = "k"
 	v["v"] = 1
 	msg.Data = v
@@ -38,7 +38,7 @@ func TestMessage_Error(t *testing.T) {
 		t.Error(err)
 	}
 
-	m := map[string]interface{}{}
+	m := map[string]any{}
 	if err = r.Unmarshal(&m); err != nil {
 		t.Error(err)
 	} else {

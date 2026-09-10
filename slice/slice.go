@@ -1,54 +1,38 @@
 package slice
 
 import (
+	"cmp"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
+	"slices"
 	"strconv"
 	"strings"
-
-	"golang.org/x/exp/constraints"
 )
 
-func Min[T constraints.Ordered](nums []T) (r T) {
+func Min[T cmp.Ordered](nums []T) (r T) {
 	if len(nums) == 0 {
 		return
 	}
-	for i, num := range nums {
-		if i == 0 || num < r {
-			r = num
-		}
-	}
-	return
+	return slices.Min(nums)
 }
 
-func Max[T constraints.Ordered](nums []T) (r T) {
+func Max[T cmp.Ordered](nums []T) (r T) {
 	if len(nums) == 0 {
 		return
 	}
-	for i, num := range nums {
-		if i == 0 || num > r {
-			r = num
-		}
-	}
-	return
+	return slices.Max(nums)
 }
 
 func Has[T comparable](arr []T, tar T) bool {
-	for _, v := range arr {
-		if tar == v {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(arr, tar)
 }
 
-func Roll[T constraints.Ordered](nums []T) (r T) {
+func Roll[T cmp.Ordered](nums []T) (r T) {
 	l := len(nums)
 	if l == 0 {
 		return
 	}
-	// rand.Int31n 要求参数 > 0;l-1 在 l==1 时为 0 会 panic,且会忽略最后一个元素
-	return nums[rand.Int31n(int32(l))]
+	return nums[rand.IntN(l)]
 }
 
 // Last 取结尾 n 个
@@ -64,12 +48,7 @@ func Last[T comparable](arr []T, n int) []T {
 }
 
 func IndexOf[T comparable](arr []T, tar T) int {
-	for k, v := range arr {
-		if v == tar {
-			return k
-		}
-	}
-	return -1
+	return slices.Index(arr, tar)
 }
 
 // Unrepeated 去重
@@ -191,8 +170,8 @@ func Multiple(src string, char1, char2 string) (r [][]int32) {
 	if src == "" {
 		return
 	}
-	arr := strings.Split(src, char1)
-	for _, s := range arr {
+	arr := strings.SplitSeq(src, char1)
+	for s := range arr {
 		if v := SplitInt32(s, char2); len(v) > 0 {
 			r = append(r, v)
 		}

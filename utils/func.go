@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"runtime/debug"
 	"time"
 	"unicode"
@@ -24,7 +25,8 @@ func Try(f func(), handle ...TryHandle) {
 }
 
 func Timeout(d time.Duration, fn func() error) error {
-	cher := make(chan error)
+	//缓冲为1:超时分支返回后,子goroutine仍能完成发送而不被永久阻塞
+	cher := make(chan error, 1)
 	go func() {
 		cher <- fn()
 	}()
@@ -36,7 +38,7 @@ func Timeout(d time.Duration, fn func() error) error {
 	}
 }
 
-func Sprintf(format interface{}, args ...interface{}) (r string) {
+func Sprintf(format any, args ...any) (r string) {
 	switch v := format.(type) {
 	case string:
 		if len(args) > 0 {
@@ -82,9 +84,7 @@ func UTF8StringLen(str string) int {
 
 func CloneMap[T1 comparable, T2 comparable](src map[T1]T2) map[T1]T2 {
 	r := map[T1]T2{}
-	for k, v := range src {
-		r[k] = v
-	}
+	maps.Copy(r, src)
 	return r
 }
 

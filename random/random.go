@@ -119,7 +119,7 @@ func (this *Random) Multi(num int) (r []int32) {
 	limit := this.total
 	r = make([]int32, 0, num)
 
-	for i := 0; i < num; i++ {
+	for range num {
 		rnd := Roll(1, limit)
 		for j, d := range this.items {
 			if used[j] || d.Val <= 0 {

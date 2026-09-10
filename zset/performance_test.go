@@ -21,10 +21,10 @@ func TestZAddPerformance(t *testing.T) {
 		start := time.Now()
 		var wg sync.WaitGroup
 		wg.Add(concurrency)
-		for i := 0; i < concurrency; i++ {
+		for i := range concurrency {
 			go func(goroutineID int) {
 				defer wg.Done()
-				for j := 0; j < elementsPerGoroutine; j++ {
+				for j := range elementsPerGoroutine {
 					key := fmt.Sprintf("user_%d_%d", goroutineID, j)
 					score := int64(goroutineID*10000 + j)
 					set.ZAdd(score, key)
@@ -53,7 +53,7 @@ func TestZAddWithMaxSize(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Add(concurrency)
 
-		for i := 0; i < concurrency; i++ {
+		for i := range concurrency {
 			go func(goroutineID int) {
 				defer wg.Done()
 				key := fmt.Sprintf("user_%d", goroutineID)
@@ -89,7 +89,7 @@ func TestZAddWithIncreasingScore(t *testing.T) {
 		set := NewWithMaxSize(maxSize)
 
 		// 初始化元素
-		for i := 0; i < totalElements; i++ {
+		for i := range totalElements {
 			key := fmt.Sprintf("user_%d", i)
 			score := int64(i)
 			set.ZAdd(score, key)
@@ -100,7 +100,7 @@ func TestZAddWithIncreasingScore(t *testing.T) {
 		var wg sync.WaitGroup
 		wg.Add(totalElements)
 
-		for i := 0; i < totalElements; i++ {
+		for i := range totalElements {
 			go func(elementID int) {
 				defer wg.Done()
 				key := fmt.Sprintf("user_%d", elementID)

@@ -116,10 +116,11 @@ func (z *ZSet) upsert(key string, newScore int64, exists bool, oldScore int64) i
 	canEnter := z.canEnter(newScore)
 	wasFull := z.maxSize > 0 && z.zsl.length >= int64(z.maxSize)
 	isGuard := z.guard.valid && key == z.guard.key
+	wasInSkiplist := false
 
 	if exists {
 		z.dict[key] = newScore
-		wasInSkiplist := z.zsl.zslDelete(oldScore, key)
+		wasInSkiplist = z.zsl.zslDelete(oldScore, key)
 		if canEnter || wasInSkiplist {
 			z.zsl.zslInsert(newScore, key)
 		}
@@ -135,7 +136,9 @@ func (z *ZSet) upsert(key string, newScore int64, exists bool, oldScore int64) i
 		if !wasFull && z.zsl.length >= int64(z.maxSize) {
 			needUpdateGuard = true
 		}
-		if wasFull && (isGuard || (!exists && canEnter)) {
+		//满员时只要发生过跳表插入(新成员入榜/旧成员移动)就必须重算守门员,
+		//否则守门员分数陈旧会导致CanEnter假阴性和ZRank误判
+		if wasFull && (canEnter || wasInSkiplist || isGuard) {
 			needUpdateGuard = true
 		}
 		if needUpdateGuard {

@@ -27,10 +27,10 @@ var Config = &config{Viper: viper.New()}
 
 type config struct {
 	*viper.Viper
-	init int32
+	init atomic.Int32
 }
 
-func (this *config) Flags(name, shorthand string, value interface{}, usage string) interface{} {
+func (this *config) Flags(name, shorthand string, value any, usage string) any {
 	switch v := value.(type) {
 	case string:
 		return pflag.StringP(name, shorthand, v, usage)
@@ -67,7 +67,7 @@ func (this *config) Flags(name, shorthand string, value interface{}, usage strin
 }
 
 func (this *config) Init() (err error) {
-	if !atomic.CompareAndSwapInt32(&this.init, 0, 1) {
+	if !this.init.CompareAndSwap(0, 1) {
 		return nil
 	}
 	pflag.Parse()
@@ -124,10 +124,11 @@ func (this *config) Init() (err error) {
 	if pidFile := this.GetString(AppConfigNamePidFile); pidFile != "" {
 		file := Abs(pidFile)
 		stat, osErr := os.Stat(file)
-		if osErr != nil && !os.IsExist(osErr) {
+		//pid文件不存在是正常情况,由writePidFile创建;其余错误才中断启动
+		if osErr != nil && !os.IsNotExist(osErr) {
 			return osErr
 		}
-		if stat.IsDir() {
+		if osErr == nil && stat.IsDir() {
 			file = filepath.Join(file, appName+".pid")
 		}
 		this.Set(AppConfigNamePidFile, file)

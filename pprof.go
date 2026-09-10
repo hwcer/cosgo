@@ -1,12 +1,13 @@
 package cosgo
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
 	"time"
 
-	"github.com/hwcer/cosgo/utils"
+	"github.com/hwcer/cosgo/scc"
 )
 
 // Copyright 2010 The Go Authors. All rights reserved.
@@ -87,9 +88,12 @@ func pprofStart() error {
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
-	_ = utils.Timeout(time.Second, func() error {
-		return pprofServer.ListenAndServe()
-	})
+	//同步等待至多1秒:端口占用等启动期错误会立刻返回,如实报告;
+	//超时(scc.ErrorTimeout)说明server仍在正常运行,不算错误
+	if err := scc.Timeout(time.Second, pprofServer.ListenAndServe); err != nil &&
+		!errors.Is(err, scc.ErrorTimeout) && !errors.Is(err, http.ErrServerClosed) {
+		fmt.Printf("pprof server error:%v\n", err)
+	}
 	fmt.Printf("pprof server start:%v\n", addr)
 	return nil
 }

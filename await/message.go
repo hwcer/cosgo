@@ -10,7 +10,7 @@ type Message struct {
 	err    error
 	args   any
 	done   chan struct{}
-	state  int32
+	state  atomic.Int32
 	reply  any
 	handle Handle
 }
@@ -37,7 +37,7 @@ func (this *Message) Wait(t time.Duration) (any, error) {
 			// CAS(0→1)：尝试标记为"已放弃"
 			// 成功 → handler 尚未开始，直接超时返回
 			// 失败 → handler 正在执行（state 已被 handler CAS 为 1），再等一轮
-			if !atomic.CompareAndSwapInt32(&this.state, 0, 1) {
+			if !this.state.CompareAndSwap(0, 1) {
 				timer.Reset(t)
 			} else {
 				return nil, ErrTimeout

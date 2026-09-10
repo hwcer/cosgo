@@ -58,7 +58,7 @@ func Route(paths ...string) string {
 //	return strings.ToLower(s)
 //}
 
-func FuncName(i interface{}) (fname string) {
+func FuncName(i any) (fname string) {
 	fn := ValueOf(i)
 	fname = runtime.FuncForPC(reflect.Indirect(fn).Pointer()).Name()
 	if fname != "" {
@@ -79,7 +79,7 @@ func RouteName(name string) string {
 	return name
 }
 
-func ValueOf(i interface{}) reflect.Value {
+func ValueOf(i any) reflect.Value {
 	v, ok := i.(reflect.Value)
 	if !ok {
 		v = reflect.ValueOf(i)

@@ -16,9 +16,9 @@ import (
 var binderMap = make(map[string]Binder)
 
 type Binder interface {
-	Id() uint8                           // 1
-	Name() string                        //JSON
-	String() string                      //application/json
+	Id() uint8                   // 1
+	Name() string                //JSON
+	String() string              //application/json
 	Encode(io.Writer, any) error //同Marshal
 	Decode(io.Reader, any) error //同Unmarshal
 	Marshal(any) ([]byte, error)

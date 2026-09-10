@@ -18,9 +18,11 @@ type Redis struct {
 }
 
 func NewRedis(address any, prefix ...string) (c *Redis, err error) {
+	// 精确分配容量,避免rkey中append时复用并并发写入底层数组
 	c = &Redis{
-		prefix: prefix,
+		prefix: make([]string, 0, len(prefix)+1),
 	}
+	c.prefix = append(c.prefix, prefix...)
 	c.prefix = append(c.prefix, "cookie")
 
 	switch v := address.(type) {
@@ -54,8 +56,8 @@ func (this *Redis) rkey(uuid string) string {
 
 // Get 获取session镜像数据
 func (this *Redis) Get(uuid string) (p *Data, err error) {
-	val := map[string]string{}
 	rk := this.rkey(uuid)
+	var val map[string]string
 	if val, err = this.client.HGetAll(context.Background(), rk).Result(); err != nil {
 		return
 	}

@@ -2,6 +2,7 @@ package values
 
 import (
 	"fmt"
+	"maps"
 	"strconv"
 )
 
@@ -77,8 +78,6 @@ func (meta Metadata) GetString(k string) (r string) {
 
 func (meta Metadata) Clone() Metadata {
 	r := make(Metadata)
-	for k, v := range meta {
-		r[k] = v
-	}
+	maps.Copy(r, meta)
 	return r
 }

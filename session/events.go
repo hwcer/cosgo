@@ -1,6 +1,7 @@
 package session
 
 import (
+	"maps"
 	"sync"
 	"sync/atomic"
 )
@@ -38,9 +39,7 @@ func On(event Event, listener Listener) {
 	defer listenersMu.Unlock()
 	old := *listenersV.Load()
 	next := make(map[Event][]Listener, len(old)+1)
-	for k, v := range old {
-		next[k] = v
-	}
+	maps.Copy(next, old)
 	// 强制为目标事件新建 backing array,避免对旧 slice 的共享 append 破坏其它读者
 	prev := old[event]
 	nslice := make([]Listener, len(prev)+1)

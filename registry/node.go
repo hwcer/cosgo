@@ -30,14 +30,14 @@ func (this *Node) Value() reflect.Value {
 	return this.value
 }
 
-func (this *Node) Binder() interface{} {
+func (this *Node) Binder() any {
 	if this.binder.IsValid() {
 		return this.binder.Interface()
 	}
 	return nil
 }
 
-func (this *Node) Method() (fun interface{}) {
+func (this *Node) Method() (fun any) {
 	return this.value.Interface()
 }
 

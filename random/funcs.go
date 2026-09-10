@@ -1,6 +1,9 @@
 package random
 
-import "math/rand"
+import (
+	"maps"
+	"math/rand"
+)
 
 func Roll(a, b int32) int32 {
 	if b <= a {
@@ -57,6 +60,7 @@ func Relative(items map[int32]int32) int32 {
 
 // RelativeMulti 相对概率，权重，返回多个。repeat 是否可以重复。
 // 不修改传入的 items map（内部拷贝后操作）。
+// 不重复模式下正权重项抽完后提前结束,返回值长度可能小于num(避免尾部残留垃圾0)。
 func RelativeMulti(items map[int32]int32, num int32, repeat ...bool) []int32 {
 	var total int32 = 0
 	for _, v := range items {
@@ -64,29 +68,31 @@ func RelativeMulti(items map[int32]int32, num int32, repeat ...bool) []int32 {
 			total += v
 		}
 	}
-	if total == 0 {
+	if total == 0 || num <= 0 {
 		return nil
 	}
 
 	re := len(repeat) > 0 && repeat[0]
 
 	// 不重复时拷贝 map，避免修改调用方数据
-	work := items
-	if !re {
-		work = make(map[int32]int32, len(items))
-		for k, v := range items {
-			work[k] = v
-		}
+	var work map[int32]int32
+	if re {
+		work = items
+	} else {
+		work = maps.Clone(items)
 	}
 
-	ret := make([]int32, num)
-	for i := 0; i < int(num); i++ {
+	ret := make([]int32, 0, num)
+	for int32(len(ret)) < num {
+		if !re && total <= 0 {
+			break
+		}
 		rnd := Roll(1, total)
 		for it, v := range work {
 			if v > 0 {
 				rnd -= v
 				if rnd <= 0 {
-					ret[i] = it
+					ret = append(ret, it)
 					if !re {
 						total -= v
 						delete(work, it)

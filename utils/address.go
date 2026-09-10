@@ -43,7 +43,6 @@ func (this *Address) Parse(address string) {
 	if len(pair) > 1 {
 		this.Port, _ = strconv.Atoi(pair[1])
 	}
-	return
 }
 
 // String 转换成string

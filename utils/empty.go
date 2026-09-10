@@ -18,7 +18,7 @@ const (
 	StringZero  = ""
 )
 
-func Empty(data interface{}) bool {
+func Empty(data any) bool {
 	if data == nil {
 		return true
 	}
@@ -85,7 +85,7 @@ func Empty(data interface{}) bool {
 }
 
 // EmptyReflect 通过反射判断复杂类型是否为空,一般确定参数不为基础类型时才直接使用，否则应该使用 IsEmpty
-func EmptyReflect(object interface{}) bool {
+func EmptyReflect(object any) bool {
 	// get nil case out of the way
 	if object == nil {
 		return true

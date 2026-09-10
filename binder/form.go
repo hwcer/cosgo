@@ -79,6 +79,13 @@ func (f *formBinding) UnmarshalFromValues(vs url.Values, i any) (err error) {
 	}
 	vf := reflect.ValueOf(i)
 	if iv := reflect.Indirect(vf); iv.Kind() == reflect.Map {
+		//SetMapIndex恒以string键值写入,其他类型的map会直接panic,提前校验
+		if iv.Type().Key().Kind() != reflect.String || iv.Type().Elem().Kind() != reflect.String {
+			return errors.New("binder: form unmarshal into map requires map[string]string")
+		}
+		if iv.IsNil() {
+			iv.Set(reflect.MakeMap(iv.Type()))
+		}
 		for k := range vs {
 			if v := vs.Get(k); v != "" {
 				iv.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v))

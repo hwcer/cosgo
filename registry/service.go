@@ -136,7 +136,7 @@ func (this *Service) format(serviceName, methodName string, prefix ...string) st
 //	return node, nil
 //}
 
-func (this *Service) ParseFun(i interface{}, prefix ...string) (nodes []*Node, err error) {
+func (this *Service) ParseFun(i any, prefix ...string) (nodes []*Node, err error) {
 	v := ValueOf(i)
 	if v.Kind() != reflect.Func {
 		return nil, errors.New("RegisterFun fn type must be reflect.Func")
@@ -156,7 +156,7 @@ func (this *Service) ParseFun(i interface{}, prefix ...string) (nodes []*Node, e
 }
 
 // ParseStruct 注册一组handle
-func (this *Service) ParseStruct(i interface{}, prefix ...string) ([]*Node, error) {
+func (this *Service) ParseStruct(i any, prefix ...string) ([]*Node, error) {
 	v := ValueOf(i)
 	if v.Kind() != reflect.Pointer {
 		return nil, errors.New("RegisterStruct handle type must be reflect.Struct")
@@ -175,8 +175,8 @@ func (this *Service) ParseStruct(i interface{}, prefix ...string) ([]*Node, erro
 
 	var nodes []*Node
 
-	for m := 0; m < handleType.NumMethod(); m++ {
-		method := handleType.Method(m)
+	for method := range handleType.Methods() {
+		method := method
 		methodName := method.Name
 		// value must be exported.
 		if method.PkgPath != "" {

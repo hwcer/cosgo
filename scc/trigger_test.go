@@ -30,11 +30,11 @@ func TestTrigger_SkipAfterCancel(t *testing.T) {
 	if !s.Cancel() {
 		t.Fatal("Cancel returned false")
 	}
-	var ran int32
-	s.Trigger(func() { atomic.StoreInt32(&ran, 1) })
+	var ran atomic.Int32
+	s.Trigger(func() { ran.Store(1) })
 	// 给调度一点时间,防止断言过早(其实 Trigger 不启动 goroutine,这里纯保险)
 	time.Sleep(10 * time.Millisecond)
-	if atomic.LoadInt32(&ran) != 0 {
+	if ran.Load() != 0 {
 		t.Errorf("Trigger after Cancel should be ignored, but fn ran")
 	}
 }

@@ -17,7 +17,7 @@ type Bytes struct {
 func NewBytes(bytes []byte) *Bytes {
 	b := &Bytes{bytes: bytes}
 	if n := len(bytes); n >= 2 {
-		b.limit = 256 - (256%n)
+		b.limit = 256 - (256 % n)
 	}
 	return b
 }

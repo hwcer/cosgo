@@ -13,7 +13,10 @@ func Address(req *http.Request) (url string) {
 	if host == "" {
 		host = req.Host
 	}
-	url = scheme + "://" + host + "?" + req.URL.RawQuery
+	//签名串必须包含path:否则代理/中间人篡改请求路径后验签仍然通过。
+	//EscapedPath取percent-encoded形式(与OAuth1规范一致),客户端与验签端
+	//都从同一*http.Request取值,两端天然一致
+	url = scheme + "://" + host + req.URL.EscapedPath() + "?" + req.URL.RawQuery
 	return url
 }
 

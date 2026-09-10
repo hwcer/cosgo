@@ -41,6 +41,9 @@ func Split(s string, base int, index int) (uint64, string, error) {
 
 // Index 获取有效字符串长度
 func Index(id string, base int) (r int, err error) {
+	if len(id) == 0 {
+		return 0, errors.New("oid empty")
+	}
 	var v int64
 	if v, err = strconv.ParseInt(id[0:1], base, 64); err != nil {
 		return

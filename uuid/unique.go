@@ -14,7 +14,7 @@ import (
 type Unique struct {
 	base    int
 	shard   string
-	index   uint64
+	index   atomic.Uint64
 	suffix  string
 	Garbled int //乱码长度，默认无乱码
 }
@@ -29,7 +29,7 @@ func NewUnique(shard uint64, base int) *Unique {
 }
 
 func (u *Unique) New(prefix uint64) string {
-	i := atomic.AddUint64(&u.index, 1)
+	i := u.index.Add(1)
 	var build strings.Builder
 	build.WriteString(u.shard)
 	build.WriteString(Pack(prefix, u.base))
@@ -43,7 +43,7 @@ func (u *Unique) New(prefix uint64) string {
 }
 
 func (u *Unique) Simple() string {
-	i := atomic.AddUint64(&u.index, 1)
+	i := u.index.Add(1)
 	var build strings.Builder
 	build.WriteString(u.shard)
 	build.WriteString(u.suffix)

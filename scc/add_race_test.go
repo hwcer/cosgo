@@ -14,10 +14,10 @@ import (
 func TestGO_WaitCountsAddedGoroutine(t *testing.T) {
 	s := New(context.TODO())
 	ch := make(chan struct{})
-	var done int32
+	var done atomic.Int32
 	s.GO(func() {
 		<-ch
-		atomic.StoreInt32(&done, 1)
+		done.Store(1)
 	})
 	close(ch)
 	// Cancel 抵消 New 时的初始 Add(1)
@@ -25,7 +25,7 @@ func TestGO_WaitCountsAddedGoroutine(t *testing.T) {
 	if err := s.Wait(2 * time.Second); err != nil {
 		t.Fatalf("Wait timed out: %v", err)
 	}
-	if atomic.LoadInt32(&done) != 1 {
+	if done.Load() != 1 {
 		t.Errorf("goroutine did not finish before Wait returned")
 	}
 }
@@ -33,17 +33,17 @@ func TestGO_WaitCountsAddedGoroutine(t *testing.T) {
 func TestCGO_WaitCountsAddedGoroutine(t *testing.T) {
 	s := New(context.TODO())
 	ch := make(chan struct{})
-	var done int32
+	var done atomic.Int32
 	s.CGO(func(ctx context.Context) {
 		<-ch
-		atomic.StoreInt32(&done, 1)
+		done.Store(1)
 	})
 	close(ch)
 	s.Cancel()
 	if err := s.Wait(2 * time.Second); err != nil {
 		t.Fatalf("Wait timed out: %v", err)
 	}
-	if atomic.LoadInt32(&done) != 1 {
+	if done.Load() != 1 {
 		t.Errorf("CGO goroutine did not finish before Wait returned")
 	}
 }
@@ -51,17 +51,17 @@ func TestCGO_WaitCountsAddedGoroutine(t *testing.T) {
 func TestSGO_WaitCountsAddedGoroutine(t *testing.T) {
 	s := New(context.TODO())
 	ch := make(chan struct{})
-	var done int32
+	var done atomic.Int32
 	s.SGO(func(ctx context.Context) {
 		<-ch
-		atomic.StoreInt32(&done, 1)
+		done.Store(1)
 	})
 	close(ch)
 	s.Cancel()
 	if err := s.Wait(2 * time.Second); err != nil {
 		t.Fatalf("Wait timed out: %v", err)
 	}
-	if atomic.LoadInt32(&done) != 1 {
+	if done.Load() != 1 {
 		t.Errorf("SGO goroutine did not finish before Wait returned")
 	}
 }
@@ -69,9 +69,9 @@ func TestSGO_WaitCountsAddedGoroutine(t *testing.T) {
 // TestSGO_RecoverOnPanic 确认 SGO 的 recover 逻辑在重构后仍然工作。
 func TestSGO_RecoverOnPanic(t *testing.T) {
 	s := New(context.TODO())
-	var caught int32
+	var caught atomic.Int32
 	s.Catch = func(err error) {
-		atomic.StoreInt32(&caught, 1)
+		caught.Store(1)
 	}
 	s.SGO(func(ctx context.Context) {
 		panic("boom")
@@ -80,7 +80,7 @@ func TestSGO_RecoverOnPanic(t *testing.T) {
 	if err := s.Wait(2 * time.Second); err != nil {
 		t.Fatalf("Wait timed out: %v", err)
 	}
-	if atomic.LoadInt32(&caught) != 1 {
+	if caught.Load() != 1 {
 		t.Errorf("SGO did not catch panic via Catch hook")
 	}
 }

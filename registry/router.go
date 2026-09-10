@@ -93,8 +93,8 @@ func (r *RadixNode) insert(path string, parts []string, method []string, node *N
 
 	part := parts[0]
 
-	if strings.HasPrefix(part, PathMatchParam) {
-		paramName := strings.TrimPrefix(part, PathMatchParam)
+	if after, ok := strings.CutPrefix(part, PathMatchParam); ok {
+		paramName := after
 		if r.paramChild == nil {
 			r.paramChild = NewRadixNode(PathMatchParam)
 			r.paramChild.nodeType = NodeTypeParam
@@ -158,10 +158,7 @@ func (r *RadixNode) matchScan(path string, pos int, params *Params) *RadixNode {
 		end++
 	}
 	segment := path[pos:end]
-	nextPos := end + 1
-	if nextPos > len(path) {
-		nextPos = len(path)
-	}
+	nextPos := min(end+1, len(path))
 
 	// 优先级 1：静态子节点（直接 slice 扫描，无 hash）
 	if child := r.findStatic(toLowerFast(segment)); child != nil {
@@ -305,10 +302,7 @@ func (r *RadixNode) matchScanAll(path string, pos int, params Params, method str
 		end++
 	}
 	segment := path[pos:end]
-	nextPos := end + 1
-	if nextPos > len(path) {
-		nextPos = len(path)
-	}
+	nextPos := min(end+1, len(path))
 
 	if child := r.findStatic(toLowerFast(segment)); child != nil {
 		child.matchScanAll(path, nextPos, params, method, results)

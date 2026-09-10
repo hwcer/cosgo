@@ -64,7 +64,7 @@ func (u *UUID) Parse(id string, base int) (err error) {
 	} else {
 		u.prefix = i
 	}
-	if i, suffix, err = Split(suffix, base, 0); err != nil {
+	if i, _, err = Split(suffix, base, 0); err != nil {
 		return
 	} else {
 		u.index = i

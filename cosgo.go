@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/hwcer/cosgo/scc"
@@ -133,8 +134,8 @@ func stop() (stopped bool) {
 	}
 	_ = emit(EventTypClosing, false)
 	logger.Info("App will stop")
-	for i := len(modules) - 1; i >= 0; i-- {
-		closeModule(modules[i])
+	for _, module := range slices.Backward(modules) {
+		closeModule(module)
 	}
 	if err := scc.Wait(0); err != nil {
 		logger.Warn("App Stop Error:%v", err)

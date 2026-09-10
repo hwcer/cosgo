@@ -1,6 +1,7 @@
 package random
 
 import (
+	"maps"
 	"strings"
 	"testing"
 )
@@ -52,9 +53,7 @@ func TestBytes_SingleCharCharset(t *testing.T) {
 func TestRelativeMulti_DoesNotMutateInput(t *testing.T) {
 	items := map[int32]int32{1: 100, 2: 200, 3: 300}
 	original := make(map[int32]int32, len(items))
-	for k, v := range items {
-		original[k] = v
-	}
+	maps.Copy(original, items)
 	_ = RelativeMulti(items, 2)
 	if len(items) != len(original) {
 		t.Errorf("input map mutated: len=%d, want %d", len(items), len(original))

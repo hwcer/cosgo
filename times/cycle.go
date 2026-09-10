@@ -54,11 +54,10 @@ func (this *Cycle) Start() (r *Times, err error) {
 		}
 	case ExpireTypeMonthly:
 		r = this.Monthly(0)
-		n := this.monthlyCycle(r)
+		n := this.monthlyCycle(r, this.v)
 		if n != 0 {
 			r = r.AddDate(0, n*this.v, 0)
 		}
-
 	case ExpireTypeSecond:
 		r = this.Times
 		n := this.secondCycle(r, this.v)
@@ -92,7 +91,7 @@ func (this *Cycle) Expire() (r *Times, err error) {
 
 	case ExpireTypeMonthly:
 		r = this.Monthly(0)
-		n := this.monthlyCycle(r)
+		n := this.monthlyCycle(r, this.v)
 		if diff := n + 1; diff != 0 {
 			r = r.AddDate(0, diff*this.v, 0)
 		}
@@ -110,19 +109,21 @@ func (this *Cycle) Expire() (r *Times, err error) {
 
 // Cycle 当前是第几届，0开始
 func (this *Cycle) Cycle() (era *Times, r int) {
+	//v<=1时按基础周期计算,避免secondCycle/monthlyCycle除零panic(与Start/Expire的兜底口径一致)
+	v := max(this.v, 1)
 	switch this.t {
 	case ExpireTypeDaily:
 		era = this.Daily(0)
-		r = this.secondCycle(era, 86400*this.v)
+		r = this.secondCycle(era, 86400*v)
 	case ExpireTypeWeekly:
 		era = this.Weekly(0)
-		r = this.secondCycle(era, int(WeekSecond)*this.v)
+		r = this.secondCycle(era, int(WeekSecond)*v)
 	case ExpireTypeMonthly:
 		era = this.Monthly(0)
-		r = this.monthlyCycle(era)
+		r = this.monthlyCycle(era, v)
 	case ExpireTypeSecond:
 		era = this.Times
-		r = this.secondCycle(era, this.v)
+		r = this.secondCycle(era, v)
 	}
 	return
 }
@@ -144,7 +145,7 @@ func (this *Cycle) secondCycle(era *Times, n int) (r int) {
 //   - DST(夏令时)切换影响在小时级,不影响 Month/Day 计算。
 //   - 如果调用方需要跨时区确定性,应保证 era 和查询方同处 time.Local,
 //     或 fork 本函数改为显式在 UTC 下计算。
-func (this *Cycle) monthlyCycle(era *Times) int {
+func (this *Cycle) monthlyCycle(era *Times, v int) int {
 	eraTime := era.Now()
 	now := time.Now()
 	// 用单次 time.Now() 快照，避免 Year/Month/Day 分别调用时跨秒/跨日
@@ -152,5 +153,5 @@ func (this *Cycle) monthlyCycle(era *Times) int {
 	if now.Day() < eraTime.Day() {
 		r--
 	}
-	return r / this.v
+	return r / v
 }

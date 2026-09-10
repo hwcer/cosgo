@@ -558,7 +558,7 @@ func TestTrimExcess(t *testing.T) {
 	s := NewWithMaxSize(5)
 
 	// 添加超过限制的元素
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		s.ZAdd(int64(20-i), fmt.Sprintf("user%d", i))
 	}
 
@@ -590,10 +590,10 @@ func TestZSetThreadSafe(t *testing.T) {
 
 	start := time.Now()
 
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < operations; j++ {
+			for j := range operations {
 				key := fmt.Sprintf("user_%d_%d", id, j)
 				score := int64(id*10000 + j)
 				s.ZAdd(score, key)
@@ -625,10 +625,10 @@ func TestZSetWithMaxSizeThreadSafe(t *testing.T) {
 
 	start := time.Now()
 
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < operations; j++ {
+			for j := range operations {
 				key := fmt.Sprintf("user_%d", id)
 				score := int64(id*10000 + j)
 				s.ZAdd(score, key)
@@ -641,4 +641,38 @@ func TestZSetWithMaxSizeThreadSafe(t *testing.T) {
 
 	cardinality := s.ZCard()
 	t.Logf("线程安全测试完成，耗时 %v，最终元素数量 %d", duration, cardinality)
+}
+
+// 测试满员时榜内成员降分后守门员必须重算,否则CanEnter出现假阴性、ZRank误返回-1
+func TestGuardUpdateOnMemberScoreDrop(t *testing.T) {
+	s := NewWithMaxSize(3)
+	s.ZAdd(10, "A")
+	s.ZAdd(8, "B")
+	s.ZAdd(5, "C")
+
+	// B从8降到3,实际守门员应从C(5)变为B(3)
+	if r := s.ZAdd(3, "B"); r != 3 {
+		t.Fatalf("ZAdd 降分失败，期望 3，实际 %d", r)
+	}
+
+	// 此刻榜内为[A10,C5,B3],B仍在榜内,ZRank不应返回-1
+	if rank, _ := s.ZRank("B"); rank != 2 {
+		t.Errorf("ZRank 误判：B 在榜内排名 2，实际 %d", rank)
+	}
+
+	// F(4)优于实际守门员B(3)，应能入榜
+	if !s.CanEnter(4) {
+		t.Error("CanEnter 假阴性：4 应优于守门员 3")
+	}
+	if r := s.ZAdd(4, "F"); r != 4 {
+		t.Errorf("ZAdd 被陈旧守门员拦截，期望 4，实际 %d", r)
+	}
+
+	// F入榜后为[A10,C5,F4,B3],B跌出前3,返回-1是正确语义
+	if rank, _ := s.ZRank("F"); rank != 2 {
+		t.Errorf("ZRank 误判：F 排名 2，实际 %d", rank)
+	}
+	if rank, _ := s.ZRank("B"); rank != -1 {
+		t.Errorf("ZRank 误判：B 已跌出榜外，期望 -1，实际 %d", rank)
+	}
 }

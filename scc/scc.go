@@ -30,40 +30,38 @@ func New(ctx context.Context) *SCC {
 
 // SCC 协程控制器，用于管理和控制Go协程的生命周期
 type SCC struct {
-	sync.WaitGroup        // 嵌入的WaitGroup，用于等待所有协程结束
-	stop    int32         // 停止标记，用于原子操作
-	cancel  context.CancelFunc // 取消函数，用于取消所有子上下文
-	Catch   func(error)   // 异常捕获函数，默认控制台打印
-	Context context.Context // 根上下文
-	handle  []func()      // 服务器关闭时执行的函数列表
+	sync.WaitGroup                    // 嵌入的WaitGroup，用于等待所有协程结束
+	stop           int32              // 停止标记，用于原子操作
+	cancel         context.CancelFunc // 取消函数，用于取消所有子上下文
+	Catch          func(error)        // 异常捕获函数，默认控制台打印
+	Context        context.Context    // 根上下文
+	handle         []func()           // 服务器关闭时执行的函数列表
 }
 
 // GO 启动一个普通的协程。
+// 不使用标准库WaitGroup.Go(Go1.25+):其内部对panic的处理是跳过Done并原样重抛,
+// 计数永不归零;手动Add/defer Done在panic展开时仍会执行Done,行为更可控。
 // 注意: Add(1) 必须在 go 之前执行,否则主线程 Wait 可能看到计数 0 提前返回。
 func (s *SCC) GO(f func()) {
-	s.WaitGroup.Add(1)
-	go func() {
-		defer s.WaitGroup.Done()
+	s.WaitGroup.Go(func() {
 		f()
-	}()
+	})
 }
 
 // CGO 启动一个带有取消通道的协程。
 func (s *SCC) CGO(f handle) {
-	s.WaitGroup.Add(1)
-	go func() {
-		defer s.WaitGroup.Done()
+	s.WaitGroup.Go(func() {
 		ctx, cancel := s.WithCancel()
 		defer cancel()
 		f(ctx)
-	}()
+	})
 }
 
 // SGO 启动一个使用 recover 保护的协程,防止主进程崩溃。
+// recover必须在f(ctx)的直接调用栈上:panic先被这里捕获并交由Catch上报,
+// 不会到达WaitGroup层面(否则进程崩溃)。cosnet的readMsg/writeMsg等大量依赖此保护。
 func (s *SCC) SGO(f handle) {
-	s.WaitGroup.Add(1)
-	go func() {
-		defer s.WaitGroup.Done()
+	s.WaitGroup.Go(func() {
 		defer func() {
 			if e := recover(); e != nil {
 				s.Catch(fmt.Errorf("%v\n%v", e, string(debug.Stack())))
@@ -72,7 +70,7 @@ func (s *SCC) SGO(f handle) {
 		ctx, cancel := s.WithCancel()
 		defer cancel()
 		f(ctx)
-	}()
+	})
 }
 
 // Try 在当前 goroutine 同步执行 f,使用 recover 保护。

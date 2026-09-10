@@ -1,6 +1,7 @@
 package safety
 
 import (
+	"maps"
 	"sync"
 	"sync/atomic"
 )
@@ -21,11 +22,11 @@ type SafetyUpdate func(*SafetyData) bool
 
 // SafetyRule IP 匹配规则
 type SafetyRule struct {
-	name   string    // 规则名称
-	local  bool      // 是否内网地址规则
-	status Status    // 白名单 / 黑名单
-	start  uint32    // IP 范围起始（含）
-	end    uint32    // IP 范围结束（含），等于 start 时为精确匹配
+	name   string // 规则名称
+	local  bool   // 是否内网地址规则
+	status Status // 白名单 / 黑名单
+	start  uint32 // IP 范围起始（含）
+	end    uint32 // IP 范围结束（含），等于 start 时为精确匹配
 }
 
 // Match 检查 ip 是否命中本规则
@@ -58,9 +59,7 @@ func (d *SafetyData) Copy() *SafetyData {
 		dict: make(map[string]*SafetyRule, len(d.dict)),
 		list: make([]*SafetyRule, 0, len(d.list)),
 	}
-	for k, v := range d.dict {
-		n.dict[k] = v
-	}
+	n.dict = maps.Clone(d.dict)
 	n.list = append(n.list, d.list...)
 	return n
 }
@@ -77,6 +76,11 @@ func (d *SafetyData) Delete(name string) *SafetyData {
 	for k, v := range d.dict {
 		if k != name {
 			n.dict[k] = v
+		}
+	}
+	//按原list顺序重建:规则重叠时Match依赖命中顺序,不能因删除而随机化
+	for _, v := range d.list {
+		if _, ok := n.dict[v.name]; ok {
 			n.list = append(n.list, v)
 		}
 	}

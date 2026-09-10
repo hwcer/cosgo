@@ -2,6 +2,7 @@ package schema
 
 import (
 	"encoding/json"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
@@ -112,9 +113,7 @@ func (this *Index) partialParser(_ *Schema, s []string) (any, error) {
 		if err := json.Unmarshal([]byte(partial), &filter); err != nil {
 			return nil, err
 		}
-		for k, v := range filter {
-			q[k] = v
-		}
+		maps.Copy(q, filter)
 	}
 	return q, nil
 }
@@ -209,7 +208,7 @@ func (schema *Schema) parseFieldIndexes(field *Field, table string) (indexes []*
 	if !strings.Contains(indexTag, ";") {
 		indexes = append(indexes, schema.parseTagIndex(table, db, indexTag))
 	} else {
-		for _, value := range strings.Split(indexTag, ";") {
+		for value := range strings.SplitSeq(indexTag, ";") {
 			if value != "" {
 				indexes = append(indexes, schema.parseTagIndex(table, db, value))
 			}

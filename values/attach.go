@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -43,9 +44,7 @@ func (m Attach[K]) Range(f func(k K, v any) bool) {
 
 func (m Attach[K]) Clone() Attach[K] {
 	r := make(Attach[K], len(m))
-	for k, v := range m {
-		r[k] = v
-	}
+	maps.Copy(r, m)
 	return r
 }
 
@@ -160,11 +159,17 @@ func (m Attach[K]) MarshalJSON() ([]byte, error) {
 	b := bytes.NewBuffer([]byte("{"))
 	var err error
 	for k, v := range m {
-		switch v := any(k).(type) {
+		//key必须经json.Marshal转义,含引号/反斜杠/控制字符的key会产生非法JSON
+		switch key := any(k).(type) {
 		case string:
-			_, err = fmt.Fprintf(b, `"%s":`, v)
+			kb, e := json.Marshal(key)
+			if e != nil {
+				return nil, e
+			}
+			_, _ = b.Write(kb)
+			_, _ = b.WriteString(":")
 		default:
-			_, err = fmt.Fprintf(b, `"%d":`, v)
+			_, err = fmt.Fprintf(b, `"%d":`, key)
 		}
 		if err != nil {
 			return nil, err

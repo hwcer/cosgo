@@ -4,9 +4,9 @@ type Setter interface {
 	Id() string
 }
 
-type NewSetter func(id string, val interface{}) Setter
+type NewSetter func(id string, val any) Setter
 
-func NewSetterDefault(id string, data interface{}) Setter {
+func NewSetterDefault(id string, data any) Setter {
 	return &SetterDefault{id: id, data: data}
 }
 
@@ -19,10 +19,10 @@ func (this *SetterDefault) Id() string {
 	return this.id
 }
 
-func (this *SetterDefault) Get() interface{} {
+func (this *SetterDefault) Get() any {
 	return this.data
 }
 
-func (this *SetterDefault) Set(data interface{}) {
+func (this *SetterDefault) Set(data any) {
 	this.data = data
 }

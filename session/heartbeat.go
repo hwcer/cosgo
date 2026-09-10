@@ -13,12 +13,12 @@ import (
 var Heartbeat = heartbeat{}
 
 type heartbeat struct {
-	started int32
+	started atomic.Int32
 }
 
 // Start 启动心跳守护协程（幂等，多次调用安全）
 func (this *heartbeat) Start() {
-	if !atomic.CompareAndSwapInt32(&this.started, 0, 1) {
+	if !this.started.CompareAndSwap(0, 1) {
 		return
 	}
 	scc.CGO(this.daemon)

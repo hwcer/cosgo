@@ -22,7 +22,7 @@ func TestRoll_CanPickLastElement(t *testing.T) {
 	nums := []int{1, 2}
 	// 跑足够多次以几乎确定覆盖 index 1
 	seen := map[int]bool{}
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		seen[Roll(nums)] = true
 	}
 	if !seen[1] || !seen[2] {

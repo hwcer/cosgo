@@ -4,13 +4,12 @@ import (
 	"context"
 	"github.com/hwcer/cosgo/scc"
 	"github.com/hwcer/cosgo/values"
-	"sync/atomic"
 	"time"
 )
 
 // 错误定义
 var (
-	ErrTimeout    = values.Errorf(0, "timeout")    // 超时错误
+	ErrTimeout    = values.Errorf(0, "timeout")                     // 超时错误
 	ErrServerBusy = values.Errorf(1, "server busy,try again later") // 服务器繁忙错误
 )
 
@@ -29,8 +28,8 @@ func New(cap int, timeout time.Duration) *Await {
 
 // Await 异步调用和等待机制的核心结构
 type Await struct {
-	c       chan *Message    // 消息通道，用于传递任务
-	Timeout time.Duration    // 默认超时时间
+	c       chan *Message // 消息通道，用于传递任务
+	Timeout time.Duration // 默认超时时间
 }
 
 // Try 尝试执行任务，如果通道已满，立即放弃执行
@@ -94,7 +93,7 @@ func (this *Await) process(ctx context.Context) {
 // handle 处理单个消息
 // @param msg 消息对象
 func (this *Await) handle(msg *Message) {
-	if !atomic.CompareAndSwapInt32(&msg.state, 0, 1) {
+	if !msg.state.CompareAndSwap(0, 1) {
 		return // 对方等待超时已放弃
 	}
 	defer func() {

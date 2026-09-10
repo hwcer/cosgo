@@ -49,7 +49,7 @@ func GZipUnCompress(data []byte) ([]byte, error) {
 }
 
 // IntToBytes 整形转换成字节
-func IntToBytes(n interface{}) ([]byte, error) {
+func IntToBytes(n any) ([]byte, error) {
 	var err error
 	bytesBuffer := bytes.NewBuffer([]byte{})
 	if v, ok := n.(int); ok {
@@ -68,7 +68,7 @@ func IntToBytes(n interface{}) ([]byte, error) {
 }
 
 // IntToBuffer 将数字写入BUFFER, buffer := bytes.NewBuffer([]byte{})
-func IntToBuffer(buffer *bytes.Buffer, n interface{}) error {
+func IntToBuffer(buffer *bytes.Buffer, n any) error {
 	if v, ok := n.(int); ok {
 		return binary.Write(buffer, binary.BigEndian, int32(v))
 	} else if v, ok := n.(float64); ok {
@@ -81,7 +81,7 @@ func IntToBuffer(buffer *bytes.Buffer, n interface{}) error {
 // BytesToInt 字节转换成整形,n 必须是指针
 // var a int32
 // BytesToInt([]byte{1},&a)
-func BytesToInt(b []byte, n interface{}) error {
+func BytesToInt(b []byte, n any) error {
 	bytesBuffer := bytes.NewBuffer(b)
 	return binary.Read(bytesBuffer, binary.BigEndian, n)
 }

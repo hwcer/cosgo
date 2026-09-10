@@ -15,7 +15,7 @@ func TestName(t *testing.T) {
 
 	init := NewInitialize()
 	wg := sync.WaitGroup{}
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		wg.Add(1)
 		go func(n int) {
 			t.Logf("goroutine start %d", n)

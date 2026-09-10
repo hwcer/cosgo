@@ -11,7 +11,7 @@ func newDirty(cap int) *dirty {
 		list: make([]int, cap),
 		free: make([]bool, cap),
 	}
-	for i := 0; i < cap; i++ {
+	for i := range cap {
 		d.list[i] = i
 		d.free[i] = true
 	}

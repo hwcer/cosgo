@@ -141,7 +141,7 @@ func (c *Client) Request(method, url string, data any, header ...map[string]stri
 
 // Get 发送 GET 请求并自动解码响应
 // reply 类型：*[]byte 原始字节、*string 字符串、其他类型走 Binder 反序列化
-func (c *Client) Get(url string, reply interface{}) (err error) {
+func (c *Client) Get(url string, reply any) (err error) {
 	var body []byte
 	body, err = c.Request(http.MethodGet, url, nil)
 	if err != nil {
@@ -159,7 +159,7 @@ func (c *Client) Get(url string, reply interface{}) (err error) {
 }
 
 // Post 发送 POST 请求并自动解码响应
-func (c *Client) Post(url string, data interface{}, reply interface{}) (err error) {
+func (c *Client) Post(url string, data any, reply any) (err error) {
 	var body []byte
 	body, err = c.Request(http.MethodPost, url, data)
 	if err != nil || reply == nil {

@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -24,16 +25,18 @@ type TimeWheel struct {
 type Job func(TaskData)
 
 // TaskData callback params
-type TaskData map[interface{}]interface{}
+type TaskData map[any]any
 
 // task struct
+// times/taskData/interval 会被调用方goroutine(RemoveTask/UpdateTask)与
+// 时间轮goroutine(scanAddRunTask/addTask)并发读写,因此使用原子类型
 type task struct {
-	interval time.Duration
-	times    int //-1:no limit >=1:run times
-	circle   int
-	key      interface{}
+	interval atomic.Int64
+	times    atomic.Int32 //-1:no limit >=1:run times 0:removed
+	circle   int          //仅时间轮goroutine读写
+	key      any
 	job      Job
-	taskData TaskData
+	taskData atomic.Pointer[TaskData]
 }
 
 // New create a empty time wheel
@@ -86,7 +89,7 @@ func (tw *TimeWheel) start() {
 }
 
 // AddTask add new task to the time wheel
-func (tw *TimeWheel) AddTask(interval time.Duration, times int, key interface{}, data TaskData, job Job) error {
+func (tw *TimeWheel) AddTask(interval time.Duration, times int, key any, data TaskData, job Job) error {
 	if interval <= 0 || key == nil || job == nil || times < -1 || times == 0 {
 		return errors.New("illegal task params")
 	}
@@ -96,12 +99,22 @@ func (tw *TimeWheel) AddTask(interval time.Duration, times int, key interface{},
 		return errors.New("duplicate task key")
 	}
 
-	tw.addTaskChannel <- &task{interval: interval, times: times, key: key, taskData: data, job: job}
-	return nil
+	t := &task{key: key, job: job}
+	t.interval.Store(int64(interval))
+	t.times.Store(int32(times))
+	t.taskData.Store(&data)
+
+	//时间轮停止后start goroutine已退出,无接收者;select避免调用方永久阻塞
+	select {
+	case tw.addTaskChannel <- t:
+		return nil
+	case <-tw.stopChannel:
+		return errors.New("time wheel stopped")
+	}
 }
 
 // RemoveTask remove the task from time wheel
-func (tw *TimeWheel) RemoveTask(key interface{}) error {
+func (tw *TimeWheel) RemoveTask(key any) error {
 	if key == nil {
 		return nil
 	}
@@ -113,14 +126,14 @@ func (tw *TimeWheel) RemoveTask(key interface{}) error {
 	} else {
 		// lazy remove task
 		task := value.(*task)
-		task.times = 0
+		task.times.Store(0)
 		tw.taskRecord.Delete(task.key)
 	}
 	return nil
 }
 
 // UpdateTask update task times and data
-func (tw *TimeWheel) UpdateTask(key interface{}, interval time.Duration, taskData TaskData) error {
+func (tw *TimeWheel) UpdateTask(key any, interval time.Duration, taskData TaskData) error {
 	if key == nil {
 		return errors.New("illegal key, please try again")
 	}
@@ -131,8 +144,8 @@ func (tw *TimeWheel) UpdateTask(key interface{}, interval time.Duration, taskDat
 		return errors.New("task not exists, please check you task key")
 	}
 	task := value.(*task)
-	task.taskData = taskData
-	task.interval = interval
+	task.taskData.Store(&taskData)
+	task.interval.Store(int64(interval))
 	return nil
 }
 
@@ -143,7 +156,6 @@ func (tw *TimeWheel) init() {
 	}
 }
 
-//
 func (tw *TimeWheel) tickHandler() {
 	l := tw.slots[tw.currentPos]
 	tw.scanAddRunTask(l)
@@ -156,11 +168,11 @@ func (tw *TimeWheel) tickHandler() {
 
 // add task
 func (tw *TimeWheel) addTask(task *task) {
-	if task.times == 0 {
+	if task.times.Load() == 0 {
 		return
 	}
 
-	pos, circle := tw.getPositionAndCircle(task.interval)
+	pos, circle := tw.getPositionAndCircle(time.Duration(task.interval.Load()))
 	task.circle = circle
 
 	tw.slots[pos].PushBack(task)
@@ -178,8 +190,9 @@ func (tw *TimeWheel) scanAddRunTask(l *list.List) {
 
 	for item := l.Front(); item != nil; {
 		task := item.Value.(*task)
+		times := task.times.Load()
 
-		if task.times == 0 {
+		if times == 0 {
 			next := item.Next()
 			l.Remove(item)
 			tw.taskRecord.Delete(task.key)
@@ -193,17 +206,19 @@ func (tw *TimeWheel) scanAddRunTask(l *list.List) {
 			continue
 		}
 
-		go task.job(task.taskData)
+		if data := task.taskData.Load(); data != nil {
+			go task.job(*data)
+		}
 		next := item.Next()
 		l.Remove(item)
 		item = next
 
-		if task.times == 1 {
-			task.times = 0
+		if times == 1 {
+			task.times.Store(0)
 			tw.taskRecord.Delete(task.key)
 		} else {
-			if task.times > 0 {
-				task.times--
+			if times > 0 {
+				task.times.Store(times - 1)
 			}
 			tw.addTask(task)
 		}
@@ -211,10 +226,10 @@ func (tw *TimeWheel) scanAddRunTask(l *list.List) {
 }
 
 // get the task position
+// 使用整数除法计算tick数,避免interval小于1秒时int(Seconds())截断为0导致除零panic
 func (tw *TimeWheel) getPositionAndCircle(d time.Duration) (pos int, circle int) {
-	delaySeconds := int(d.Seconds())
-	intervalSeconds := int(tw.interval.Seconds())
-	circle = int(delaySeconds / intervalSeconds / tw.slotNum)
-	pos = int(tw.currentPos+delaySeconds/intervalSeconds) % tw.slotNum
+	delay := int(d / tw.interval)
+	circle = delay / tw.slotNum
+	pos = (tw.currentPos + delay) % tw.slotNum
 	return
 }

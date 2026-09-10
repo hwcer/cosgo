@@ -122,7 +122,7 @@ func (this *Message) UnmarshalJSON(b []byte) error {
 // 顺带修掉旧写法的一处窄坑:Data 不是 JSON 字符串时(数字、对象等),
 // 旧写法的 json.Unmarshal(v, &s) 会失败,于是把**解码错误**当业务错误返回、连文案都丢;
 // 现在原样返回 Message,String() 自己回落到 string(v)。
-func (this *Message) Unmarshal(i interface{}) (err error) {
+func (this *Message) Unmarshal(i any) (err error) {
 	switch v := this.Data.(type) {
 	case json.RawMessage:
 		if this.Code != 0 {

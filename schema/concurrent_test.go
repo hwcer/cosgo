@@ -24,26 +24,24 @@ func TestConcurrentParse_Waiter(t *testing.T) {
 	opts := New()
 	const workers = 50
 	var wg sync.WaitGroup
-	var ok int32
+	var ok atomic.Int32
 	start := make(chan struct{})
 
-	for i := 0; i < workers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range workers {
+		wg.Go(func() {
 			<-start
 			s, err := opts.Parse(&concurrentModelA{})
 			if err == nil && s != nil && len(s.Fields) > 0 {
-				atomic.AddInt32(&ok, 1)
+				ok.Add(1)
 			}
-		}()
+		})
 	}
 	t0 := time.Now()
 	close(start)
 	wg.Wait()
 	dur := time.Since(t0)
 
-	if got := atomic.LoadInt32(&ok); got != workers {
+	if got := ok.Load(); got != workers {
 		t.Fatalf("only %d/%d goroutines got a valid schema", got, workers)
 	}
 	// 宽松上限: 50 个并发的首次解析应当远低于 100ms(chan 唤醒是 μs 级)
@@ -61,7 +59,7 @@ func TestWarm_NoWaitOnHot(t *testing.T) {
 	}
 	// 后续获取应无等待
 	t0 := time.Now()
-	for i := 0; i < 10000; i++ {
+	for range 10000 {
 		_, _ = opts.Parse(&concurrentModelA{})
 		_, _ = opts.Parse(&concurrentModelB{})
 	}

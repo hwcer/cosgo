@@ -32,7 +32,11 @@ func init() {
 	Crypto.base64 = base64.RawURLEncoding
 }
 
-// Encrypt DES加密
+// Encrypt CBC加密
+// 未显式传iv时:生成随机IV并前置到密文(布局为 IV||ciphertext,与GCMEncrypt的nonce处理一致),
+// 解密方无需额外传参即可还原。旧实现默认取key[:blockSize]——DES下IV就是完整密钥,
+// AES-128下同样;且固定IV使相同明文前缀产生相同密文前缀,均为实际的密码学弱点。
+// 显式传iv时密文不包含IV,由调用方自行管理。
 func (this *crypto) Encrypt(originalBytes, key []byte, scType CryptoType, ivs ...[]byte) ([]byte, error) {
 	// 1、实例化密码器block(参数为密钥)
 	var err error
@@ -51,24 +55,31 @@ func (this *crypto) Encrypt(originalBytes, key []byte, scType CryptoType, ivs ..
 		return nil, err
 	}
 	blockSize := block.BlockSize()
-	//fmt.Println("---blockSize---", blockSize)
 	// 2、对明文填充字节(参数为原始字节切片和密码对象的区块个数)
 	paddingBytes := PKCS7Padding(originalBytes, blockSize)
-	//fmt.Println("填充后的字节切片：", paddingBytes)
-	// 3、 实例化加密模式(参数为密码对象和密钥)
-	var iv = key[:blockSize]
 	if len(ivs) > 0 {
-		iv = ivs[0]
+		if len(ivs[0]) < blockSize {
+			return nil, errors.New("crypto: iv length must be at least blockSize")
+		}
+		blockMode := cipher.NewCBCEncrypter(block, ivs[0][:blockSize])
+		cipherBytes := make([]byte, len(paddingBytes))
+		blockMode.CryptBlocks(cipherBytes, paddingBytes)
+		return cipherBytes, nil
+	}
+	// 3、随机IV,随密文一起输出
+	iv := make([]byte, blockSize)
+	if _, err = io.ReadFull(rand.Reader, iv); err != nil {
+		return nil, err
 	}
 	blockMode := cipher.NewCBCEncrypter(block, iv)
-	//fmt.Println("加密模式：", blockMode)
-	// 4、对填充字节后的明文进行加密(参数为加密字节切片和填充字节切片)
-	cipherBytes := make([]byte, len(paddingBytes))
-	blockMode.CryptBlocks(cipherBytes, paddingBytes)
+	cipherBytes := make([]byte, blockSize+len(paddingBytes))
+	copy(cipherBytes, iv)
+	blockMode.CryptBlocks(cipherBytes[blockSize:], paddingBytes)
 	return cipherBytes, nil
 }
 
 // Decrypt 解密字节切片，返回字节切片
+// 未显式传iv时按 IV||ciphertext 布局取前blockSize字节作为IV(与Encrypt默认模式配对)
 func (this *crypto) Decrypt(cipherBytes, key []byte, scType CryptoType, ivs ...[]byte) ([]byte, error) {
 	// 1、实例化密码器block(参数为密钥)
 	var err error
@@ -87,17 +98,32 @@ func (this *crypto) Decrypt(cipherBytes, key []byte, scType CryptoType, ivs ...[
 		return nil, err
 	}
 	blockSize := block.BlockSize()
-	// 2、 实例化解密模式(参数为密码对象和密钥)
-	var iv = key[:blockSize]
+	// 2、拆出IV与密文体
+	var iv, body []byte
 	if len(ivs) > 0 {
-		iv = ivs[0]
+		if len(ivs[0]) < blockSize {
+			return nil, errors.New("crypto: iv length must be at least blockSize")
+		}
+		iv, body = ivs[0][:blockSize], cipherBytes
+	} else {
+		if len(cipherBytes) <= blockSize || (len(cipherBytes)-blockSize)%blockSize != 0 {
+			return nil, errors.New("crypto: ciphertext too short or not block-aligned")
+		}
+		iv, body = cipherBytes[:blockSize], cipherBytes[blockSize:]
 	}
+	// 3、实例化解密模式(参数为密码对象和密钥)
 	blockMode := cipher.NewCBCDecrypter(block, iv)
-	// fmt.Println("解密模式：", blockMode)
-	// 3、对密文进行解密(参数为加密字节切片和填充字节切片)
-	paddingBytes := make([]byte, len(cipherBytes))
-	blockMode.CryptBlocks(paddingBytes, cipherBytes)
-	// 4、去除填充字节(参数为填充切片)
+	// 4、对密文进行解密
+	paddingBytes := make([]byte, len(body))
+	blockMode.CryptBlocks(paddingBytes, body)
+	if len(paddingBytes) == 0 {
+		return nil, errors.New("crypto: invalid padding")
+	}
+	//密钥错误/密文损坏时填充字节是垃圾值,越界切片会panic,必须先校验
+	if unpadding := int(paddingBytes[len(paddingBytes)-1]); unpadding == 0 || unpadding > blockSize || unpadding > len(paddingBytes) {
+		return nil, errors.New("crypto: invalid padding")
+	}
+	// 5、去除填充字节(参数为填充切片)
 	originalBytes := PKCS7UnPadding(paddingBytes)
 	return originalBytes, nil
 }

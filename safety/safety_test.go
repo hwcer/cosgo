@@ -33,9 +33,9 @@ func TestParseIPv4(t *testing.T) {
 
 func TestParseRule(t *testing.T) {
 	tests := []struct {
-		rule       string
-		wantStart  uint32
-		wantEnd    uint32
+		rule      string
+		wantStart uint32
+		wantEnd   uint32
 	}{
 		// 单 IP
 		{"192.168.1.1", 0xC0A80101, 0xC0A80101},
@@ -196,7 +196,7 @@ func TestMatchWithPort(t *testing.T) {
 
 func TestConcurrentMatchAndUpdate(t *testing.T) {
 	s := New()
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		s.Update(fmt.Sprintf("rule_%d", i), fmt.Sprintf("10.0.%d.0/24", i), StatusEnable, false)
 	}
 
@@ -204,20 +204,20 @@ func TestConcurrentMatchAndUpdate(t *testing.T) {
 	wg.Add(200)
 
 	// 100 readers
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 1000; j++ {
+			for j := range 1000 {
 				s.Match(fmt.Sprintf("10.0.%d.%d", id%10, j%256), false)
 			}
 		}(i)
 	}
 
 	// 100 writers
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 100; j++ {
+			for j := range 100 {
 				name := fmt.Sprintf("dyn_%d_%d", id, j)
 				s.Update(name, fmt.Sprintf("10.%d.%d.0/24", id%256, j%256), StatusDisable, false)
 				s.Delete(name)
@@ -233,7 +233,7 @@ func TestConcurrentMatchAndUpdate(t *testing.T) {
 func BenchmarkMatch_Hit(b *testing.B) {
 	s := New()
 	s.UseLocalAddress()
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		s.Update(fmt.Sprintf("rule_%d", i), fmt.Sprintf("10.%d.0.0/16", i), StatusEnable, false)
 	}
 	b.ResetTimer()
@@ -245,7 +245,7 @@ func BenchmarkMatch_Hit(b *testing.B) {
 
 func BenchmarkMatch_Miss(b *testing.B) {
 	s := New()
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		s.Update(fmt.Sprintf("rule_%d", i), fmt.Sprintf("10.%d.0.0/16", i), StatusEnable, false)
 	}
 	b.ResetTimer()
@@ -265,7 +265,7 @@ func BenchmarkParseIPv4(b *testing.B) {
 func BenchmarkMatch_Parallel(b *testing.B) {
 	s := New()
 	s.UseLocalAddress()
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		s.Update(fmt.Sprintf("rule_%d", i), fmt.Sprintf("10.%d.0.0/16", i), StatusDisable, false)
 	}
 	b.ResetTimer()

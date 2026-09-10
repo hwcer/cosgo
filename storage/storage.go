@@ -16,9 +16,10 @@ func New(cap int, creator ...NewSetter) *Storage {
 	} else {
 		r.NewSetter = NewSetterDefault
 	}
-	bucket := NewBucket(len(r.bucket), r.cap)
+	bucket := NewBucket(0, r.cap)
 	bucket.NewSetter = r.NewSetter
-	r.bucket = append(r.bucket, bucket)
+	buckets := []*Bucket{bucket}
+	r.buckets.Store(&buckets)
 	r.totalCap.Store(int64(cap))
 	return r
 }
@@ -34,12 +35,19 @@ func New(cap int, creator ...NewSetter) *Storage {
 // Token 格式：28 个 hex 字符 = bucket(2B) + slot(4B) + random(8B)
 // 解析只需查表提取前 12 个 hex 字符，零分配
 type Storage struct {
-	cap       int
-	bucket    []*Bucket
+	cap int
+	// buckets 以原子快照发布:expansion 写时复制整体替换,
+	// 读路径(Share/Get/Range/New/Delete)无锁读快照,与运行期扩容并发安全
+	buckets   atomic.Pointer[[]*Bucket]
 	NewSetter NewSetter
 	mu        sync.Mutex   // 仅用于 expansion
 	totalSize atomic.Int64 // 所有桶已占用槽位总数
 	totalCap  atomic.Int64 // 所有桶容量总和
+}
+
+// load 返回当前桶快照
+func (this *Storage) load() []*Bucket {
+	return *this.buckets.Load()
 }
 
 // Share 从 token 前 4 个 hex 字符解析桶索引，零分配
@@ -48,7 +56,7 @@ func (this *Storage) Share(id string) (int, error) {
 	if !ok {
 		return 0, errors.New("invalid token")
 	}
-	if bucket < 0 || bucket >= len(this.bucket) {
+	if bucket < 0 || bucket >= len(this.load()) {
 		return 0, errors.New("bucket index out of range")
 	}
 	return bucket, nil
@@ -60,7 +68,7 @@ func (this *Storage) Get(id string) (Setter, bool) {
 	if err != nil {
 		return nil, false
 	}
-	return this.bucket[share].Get(id)
+	return this.load()[share].Get(id)
 }
 
 // Size 当前已占用总数，O(1) 原子读
@@ -76,7 +84,7 @@ func (this *Storage) Free() int {
 // Range 遍历所有对象
 // 回调返回 false 时提前终止。禁止在回调中调用 New/Delete
 func (this *Storage) Range(f func(Setter) bool) bool {
-	for _, bucket := range this.bucket {
+	for _, bucket := range this.load() {
 		if !bucket.Range(f) {
 			return false
 		}
@@ -88,7 +96,7 @@ func (this *Storage) Range(f func(Setter) bool) bool {
 // 通过原子读 bucket.size 跳过已满桶，避免无效加锁
 func (this *Storage) New(v any) Setter {
 	cap32 := int32(this.cap)
-	for _, bucket := range this.bucket {
+	for _, bucket := range this.load() {
 		if bucket.size.Load() >= cap32 {
 			continue
 		}
@@ -105,7 +113,8 @@ func (this *Storage) expansion(v any) Setter {
 	this.mu.Lock()
 	defer this.mu.Unlock()
 	cap32 := int32(this.cap)
-	for _, bucket := range this.bucket {
+	buckets := this.load()
+	for _, bucket := range buckets {
 		if bucket.size.Load() >= cap32 {
 			continue
 		}
@@ -114,10 +123,14 @@ func (this *Storage) expansion(v any) Setter {
 			return r
 		}
 	}
-	bucket := NewBucket(len(this.bucket), this.cap)
+	//写时复制:整体替换快照,与无锁读路径并发安全
+	bucket := NewBucket(len(buckets), this.cap)
 	bucket.NewSetter = this.NewSetter
 	r := bucket.New(v)
-	this.bucket = append(this.bucket, bucket)
+	nb := make([]*Bucket, len(buckets)+1)
+	copy(nb, buckets)
+	nb[len(buckets)] = bucket
+	this.buckets.Store(&nb)
 	this.totalCap.Add(int64(this.cap))
 	this.totalSize.Add(1)
 	return r
@@ -129,7 +142,7 @@ func (this *Storage) Delete(id string) Setter {
 	if err != nil {
 		return nil
 	}
-	bucket := this.bucket[share]
+	bucket := this.load()[share]
 	r := bucket.Delete(id)
 	if r != nil {
 		this.totalSize.Add(-1)

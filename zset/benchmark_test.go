@@ -24,7 +24,7 @@ func TestBenchmarkMixedReadWrite(t *testing.T) {
 	set := NewWithMaxSize(benchMaxSize)
 
 	// 预热：先填充排行榜
-	for i := 0; i < benchUsers; i++ {
+	for i := range benchUsers {
 		set.ZAdd(int64(rand.Intn(100000)), fmt.Sprintf("user_%d", i))
 	}
 
@@ -37,13 +37,13 @@ func TestBenchmarkMixedReadWrite(t *testing.T) {
 	wg.Add(benchUsers)
 	start := time.Now()
 
-	for i := 0; i < benchUsers; i++ {
+	for i := range benchUsers {
 		go func(uid int) {
 			defer wg.Done()
 			key := fmt.Sprintf("user_%d", uid)
 			rng := rand.New(rand.NewSource(int64(uid)))
 
-			for r := 0; r < rounds; r++ {
+			for range rounds {
 				op := rng.Intn(100)
 				switch {
 				case op < 40:
@@ -100,11 +100,11 @@ func TestBenchmarkPureWrite(t *testing.T) {
 	wg.Add(benchUsers)
 	start := time.Now()
 
-	for i := 0; i < benchUsers; i++ {
+	for i := range benchUsers {
 		go func(uid int) {
 			defer wg.Done()
 			key := fmt.Sprintf("user_%d", uid)
-			for r := 0; r < 100; r++ {
+			for range 100 {
 				set.ZAdd(int64(rand.Intn(100000)), key)
 				totalOps.Add(1)
 			}
@@ -126,7 +126,7 @@ func TestBenchmarkPureWrite(t *testing.T) {
 // TestBenchmarkPureRead 纯读取压测（预填充后并发读）
 func TestBenchmarkPureRead(t *testing.T) {
 	set := NewWithMaxSize(benchMaxSize)
-	for i := 0; i < benchUsers; i++ {
+	for i := range benchUsers {
 		set.ZAdd(int64(rand.Intn(100000)), fmt.Sprintf("user_%d", i))
 	}
 
@@ -136,12 +136,12 @@ func TestBenchmarkPureRead(t *testing.T) {
 	wg.Add(benchUsers)
 	start := time.Now()
 
-	for i := 0; i < benchUsers; i++ {
+	for i := range benchUsers {
 		go func(uid int) {
 			defer wg.Done()
 			key := fmt.Sprintf("user_%d", uid)
 			rng := rand.New(rand.NewSource(int64(uid)))
-			for r := 0; r < 100; r++ {
+			for range 100 {
 				switch rng.Intn(4) {
 				case 0:
 					set.ZRank(key)
@@ -172,7 +172,7 @@ func TestBenchmarkPureRead(t *testing.T) {
 // TestBenchmarkHighContention 高争用测试（少量热点 key 被大量协程同时写）
 func TestBenchmarkHighContention(t *testing.T) {
 	set := NewWithMaxSize(benchMaxSize)
-	for i := 0; i < benchUsers; i++ {
+	for i := range benchUsers {
 		set.ZAdd(int64(i), fmt.Sprintf("user_%d", i))
 	}
 
@@ -183,11 +183,11 @@ func TestBenchmarkHighContention(t *testing.T) {
 	wg.Add(benchUsers)
 	start := time.Now()
 
-	for i := 0; i < benchUsers; i++ {
+	for i := range benchUsers {
 		go func(uid int) {
 			defer wg.Done()
 			rng := rand.New(rand.NewSource(int64(uid)))
-			for r := 0; r < 100; r++ {
+			for range 100 {
 				hotKey := fmt.Sprintf("user_%d", rng.Intn(hotKeys))
 				set.ZIncr(int64(rng.Intn(10)+1), hotKey)
 				totalOps.Add(1)
@@ -213,7 +213,7 @@ func TestBenchmarkGuardReject(t *testing.T) {
 	set := NewWithMaxSize(benchMaxSize)
 
 	// 预填充高分数据，使守门员分数很高
-	for i := 0; i < benchMaxSize; i++ {
+	for i := range benchMaxSize {
 		set.ZAdd(int64(50000+i), fmt.Sprintf("top_%d", i))
 	}
 
@@ -224,11 +224,11 @@ func TestBenchmarkGuardReject(t *testing.T) {
 	wg.Add(benchUsers)
 	start := time.Now()
 
-	for i := 0; i < benchUsers; i++ {
+	for i := range benchUsers {
 		go func(uid int) {
 			defer wg.Done()
 			rng := rand.New(rand.NewSource(int64(uid)))
-			for r := 0; r < 100; r++ {
+			for r := range 100 {
 				key := fmt.Sprintf("new_%d_%d", uid, r)
 				// 80% 低分（被拦截），20% 高分（可能入榜）
 				var score int64
@@ -264,13 +264,13 @@ func TestBenchmarkGuardReject(t *testing.T) {
 // 单独测量各操作的 P50/P99 延迟
 func TestBenchmarkLatencyDistribution(t *testing.T) {
 	set := NewWithMaxSize(benchMaxSize)
-	for i := 0; i < benchUsers; i++ {
+	for i := range benchUsers {
 		set.ZAdd(int64(rand.Intn(100000)), fmt.Sprintf("user_%d", i))
 	}
 
 	type opResult struct {
-		name     string
-		samples  []time.Duration
+		name    string
+		samples []time.Duration
 	}
 
 	ops := []struct {
@@ -294,7 +294,7 @@ func TestBenchmarkLatencyDistribution(t *testing.T) {
 	t.Logf("========== 单操作延迟测试（单线程，%d 次采样）==========", samplesPerOp)
 	for _, op := range ops {
 		samples := make([]time.Duration, samplesPerOp)
-		for i := 0; i < samplesPerOp; i++ {
+		for i := range samplesPerOp {
 			s := time.Now()
 			op.fn()
 			samples[i] = time.Since(s)
@@ -335,7 +335,7 @@ func sortDurations(d []time.Duration) {
 
 func BenchmarkZAdd_NoMaxSize(b *testing.B) {
 	set := New()
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		set.ZAdd(int64(i), fmt.Sprintf("user_%d", i))
 	}
 	b.ResetTimer()
@@ -346,7 +346,7 @@ func BenchmarkZAdd_NoMaxSize(b *testing.B) {
 
 func BenchmarkZAdd_WithMaxSize(b *testing.B) {
 	set := NewWithMaxSize(benchMaxSize)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		set.ZAdd(int64(i), fmt.Sprintf("user_%d", i))
 	}
 	b.ResetTimer()
@@ -357,7 +357,7 @@ func BenchmarkZAdd_WithMaxSize(b *testing.B) {
 
 func BenchmarkZIncr(b *testing.B) {
 	set := NewWithMaxSize(benchMaxSize)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		set.ZAdd(int64(i), fmt.Sprintf("user_%d", i))
 	}
 	b.ResetTimer()
@@ -368,7 +368,7 @@ func BenchmarkZIncr(b *testing.B) {
 
 func BenchmarkZRank(b *testing.B) {
 	set := NewWithMaxSize(benchMaxSize)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		set.ZAdd(int64(rand.Intn(100000)), fmt.Sprintf("user_%d", i))
 	}
 	b.ResetTimer()
@@ -379,7 +379,7 @@ func BenchmarkZRank(b *testing.B) {
 
 func BenchmarkZScore(b *testing.B) {
 	set := NewWithMaxSize(benchMaxSize)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		set.ZAdd(int64(rand.Intn(100000)), fmt.Sprintf("user_%d", i))
 	}
 	b.ResetTimer()
@@ -390,7 +390,7 @@ func BenchmarkZScore(b *testing.B) {
 
 func BenchmarkZRange_Top10(b *testing.B) {
 	set := NewWithMaxSize(benchMaxSize)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		set.ZAdd(int64(rand.Intn(100000)), fmt.Sprintf("user_%d", i))
 	}
 	b.ResetTimer()
@@ -401,7 +401,7 @@ func BenchmarkZRange_Top10(b *testing.B) {
 
 func BenchmarkZRange_Top100(b *testing.B) {
 	set := NewWithMaxSize(benchMaxSize)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		set.ZAdd(int64(rand.Intn(100000)), fmt.Sprintf("user_%d", i))
 	}
 	b.ResetTimer()
@@ -412,7 +412,7 @@ func BenchmarkZRange_Top100(b *testing.B) {
 
 func BenchmarkZElement(b *testing.B) {
 	set := NewWithMaxSize(benchMaxSize)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		set.ZAdd(int64(rand.Intn(100000)), fmt.Sprintf("user_%d", i))
 	}
 	b.ResetTimer()
@@ -423,7 +423,7 @@ func BenchmarkZElement(b *testing.B) {
 
 func BenchmarkParallel_MixedReadWrite(b *testing.B) {
 	set := NewWithMaxSize(benchMaxSize)
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		set.ZAdd(int64(rand.Intn(100000)), fmt.Sprintf("user_%d", i))
 	}
 	b.ResetTimer()

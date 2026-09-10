@@ -15,11 +15,11 @@ func resetListeners() {
 // TestOnEmit_Basic 基本订阅与触发。
 func TestOnEmit_Basic(t *testing.T) {
 	resetListeners()
-	var n int32
-	On(EventHeartbeat, func(v any) { atomic.AddInt32(&n, 1) })
+	var n atomic.Int32
+	On(EventHeartbeat, func(v any) { n.Add(1) })
 	Emit(EventHeartbeat, nil)
 	Emit(EventHeartbeat, nil)
-	if got := atomic.LoadInt32(&n); got != 2 {
+	if got := n.Load(); got != 2 {
 		t.Errorf("got %d emits, want 2", got)
 	}
 }
@@ -29,7 +29,7 @@ func TestOnEmit_MultipleListeners(t *testing.T) {
 	resetListeners()
 	var calls []int
 	var mu sync.Mutex
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		id := i
 		On(EventHeartbeat, func(v any) {
 			mu.Lock()
@@ -52,37 +52,33 @@ func TestOnEmit_MultipleListeners(t *testing.T) {
 // 监听器最终计数等于 Emit 发生时已发布的订阅数之和(允许有"晚来的 On 不被早期 Emit 看到")。
 func TestOnEmit_ConcurrentOnAndEmit(t *testing.T) {
 	resetListeners()
-	var emits int32
+	var emits atomic.Int32
 	var wg sync.WaitGroup
 
 	// 并发写者: 注册一堆监听器
 	const writers = 20
-	for i := 0; i < writers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range writers {
+		wg.Go(func() {
 			On(EventHeartbeat, func(v any) {
-				atomic.AddInt32(&emits, 1)
+				emits.Add(1)
 			})
-		}()
+		})
 	}
 	// 并发读者: 在注册过程中触发事件
 	const readers = 10
-	for i := 0; i < readers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 100; j++ {
+	for range readers {
+		wg.Go(func() {
+			for range 100 {
 				Emit(EventHeartbeat, nil)
 			}
-		}()
+		})
 	}
 	wg.Wait()
 
 	// 注册完成后,再发一次,应看到全部 writers 个监听器
-	atomic.StoreInt32(&emits, 0)
+	emits.Store(0)
 	Emit(EventHeartbeat, nil)
-	if got := atomic.LoadInt32(&emits); got != writers {
+	if got := emits.Load(); got != writers {
 		t.Errorf("after all Ons, Emit should hit %d listeners, got %d", writers, got)
 	}
 }
