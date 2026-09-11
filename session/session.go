@@ -167,7 +167,9 @@ func (this *Session) Delete() (err error) {
 	return
 }
 
-// Submit 提交所有修改，不会立即release影响后续登录判断
+// Submit 提交所有修改，不会立即release影响后续登录判断。
+// 成功后清空 dirty——随后的 Release 不会把同一批键重复写一遍;
+// 失败则保留,留待下一次 Submit/Release 兜底重试
 func (this *Session) Submit() (err error) {
 	if this.Data == nil || len(this.dirty) == 0 {
 		return
@@ -179,7 +181,9 @@ func (this *Session) Submit() (err error) {
 	if len(dirty) == 0 {
 		return
 	}
-	err = Options.Storage.Update(this.Data, dirty)
+	if err = Options.Storage.Update(this.Data, dirty); err == nil {
+		this.dirty = nil
+	}
 	return
 }
 
