@@ -18,6 +18,10 @@ func New(d ...*Data) *Session {
 	}
 	return r
 }
+func NewWithValues(uuid string, vs map[string]any) *Session {
+	d := NewData(uuid, vs)
+	return New(d)
+}
 
 const TokenSecretName = "_TS_"
 
@@ -163,10 +167,9 @@ func (this *Session) Delete() (err error) {
 	return
 }
 
-// Release 释放 session 由HTTP SERVER 自动调用
-func (this *Session) Release() {
+// Submit 提交所有修改，不会立即release影响后续登录判断
+func (this *Session) Submit() (err error) {
 	if this.Data == nil || len(this.dirty) == 0 {
-		this.release()
 		return
 	}
 	dirty := map[string]any{}
@@ -174,11 +177,16 @@ func (this *Session) Release() {
 		dirty[k] = this.Data.Get(k)
 	}
 	if len(dirty) == 0 {
-		this.release()
 		return
 	}
-	if err := Options.Storage.Update(this.Data, dirty); err != nil {
-		logger.Alert("session update error: %v", err)
+	err = Options.Storage.Update(this.Data, dirty)
+	return
+}
+
+// Release 释放 session 由HTTP SERVER 自动调用
+func (this *Session) Release() {
+	if err := this.Submit(); err != nil {
+		logger.Alert("session Submit error: %v", err)
 	}
 	this.release()
 }
