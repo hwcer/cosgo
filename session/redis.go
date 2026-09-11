@@ -87,6 +87,11 @@ func (this *Redis) Create(uuid string, data map[string]any) (p *Data, err error)
 	for k, v := range data {
 		args = append(args, k, v)
 	}
+	if len(args) == 0 {
+		//🔴 空会话占位:HMSET 不接受零字段(Redis 8 报 wrong number of arguments),
+		//但"无任何 cookies 的登录"是合法场景(gateway players.Create 的空 values)
+		args = append(args, "_e", 1)
+	}
 	if err = this.client.HMSet(context.Background(), rk, args...).Err(); err != nil {
 		return
 	}
