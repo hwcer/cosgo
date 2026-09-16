@@ -23,6 +23,8 @@ type Message struct {
 	// 位置参数:同一个 Code 每次给出的参数个数与含义必须一致,由定义该 Code 的那一层写进文档,
 	// 本层不做任何约束。无参时 omitempty 不落到报文里,心跳这类无参消息的线上字节数不变。
 	//
+	// 🔴 B 模型:客户端文案 = 按 Code 查多语言模板 + Args 填参;Data 仅服务端调试用。
+	//
 	// ⚠ 过一次 JSON 之后数字一律变 float64(1001 → float64(1001))。
 	// Go 侧消费方用本包的 ParseInt32/ParseInt64 转换,不要直接做 .(int32) 断言。
 	Args []any `json:"args,omitempty"`
@@ -61,14 +63,19 @@ func (this *Message) Error() string {
 	return this.String()
 }
 
-// Errorf 格式化一个错误,必定产生错误码
+// Errorf 格式化一个错误,必定产生错误码。
+//
+// 🔴 B 模型:format 是**纯调试文案**,占位符不解析(写了 %v 也原样保留);
+// args 作为语义参数原样进 Args——客户端一律按 Code 取多语言模板、用 Args
+// 填参,不解 Data 文案。所以变参包装函数请把 args 透传成变参
+//(Errorf(code, f, args...)),别把整个切片当一个实参传下来。
 func (this *Message) Errorf(code int32, format any, args ...any) {
 	if code == 0 {
 		this.Code = MessageErrorCodeDefault
 	} else {
 		this.Code = code
 	}
-	this.Data = Sprintf(format, args...)
+	this.Data = Sprintf(format)
 	//无条件赋值:Errorf 是在重新定义整个错误,Args 与 Data 同进同出,
 	//避免复用同一个 Message 时残留上一次的参数。
 	this.Args = args
@@ -174,18 +181,18 @@ func Errorf(code int32, format any, args ...any) (r *Message) {
 		//var ErrXxx = Errorf(...) 在 init 期建一份、全进程复用。直接往上面写 Code 或 Args
 		//就是跨 goroutine 改全局:一次 Errorf(500, ErrXxx) 能把那个哨兵的码永久改掉,
 		//之后所有人拿到的都是被污染的值。
-		//不需要写任何字段时保持返回原指针,不平白多一次分配。
+		//Clone 完成拷贝与换 Args;不需要写任何字段时保持返回原指针,不平白多一次分配。
 		if code != 0 || r.Code == 0 || len(args) > 0 {
-			v := *r
-			r = &v
+			na := args
+			if len(na) == 0 {
+				na = r.Args //只换码不改参:沿用原 Args(Clone 的 Args 恒等于入参)
+			}
+			r = r.Clone(na...)
 		}
 		if code != 0 {
 			r.Code = code
 		} else if r.Code == 0 {
 			r.Code = MessageErrorCodeDefault
-		}
-		if len(args) > 0 {
-			r.Args = args
 		}
 		return r
 	}

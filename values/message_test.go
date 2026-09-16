@@ -301,4 +301,30 @@ func TestErrorf_SentinelNotMutated(t *testing.T) {
 	if same := Errorf(0, sentinel); same != sentinel {
 		t.Fatal("无改写时应原样返回哨兵指针")
 	}
+
+	//🔴 Code 同样不得写进哨兵(曾经的测试盲区:上面只测了 code=0 路径,
+	//而 Errorf(500, 哨兵) 恰好会走改码分支,原地写就是污染全局)
+	got2 := Errorf(500, sentinel)
+	if sentinel.Code != 404 {
+		t.Fatalf("哨兵 Code 被改写成 %d —— 全局状态被污染", sentinel.Code)
+	}
+	if got2 == sentinel {
+		t.Fatal("改码时必须返回副本，不能返回哨兵本身")
+	}
+	if got2.Code != 500 {
+		t.Fatalf("副本 Code = %d, want 500", got2.Code)
+	}
+
+	//哨兵自带 Args 时只换码不改参:副本沿用原 Args,哨兵本体不动
+	withArgs := Errorf(404, "not found").Clone(1001)
+	got3 := Errorf(500, withArgs)
+	if withArgs.Code != 404 {
+		t.Fatalf("哨兵 Code 被改写成 %d —— 全局状态被污染", withArgs.Code)
+	}
+	if len(got3.Args) != 1 || ParseInt32(got3.Args[0]) != 1001 {
+		t.Fatalf("只换码时 Args 应沿用原值 [1001], got %v", got3.Args)
+	}
+	if got3 == withArgs {
+		t.Fatal("改码时必须返回副本")
+	}
 }

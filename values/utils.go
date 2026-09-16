@@ -162,7 +162,13 @@ func ParseString(v any) string {
 	}
 }
 
-func Sprintf(format any, args ...any) (text string) {
+// Sprintf 把 format 统一提取为纯文案:字符串原样、error 取 Error()、其余 %v。
+//
+// 🔴 B 模型:args 不参与文案格式化——服务端文案仅调试用,客户端一律按 Code 取
+// 多语言模板、用 Args 填参,不解 Data。占位符写了就原样保留在文案里;这也根除
+// 两类残渣:占位符与 args 数量不匹配时 fmt 的 %!(EXTRA)/%!v(MISSING),以及
+// error 文案恰好含 % 被误当格式串二次格式化。
+func Sprintf(format any) (text string) {
 	switch v := format.(type) {
 	case string:
 		text = v
@@ -170,9 +176,6 @@ func Sprintf(format any, args ...any) (text string) {
 		text = v.Error()
 	default:
 		text = fmt.Sprintf("%v", format)
-	}
-	if len(args) > 0 {
-		text = fmt.Sprintf(text, args...)
 	}
 	return
 }
