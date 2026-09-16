@@ -68,7 +68,7 @@ func (this *Message) Error() string {
 // 🔴 B 模型:format 是**纯调试文案**,占位符不解析(写了 %v 也原样保留);
 // args 作为语义参数原样进 Args——客户端一律按 Code 取多语言模板、用 Args
 // 填参,不解 Data 文案。所以变参包装函数请把 args 透传成变参
-//(Errorf(code, f, args...)),别把整个切片当一个实参传下来。
+// (Errorf(code, f, args...)),别把整个切片当一个实参传下来。
 func (this *Message) Errorf(code int32, format any, args ...any) {
 	if code == 0 {
 		this.Code = MessageErrorCodeDefault
@@ -182,17 +182,24 @@ func Errorf(code int32, format any, args ...any) (r *Message) {
 		//就是跨 goroutine 改全局:一次 Errorf(500, ErrXxx) 能把那个哨兵的码永久改掉,
 		//之后所有人拿到的都是被污染的值。
 		//Clone 完成拷贝与换 Args;不需要写任何字段时保持返回原指针,不平白多一次分配。
-		if code != 0 || r.Code == 0 || len(args) > 0 {
+		//
+		//码的优先级:显式 code > 原码 > 默认码。⚠️ code==0 不能提前归一化成默认码——
+		//对透传的 *Message 它表示"沿用自己的码"(Error(err) 帮助函数、RPC 回程的
+		//错误码传递都依赖这一点),默认码只该落在原码也是 0 的消息上。
+		want := code
+		if want == 0 {
+			want = r.Code
+		}
+		if want == 0 {
+			want = MessageErrorCodeDefault
+		}
+		if want != r.Code || len(args) > 0 {
 			na := args
 			if len(na) == 0 {
 				na = r.Args //只换码不改参:沿用原 Args(Clone 的 Args 恒等于入参)
 			}
 			r = r.Clone(na...)
-		}
-		if code != 0 {
-			r.Code = code
-		} else if r.Code == 0 {
-			r.Code = MessageErrorCodeDefault
+			r.Code = want //Clone 只换 Args,新码必须在拷贝体上显式落
 		}
 		return r
 	}

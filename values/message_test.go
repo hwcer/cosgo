@@ -328,3 +328,28 @@ func TestErrorf_SentinelNotMutated(t *testing.T) {
 		t.Fatal("改码时必须返回副本")
 	}
 }
+
+// TestErrorf_CodeOverride 显式码必须真正落到返回副本上。
+//
+// 回归:曾把 code==0 的归一化提到 Clone 之前、且 Clone 之后没有任何地方落码——
+// Errorf(500, Err503) 返回的副本仍是 503,显式码被静默吞掉;零码消息也落不到
+// 默认码,Code=0 按协议是"成功"语义,错误会被当成成功。
+func TestErrorf_CodeOverride(t *testing.T) {
+	sentinel := Errorf(404, "page not found")
+
+	if got := Errorf(500, sentinel); got.Code != 500 {
+		t.Fatalf("显式换码丢失: got.Code = %d, want 500", got.Code)
+	}
+	if got := Errorf(500, sentinel, 7); got.Code != 500 || ParseInt32(got.Args[0]) != 7 {
+		t.Fatalf("换码+换参: got.Code=%d Args=%v, want 500/[7]", got.Code, got.Args)
+	}
+	// 零码消息透传:默认码必须真正落地,不能返回 0 码
+	zero := &Message{Data: "zero"}
+	if got := Errorf(0, zero); got.Code != MessageErrorCodeDefault {
+		t.Fatalf("零码消息未落默认码: got.Code = %d, want %d", got.Code, MessageErrorCodeDefault)
+	}
+	// 优先级 显式码 > 原码 对 Message 值类型同样成立
+	if got := Errorf(505, Message{Code: 404}); got.Code != 505 {
+		t.Fatalf("Message 值透传换码丢失: got.Code = %d, want 505", got.Code)
+	}
+}
