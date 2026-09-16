@@ -228,7 +228,7 @@ func TestMessage_UnmarshalNonStringData(t *testing.T) {
 // ⚠ 判据必须落在 Args 的**值**上。断言 `Args != nil` 是空洞守卫 —— 真出问题时它是 nil，
 // 但更常见的退化是长度对、内容错（比如嵌套成 [[1001 5 2]]），那种断言照样放过去。
 func TestMessage_ArgsSurviveJSON(t *testing.T) {
-	server := Errorf(1002, "Item Not Enough:%v", 1001).WithArgs(1001, 5, 2)
+	server := Errorf(1002, "Item Not Enough:%v", 1001).Clone(1001, 5, 2)
 
 	b, err := json.Marshal(server)
 	if err != nil {

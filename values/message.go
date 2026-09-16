@@ -74,16 +74,20 @@ func (this *Message) Errorf(code int32, format any, args ...any) {
 	this.Args = args
 }
 
-// WithArgs 覆盖错误参数,返回自身便于链式调用。
+// Clone 浅拷贝一份 Message,并把 Args 换成传入的参数 —— **换 Args 的唯一入口**。
+// 前身 WithArgs 是原地改写,包级共享哨兵(var ErrXxx = Errorf(...) 全进程复用)会被
+// 一次调用永久污染,已删;Clone 先拷贝再赋 Args,对哨兵安全。
 //
-// 用于「格式化实参 ≠ 语义参数」的场合:Errorf 会把收到的 args 原样灌进 Args,
-// 但 func ErrXxx(args ...any) 这类变参包装往往把整个切片当**一个** %v 实参传下来,
-// 自动灌入得到的是嵌套的 [[1001 5 2]],需要在这里拍平成 [1001 5 2]。
-func (this *Message) WithArgs(args ...any) *Message {
-	this.Args = args
-	return this
+// 与 Errorf 的"同进同出"一致:Args 恒等于本次传入,无参即 nil,不残留旧值。
+//
+// 浅拷贝语义:Code 与 Data 的接口值原样复制——Data 为 string/数字等值类型时两边
+// 独立;为指针/map/slice 时共享底层数据,克隆体只读不改写(json.RawMessage 即此用法)。
+func (this *Message) Clone(args ...any) *Message {
+	v := *this
+	r := &v
+	r.Args = args
+	return r
 }
-
 func (this *Message) UnmarshalJSON(b []byte) error {
 	if _, ok := this.Data.(json.RawMessage); ok {
 		return nil
@@ -157,6 +161,7 @@ func Parse(v any) *Message {
 func Error(err any) (r *Message) {
 	return Errorf(0, err)
 }
+
 func Errorf(code int32, format any, args ...any) (r *Message) {
 	switch v := format.(type) {
 	case *Message:
