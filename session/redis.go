@@ -83,6 +83,12 @@ func (this *Redis) New(p *Data) error {
 // Create ttl过期时间(s)
 func (this *Redis) Create(uuid string, data map[string]any) (p *Data, err error) {
 	rk := this.rkey(uuid)
+	//🔴 新会话先清旧键:HMSET 是合并语义,同 uuid 二次登录(新设备/被顶后重登)时
+	//存储里残留的旧 uid、旧 selector 等字段会被新会话的 Verify 原样还原——
+	//新设备未选角即继承旧角色的身份状态
+	if err = this.client.Del(context.Background(), rk).Err(); err != nil {
+		return
+	}
 	var args []any
 	for k, v := range data {
 		args = append(args, k, v)
