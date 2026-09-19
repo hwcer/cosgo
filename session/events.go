@@ -1,8 +1,7 @@
 package session
 
 import (
-	"maps"
-	"sync"
+	"fmt"
 	"sync/atomic"
 )
 
@@ -17,42 +16,35 @@ const (
 	EventHeartbeat                      //心跳,参数 心跳间隔 int32
 )
 
-// listeners 事件订阅表,Copy-on-Write 发布:
-//   - Emit 路径无锁,atomic.Load 当前快照后遍历,读到的永远是一致的完整快照。
-//   - On 路径用 listenersMu 串行写者,拷贝整张 map + 拷贝对应事件的 slice,
-//     再 atomic.Store 发布。旧快照被其它读者持有时继续有效。
-//
-// 适用场景:订阅少、触发多(典型的事件模型)。
+// listeners 事件订阅表:仅启动期注册(业务在包 init 或启动钩子里注册),
+// Cosgo.Start 完成后由根包调用 SealEvents 封板,封板后再 On 直接 panic。
+// 🔴 契约化的理由同根 events:运行期注册会与 Emit 构成 concurrent map fatal
+// (不可恢复),确定性 panic 优于随机崩溃;注册期单线程,裸 map 零成本
 var (
-	listenersMu sync.Mutex
-	listenersV  atomic.Pointer[map[Event][]Listener]
+	listeners       map[Event][]Listener
+	listenersSealed atomic.Bool
 )
 
 func init() {
-	empty := map[Event][]Listener{}
-	listenersV.Store(&empty)
+	listeners = make(map[Event][]Listener)
 }
 
-// On 注册事件监听器。写路径:拷贝旧 map,为目标事件创建全新 slice 并追加,再原子发布。
+// SealEvents 封板事件表(由 cosgo.Start 在启动完成后调用,业务无需手动调用)
+func SealEvents() {
+	listenersSealed.Store(true)
+}
+
+// On 注册事件监听器(仅启动期)。封板后调用直接 panic。
 func On(event Event, listener Listener) {
-	listenersMu.Lock()
-	defer listenersMu.Unlock()
-	old := *listenersV.Load()
-	next := make(map[Event][]Listener, len(old)+1)
-	maps.Copy(next, old)
-	// 强制为目标事件新建 backing array,避免对旧 slice 的共享 append 破坏其它读者
-	prev := old[event]
-	nslice := make([]Listener, len(prev)+1)
-	copy(nslice, prev)
-	nslice[len(prev)] = listener
-	next[event] = nslice
-	listenersV.Store(&next)
+	if listenersSealed.Load() {
+		panic(fmt.Sprintf("session.On(%v) after server started: 事件监听器仅允许在启动期注册", event))
+	}
+	listeners[event] = append(listeners[event], listener)
 }
 
-// Emit 触发事件,无锁读取当前快照。
+// Emit 触发事件(注册期封板后运行期只读,无锁遍历)
 func Emit(event Event, value any) {
-	m := *listenersV.Load()
-	for _, l := range m[event] {
+	for _, l := range listeners[event] {
 		l(value)
 	}
 }

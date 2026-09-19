@@ -1,15 +1,14 @@
 package session
 
 import (
-	"sync"
 	"sync/atomic"
 	"testing"
 )
 
-// resetListeners 供每个测试隔离使用,恢复初始空 map。
+// resetListeners 供每个测试隔离使用,恢复初始空表与未封板状态。
 func resetListeners() {
-	empty := map[Event][]Listener{}
-	listenersV.Store(&empty)
+	listeners = make(map[Event][]Listener)
+	listenersSealed.Store(false)
 }
 
 // TestOnEmit_Basic 基本订阅与触发。
@@ -28,13 +27,10 @@ func TestOnEmit_Basic(t *testing.T) {
 func TestOnEmit_MultipleListeners(t *testing.T) {
 	resetListeners()
 	var calls []int
-	var mu sync.Mutex
 	for i := range 3 {
 		id := i
 		On(EventHeartbeat, func(v any) {
-			mu.Lock()
 			calls = append(calls, id)
-			mu.Unlock()
 		})
 	}
 	Emit(EventHeartbeat, nil)
@@ -48,52 +44,18 @@ func TestOnEmit_MultipleListeners(t *testing.T) {
 	}
 }
 
-// TestOnEmit_ConcurrentOnAndEmit 大量并发 On + Emit 不触发 race 或 panic,
-// 监听器最终计数等于 Emit 发生时已发布的订阅数之和(允许有"晚来的 On 不被早期 Emit 看到")。
-func TestOnEmit_ConcurrentOnAndEmit(t *testing.T) {
+// 🔴 封板契约:启动完成后 On 必须 panic——运行期注册会与 Emit 构成
+// concurrent map fatal(不可恢复),确定性 panic 优先于随机崩溃。
+// 契约:监听器仅允许在启动期注册(包 init 或启动钩子),运行期注册属编程错误
+func TestOnAfterSealPanics(t *testing.T) {
 	resetListeners()
-	var emits atomic.Int32
-	var wg sync.WaitGroup
+	listenersSealed.Store(true)
+	defer resetListeners()
 
-	// 并发写者: 注册一堆监听器
-	const writers = 20
-	for range writers {
-		wg.Go(func() {
-			On(EventHeartbeat, func(v any) {
-				emits.Add(1)
-			})
-		})
-	}
-	// 并发读者: 在注册过程中触发事件
-	const readers = 10
-	for range readers {
-		wg.Go(func() {
-			for range 100 {
-				Emit(EventHeartbeat, nil)
-			}
-		})
-	}
-	wg.Wait()
-
-	// 注册完成后,再发一次,应看到全部 writers 个监听器
-	emits.Store(0)
-	Emit(EventHeartbeat, nil)
-	if got := emits.Load(); got != writers {
-		t.Errorf("after all Ons, Emit should hit %d listeners, got %d", writers, got)
-	}
-}
-
-// TestOn_DoesNotMutateOldSnapshot 验证 copy-on-write: 持有旧快照的读者看到的数据不变。
-func TestOn_DoesNotMutateOldSnapshot(t *testing.T) {
-	resetListeners()
-	On(EventHeartbeat, func(v any) {})
-	oldSnap := listenersV.Load()
-	oldSlice := (*oldSnap)[EventHeartbeat]
-	oldLen := len(oldSlice)
-	// 追加新监听器
-	On(EventHeartbeat, func(v any) {})
-	// 旧 slice 不应被影响
-	if len((*oldSnap)[EventHeartbeat]) != oldLen {
-		t.Errorf("old snapshot mutated: len was %d, now %d", oldLen, len((*oldSnap)[EventHeartbeat]))
-	}
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("封板后 On 应 panic")
+		}
+	}()
+	On(EventSessionRelease, func(v any) {})
 }

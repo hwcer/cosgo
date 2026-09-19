@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/hwcer/cosgo/scc"
+	"github.com/hwcer/cosgo/session"
 	"github.com/hwcer/logger"
 )
 
@@ -92,7 +93,8 @@ func Start(waitForSystemExit bool, mods ...Module) {
 		logger.Fatal("App Start error:%v", err)
 		return
 	}
-	sealEvents() //启动完成,封板事件表:此后 On 直接 panic(见 events.go)
+	sealEvents()         //启动完成,封板事件表:此后 On 直接 panic(见 events.go)
+	session.SealEvents() //级联封板 session 事件表(同一契约,见 session/events.go)
 	Options.Banner()
 
 	if waitForSystemExit {
