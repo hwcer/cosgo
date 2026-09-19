@@ -6,7 +6,10 @@ import (
 	"testing"
 )
 
-func resetEvents() { events = make(map[EventType][]EventFunc) }
+func resetEvents() {
+	empty := map[EventType][]EventFunc{}
+	eventsV.Store(&empty)
+}
 
 // TestEmitPanicKeepsStack panic 必须带出【原始堆栈】与【是哪个监听器】
 //

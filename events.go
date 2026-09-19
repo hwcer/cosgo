@@ -2,9 +2,12 @@ package cosgo
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 	"runtime"
 	"runtime/debug"
+	"sync"
+	"sync/atomic"
 
 	"github.com/hwcer/logger"
 )
@@ -37,10 +40,18 @@ func (e EventType) String() string {
 	return fmt.Sprintf("EventType(%d)", int32(e))
 }
 
-var events map[EventType][]EventFunc
+// events 事件订阅表,Copy-on-Write 发布(与 session/events.go 同一模式):
+//   - emit 路径无锁读 atomic 快照;On 路径持锁拷贝整表后原子发布。
+//   - 🔴 旧实现裸 map + 无锁 append:启动后运行期再 On 即与 emit 的遍历构成
+//     "concurrent map read and map write" fatal(不可 recover)。
+var (
+	eventsMu sync.Mutex
+	eventsV  atomic.Pointer[map[EventType][]EventFunc]
+)
 
 func init() {
-	events = make(map[EventType][]EventFunc)
+	empty := map[EventType][]EventFunc{}
+	eventsV.Store(&empty)
 }
 
 // funcName 取监听器的函数名,形如 server/game/handle/trial.seed
@@ -92,7 +103,8 @@ func invoke(e EventType, i int, f EventFunc) (err error) {
 //     panic 只中止它自己那一个监听器;是否继续跑后面的由 breakOnError 决定,
 //     与"返回 error"一视同仁。
 func emit(e EventType, breakOnError bool) (err error) {
-	hs := events[e]
+	m := *eventsV.Load()
+	hs := m[e]
 	if len(hs) == 0 {
 		return
 	}
@@ -111,6 +123,18 @@ func emit(e EventType, breakOnError bool) (err error) {
 	return nil
 }
 
+// On 注册事件监听器。写路径:拷贝旧表,为目标事件新建 slice 并追加,再原子发布。
+// 强制新建 backing array,避免对旧 slice 的共享 append 破坏其它读者
 func On(e EventType, f EventFunc) {
-	events[e] = append(events[e], f)
+	eventsMu.Lock()
+	defer eventsMu.Unlock()
+	old := *eventsV.Load()
+	next := make(map[EventType][]EventFunc, len(old)+1)
+	maps.Copy(next, old)
+	prev := old[e]
+	nslice := make([]EventFunc, len(prev)+1)
+	copy(nslice, prev)
+	nslice[len(prev)] = f
+	next[e] = nslice
+	eventsV.Store(&next)
 }
