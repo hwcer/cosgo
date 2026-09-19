@@ -2,11 +2,9 @@ package cosgo
 
 import (
 	"fmt"
-	"maps"
 	"reflect"
 	"runtime"
 	"runtime/debug"
-	"sync"
 	"sync/atomic"
 
 	"github.com/hwcer/logger"
@@ -40,18 +38,23 @@ func (e EventType) String() string {
 	return fmt.Sprintf("EventType(%d)", int32(e))
 }
 
-// events 事件订阅表,Copy-on-Write 发布(与 session/events.go 同一模式):
-//   - emit 路径无锁读 atomic 快照;On 路径持锁拷贝整表后原子发布。
-//   - 🔴 旧实现裸 map + 无锁 append:启动后运行期再 On 即与 emit 的遍历构成
-//     "concurrent map read and map write" fatal(不可 recover)。
+// events 事件订阅表:本表只服务启停流程(Begin/Loaded/Started/Reload/Closing/Stopped),
+// 注册仅发生在启动期——Cosgo.Start 完成后封板,封板后再 On 直接 panic(fail-fast)。
+// 🔴 契约化的理由:裸 map 下运行期注册会与 emit 构成 concurrent map fatal
+// (不可恢复);与其付 CoW 的写路径成本换取一个不该发生的场景,不如封板后
+// 用确定性 panic 替代随机崩溃
 var (
-	eventsMu sync.Mutex
-	eventsV  atomic.Pointer[map[EventType][]EventFunc]
+	events       map[EventType][]EventFunc
+	eventsSealed atomic.Bool //启动完成标记:置位后禁止再注册
 )
 
 func init() {
-	empty := map[EventType][]EventFunc{}
-	eventsV.Store(&empty)
+	events = make(map[EventType][]EventFunc)
+}
+
+// sealEvents 启动完成后封板(由 Cosgo.Start 在 EventTypStarted 发完后调用)
+func sealEvents() {
+	eventsSealed.Store(true)
 }
 
 // funcName 取监听器的函数名,形如 server/game/handle/trial.seed
@@ -103,8 +106,7 @@ func invoke(e EventType, i int, f EventFunc) (err error) {
 //     panic 只中止它自己那一个监听器;是否继续跑后面的由 breakOnError 决定,
 //     与"返回 error"一视同仁。
 func emit(e EventType, breakOnError bool) (err error) {
-	m := *eventsV.Load()
-	hs := m[e]
+	hs := events[e]
 	if len(hs) == 0 {
 		return
 	}
@@ -123,18 +125,12 @@ func emit(e EventType, breakOnError bool) (err error) {
 	return nil
 }
 
-// On 注册事件监听器。写路径:拷贝旧表,为目标事件新建 slice 并追加,再原子发布。
-// 强制新建 backing array,避免对旧 slice 的共享 append 破坏其它读者
+// On 注册事件监听器(仅启动期)。启动完成后调用直接 panic:
+// 运行期注册会与 emit 构成 concurrent map fatal(不可恢复),
+// 确定性 panic 定位到调用方远好于随机的进程崩溃
 func On(e EventType, f EventFunc) {
-	eventsMu.Lock()
-	defer eventsMu.Unlock()
-	old := *eventsV.Load()
-	next := make(map[EventType][]EventFunc, len(old)+1)
-	maps.Copy(next, old)
-	prev := old[e]
-	nslice := make([]EventFunc, len(prev)+1)
-	copy(nslice, prev)
-	nslice[len(prev)] = f
-	next[e] = nslice
-	eventsV.Store(&next)
+	if eventsSealed.Load() {
+		panic(fmt.Sprintf("cosgo.On(%v) after server started: 事件监听器仅允许在启动期注册", e))
+	}
+	events[e] = append(events[e], f)
 }

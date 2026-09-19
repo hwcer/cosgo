@@ -7,8 +7,8 @@ import (
 )
 
 func resetEvents() {
-	empty := map[EventType][]EventFunc{}
-	eventsV.Store(&empty)
+	events = make(map[EventType][]EventFunc)
+	eventsSealed.Store(false)
 }
 
 // TestEmitPanicKeepsStack panic 必须带出【原始堆栈】与【是哪个监听器】
@@ -105,4 +105,19 @@ func TestEventTypeString(t *testing.T) {
 	if s := EventType(99).String(); !strings.Contains(s, "99") {
 		t.Errorf("未知事件应保留数值, 实际 %v", s)
 	}
+}
+
+// 🔴 封板契约:启动完成后 On 必须 panic——运行期注册会与 emit 构成
+// concurrent map fatal,确定性 panic 优先于随机崩溃
+func TestOnAfterSealPanics(t *testing.T) {
+	resetEvents()
+	defer resetEvents()
+	eventsSealed.Store(true)
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("封板后 On 应 panic")
+		}
+	}()
+	On(EventTypLoaded, func() error { return nil })
 }

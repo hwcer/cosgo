@@ -92,6 +92,7 @@ func Start(waitForSystemExit bool, mods ...Module) {
 		logger.Fatal("App Start error:%v", err)
 		return
 	}
+	sealEvents() //启动完成,封板事件表:此后 On 直接 panic(见 events.go)
 	Options.Banner()
 
 	if waitForSystemExit {
