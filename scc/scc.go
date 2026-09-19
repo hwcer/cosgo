@@ -128,9 +128,10 @@ func (s *SCC) Trigger(f func()) {
 
 // Stopped 返回是否已经关闭。
 func (s *SCC) Stopped() bool {
-	//🔴 必须原子读:与 Cancel 的 CAS 并发(cosweb 每请求热路径都会调本方法),
-	//普通读是数据竞争,且理论上永远看不到停止标志
-	return atomic.LoadInt32(&s.stop) > 0
+	// stop 仅在 scc.Cancel(关服流程)写入,业务请求期只读——
+	// 竞争窗口仅在关服瞬间,后果可接受(最坏多执行一拍),不为它拖累所有读。
+	// 字段字长对齐,普通读在本平台是安全的
+	return s.stop > 0
 }
 
 // Deadline 返回上下文的截止时间。

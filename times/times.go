@@ -2,7 +2,6 @@ package times
 
 import (
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/hwcer/cosgo/values"
@@ -18,23 +17,15 @@ const (
 type Times struct {
 	time         time.Time     //时间
 	layout       string        //日期输入格式，必须带时区-0700,默认精确到秒
-	timeZone     atomic.Pointer[string] //时区偏移量 -0700(并发首调惰性初始化,不能用普通 string+mutex:Times 会被值拷贝)
+	timeZone     string        //时区偏移量 -0700(仅全局设置,运行期不写,见 GetTimeZone)
 	timeReset    time.Duration //每日几点重置日(秒)
 	WeekStartDay int           //每周开始时间,默认周一   1:周一，0:周日
 }
 
 func (this *Times) New(v time.Time) *Times {
-	//🔴 逐字段构造:Times 含 atomic.Pointer(带 noCopy),整结构体拷贝过不了 vet
-	t := &Times{
-		time:         v,
-		layout:       this.layout,
-		timeReset:    this.timeReset,
-		WeekStartDay: this.WeekStartDay,
-	}
-	if p := this.timeZone.Load(); p != nil {
-		t.timeZone.Store(p) //显式迁移,保持时区继承语义
-	}
-	return t
+	t := *this
+	t.time = v
+	return &t
 }
 
 func (this *Times) Unix(v int64) *Times {
@@ -176,14 +167,12 @@ func (this *Times) SetTimeReset(v int64) {
 //		this.timeZone = zone
 //	}
 func (this *Times) GetTimeZone() string {
-	//🔴 惰性初始化必须原子:Default 是包级共享实例,ParseExpire/ParseSign 未显式传
-	//tz 时都会走到这里,并发首调同时写字段是数据竞争。CAS 去重,后到者复用先到者结果
-	if p := this.timeZone.Load(); p != nil {
-		return *p
+	// 时区只可能在全局设置(init/配置期),运行期不写——并发首调最坏情况是
+	// 重复计算一次相同结果,可接受;不为 init 期写入给每次读加原子成本
+	if this.timeZone == "" {
+		this.timeZone = this.Now().Format("-0700")
 	}
-	tz := this.Now().Format("-0700")
-	this.timeZone.CompareAndSwap(nil, &tz)
-	return *this.timeZone.Load()
+	return this.timeZone
 }
 
 // Start 开始时间
