@@ -68,6 +68,12 @@ func (this *Memory) Delete(d *Data) error {
 	return nil
 }
 
+// DeleteKeys 实现 StorageDeleter:内存后端的 Data 与存储共享同一实例,
+// Session.Unset 已经删过,这里无事可做(与 Update 同口径)
+func (this *Memory) DeleteKeys(p *Data, keys ...string) error {
+	return nil
+}
+
 // Create 创建新SESSION
 func (this *Memory) Create(uuid string, data map[string]any) (p *Data, err error) {
 	p = NewData(uuid, data)

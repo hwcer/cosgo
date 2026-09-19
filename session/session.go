@@ -2,6 +2,8 @@
 package session
 
 import (
+	"time"
+
 	"github.com/hwcer/cosgo/random"
 	"github.com/hwcer/logger"
 )
@@ -27,7 +29,8 @@ const TokenSecretName = "_TS_"
 
 type Session struct {
 	*Data
-	dirty map[string]struct{}
+	dirty    map[string]struct{} //修改过的键
+	dirtyDel map[string]struct{} //删除过的键:与修改键分开记录,Storage 实现 StorageDeleter 时走真删除(HDEL)
 }
 
 func (this *Session) Refresh() (string, error) {
@@ -123,6 +126,35 @@ func (this *Session) Update(vs map[string]any) {
 	})
 }
 
+// Unset 删除会话键。删除与修改语义不同:Storage 实现 StorageDeleter 时走真删除
+// (Redis 后端为 HDEL);否则退化为写空串(与旧行为兼容)。
+// 🔴 旧版本没有任何键删除写穿路径——Data.Delete 只删内存,Redis 后端下次 Verify
+// 还原的副本会从存储读回旧值,删除操作等于没发生过。
+func (this *Session) Unset(keys ...string) {
+	if this.Data == nil || len(keys) == 0 {
+		return
+	}
+	this.Data.Mutex(func(setter Setter) {
+		for _, k := range keys {
+			setter.Delete(k)
+		}
+	})
+	this.markDirtyDel(keys...)
+}
+
+// markDirtyDel 标记删除过的键(与 markDirty 同为单请求上下文内使用,见文件头注释 #1)
+func (this *Session) markDirtyDel(keys ...string) {
+	if len(keys) == 0 {
+		return
+	}
+	if this.dirtyDel == nil {
+		this.dirtyDel = make(map[string]struct{}, len(keys))
+	}
+	for _, k := range keys {
+		this.dirtyDel[k] = struct{}{}
+	}
+}
+
 func (this *Session) New(data *Data) (token string, err error) {
 	if Options.Storage == nil {
 		return "", ErrorStorageEmpty
@@ -132,6 +164,11 @@ func (this *Session) New(data *Data) (token string, err error) {
 	}
 	this.Data = data
 	if token, err = this.Refresh(); err != nil {
+		return "", err
+	}
+	//秘钥立即写穿存储:Redis 后端下只标脏的话,登录响应先于 Release 到达客户端,
+	//第二个请求 Verify 从存储读不到秘钥——偶发"刚登录就被踢"
+	if err = this.Submit(); err != nil {
 		return "", err
 	}
 	Emit(EventSessionNew, data)
@@ -150,7 +187,11 @@ func (this *Session) Create(uuid string, data map[string]any) (token string, err
 	if token, err = this.Refresh(); err != nil {
 		return "", err
 	}
-	Emit(EventSessionCreated, data)
+	//同 New:秘钥立即写穿,消除并发请求窗口
+	if err = this.Submit(); err != nil {
+		return "", err
+	}
+	Emit(EventSessionCreated, this.Data)
 	return
 }
 
@@ -171,7 +212,27 @@ func (this *Session) Delete() (err error) {
 // 成功后清空 dirty——随后的 Release 不会把同一批键重复写一遍;
 // 失败则保留,留待下一次 Submit/Release 兜底重试
 func (this *Session) Submit() (err error) {
-	if this.Data == nil || len(this.dirty) == 0 {
+	if this.Data == nil {
+		return
+	}
+	//删除键优先处理:走 StorageDeleter 真删除,未实现则退化为写空串
+	if len(this.dirtyDel) > 0 {
+		keys := make([]string, 0, len(this.dirtyDel))
+		for k := range this.dirtyDel {
+			keys = append(keys, k)
+		}
+		if sd, ok := Options.Storage.(StorageDeleter); ok {
+			if err = sd.DeleteKeys(this.Data, keys...); err == nil {
+				this.dirtyDel = nil
+			} else {
+				return
+			}
+		} else {
+			this.markDirty(keys...)
+			this.dirtyDel = nil
+		}
+	}
+	if len(this.dirty) == 0 {
 		return
 	}
 	dirty := map[string]any{}
@@ -187,16 +248,28 @@ func (this *Session) Submit() (err error) {
 	return
 }
 
-// Release 释放 session 由HTTP SERVER 自动调用
+// Release 释放 session 由HTTP SERVER 自动调用。
+// Submit 失败时做短暂同步重试,只覆盖瞬时抖动;刻意不做跨请求异步重试——
+// 请求结束后迟到写入的旧值会回滚后续请求已落库的新值,风险大于收益。
+// 持续失败以 Alert 留痕(只记键名不含值,避免泄露秘钥类字段),脏标记随
+// release 清空,等同旧版行为;差异是瞬时故障已在本请求内消化。
 func (this *Session) Release() {
-	if err := this.Submit(); err != nil {
-		logger.Alert("session Submit error: %v", err)
+	var err error
+	for i := 0; i < 3; i++ {
+		if err = this.Submit(); err == nil {
+			break
+		}
+		time.Sleep(time.Duration(50*(i+1)) * time.Millisecond)
+	}
+	if err != nil {
+		logger.Alert("session Submit error after retry, dropped keys: %v%v", this.dirty, this.dirtyDel)
 	}
 	this.release()
 }
 
 func (this *Session) release() {
 	this.dirty = nil
+	this.dirtyDel = nil
 	this.Data = nil
 }
 

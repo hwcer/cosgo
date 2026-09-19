@@ -233,7 +233,8 @@ func (this *crypto) GCMDecrypt(encryptedText string, secret string, encode *base
 
 	nonceSize := aesgcm.NonceSize()
 	if len(ciphertext) < nonceSize {
-		return "", err
+		//🔴 密文被截断/损坏:此前返回 ("", nil),解密失败被吞成"成功且内容为空"
+		return "", errors.New("crypto: ciphertext too short")
 	}
 
 	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]

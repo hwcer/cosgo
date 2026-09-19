@@ -18,7 +18,12 @@ func ZlibCompress(data []byte) []byte {
 
 func ZlibUnCompress(data []byte) ([]byte, error) {
 	b := bytes.NewReader(data)
-	r, _ := zlib.NewReader(b)
+	//🔴 NewReader 失败必须处理:否则 r 为 nil,io.ReadAll/Close 对 nil 调用直接 panic
+	//(解压数据可能来自网络/存储,一包坏数据曾可打崩整个进程)
+	r, err := zlib.NewReader(b)
+	if err != nil {
+		return nil, err
+	}
 	defer func() {
 		_ = r.Close()
 	}()
@@ -39,8 +44,14 @@ func GZipCompress(data []byte) []byte {
 
 func GZipUnCompress(data []byte) ([]byte, error) {
 	b := bytes.NewReader(data)
-	r, _ := gzip.NewReader(b)
-	defer r.Close()
+	//同 ZlibUnCompress:忽略 NewReader 错误会对 nil reader 调用方法直接 panic
+	r, err := gzip.NewReader(b)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		_ = r.Close()
+	}()
 	undatas, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err

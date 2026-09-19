@@ -130,3 +130,14 @@ func (this *Redis) Delete(p *Data) (err error) {
 	_, err = this.client.Del(context.Background(), rk).Result()
 	return
 }
+
+// DeleteKeys 写穿键删除(HDEL),实现 StorageDeleter 可选接口。
+// 删除不做 Expire 续约:删除语义不应延长会话寿命
+func (this *Redis) DeleteKeys(p *Data, keys ...string) (err error) {
+	if len(keys) == 0 {
+		return nil
+	}
+	rk := this.rkey(p.uuid)
+	_, err = this.client.HDel(context.Background(), rk, keys...).Result()
+	return
+}
