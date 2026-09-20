@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/go-redis/redis/v8 v8.11.5
-	github.com/hwcer/logger v0.2.9-0.20260910161556-c8faab738be9
+	github.com/hwcer/logger v0.2.9-0.20260920081328-3986f6f383d3
 	github.com/shirou/gopsutil v3.21.11+incompatible
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
