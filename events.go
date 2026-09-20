@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"runtime"
 	"runtime/debug"
-	"sync/atomic"
 
+	"github.com/hwcer/cosgo/phase"
 	"github.com/hwcer/logger"
 )
 
@@ -39,21 +39,14 @@ func (e EventType) String() string {
 }
 
 // events 事件订阅表:本表只服务启停流程(Begin/Loaded/Started/Reload/Closing/Stopped),
-// 注册仅发生在启动期——Cosgo.Start 完成后封板,封板后再 On 只提示不注册(见 On)。
+// 注册仅发生在启动期——Cosgo.Start 完成后封板(phase.Sealed(),见 phase 包),
+// 封板后再 On 只提示不注册(见 On)。
 // 🔴 契约化的理由:裸 map 下运行期注册会与 emit 构成 concurrent map fatal
 // (不可恢复),故封板拦下;误用只 Alert 不崩进程——进程活着才能留现场
-var (
-	events       map[EventType][]EventFunc
-	eventsSealed atomic.Bool //启动完成标记:置位后禁止再注册
-)
+var events map[EventType][]EventFunc
 
 func init() {
 	events = make(map[EventType][]EventFunc)
-}
-
-// sealEvents 启动完成后封板(由 Cosgo.Start 在 EventTypStarted 发完后调用)
-func sealEvents() {
-	eventsSealed.Store(true)
 }
 
 // funcName 取监听器的函数名,形如 server/game/handle/trial.seed
@@ -128,8 +121,8 @@ func emit(e EventType, breakOnError bool) (err error) {
 // 运行期注册会与 emit 构成 concurrent map fatal,拦下即可;误用多来自
 // 重连/热更路径的旧代码,进程活着才能留现场,Alert 进日志够排查用。
 func On(e EventType, f EventFunc) {
-	if eventsSealed.Load() {
-		logger.Alert("cosgo.On(%v) after server started: 事件监听器仅允许在启动期注册,本次注册已忽略", e)
+	if phase.Sealed() {
+		phase.Alert("cosgo.On(%v)", e)
 		return
 	}
 	events[e] = append(events[e], f)

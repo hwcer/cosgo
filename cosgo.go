@@ -7,14 +7,20 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/hwcer/cosgo/phase"
 	"github.com/hwcer/cosgo/scc"
-	"github.com/hwcer/cosgo/session"
 	"github.com/hwcer/logger"
 )
 
 var modules []Module
 
+// Use 注册模块。🔴 仅限 cosgo.Start 之前调用:Starting 期间 append 会与 Start 的
+// 模块遍历竞争,这里按 Init 级判定(比 Sealed 更严),封板前后调用只 Alert 提示并忽略
 func Use(mods ...Module) {
+	if phase.Get() != phase.Init {
+		phase.Alert("cosgo.Use(%v)", len(mods))
+		return
+	}
 	modules = append(modules, mods...)
 }
 func Range(f func(Module) bool) {
@@ -43,6 +49,7 @@ func Start(waitForSystemExit bool, mods ...Module) {
 	}
 
 	logger.Info("App Starting")
+	phase.Set(phase.Starting) //启动阶段时钟:后续 phase.Sealed() 守卫以此为基准
 	defer func() {
 		if err = deletePidFile(); err != nil {
 			logger.Warn("App delete pid file err:%v", err)
@@ -93,8 +100,14 @@ func Start(waitForSystemExit bool, mods ...Module) {
 		logger.Fatal("App Start error:%v", err)
 		return
 	}
-	sealEvents()         //启动完成,封板事件表:此后 On 直接 panic(见 events.go)
-	session.SealEvents() //级联封板 session 事件表(同一契约,见 session/events.go)
+
+	// sealEvents 启动完成后封板(由 Cosgo.Start 在 EventTypStarted 发完后调用)。
+	// 封板时钟统一由 phase 包承载,session 等其他需要封板的模块直接读 phase.Sealed(),
+	// 根包不再级联调用各自的 Seal* 函数
+	//启动完成,推进 phase 至 Started:封板时钟统一由 phase 承载,
+	phase.Set(phase.Started)
+	//事件表根/session、业务自定义的"仅启动期注册"守卫都直接读 phase.Sealed(),
+	//不再需要根包逐一级联调用各自的 Seal* 函数(见 phase 包)
 	Options.Banner()
 
 	if waitForSystemExit {
@@ -135,6 +148,7 @@ func stop() (stopped bool) {
 	if !scc.Cancel() {
 		return true
 	}
+	phase.Set(phase.Closing)
 	_ = emit(EventTypClosing, false)
 	logger.Info("App will stop")
 	for _, module := range slices.Backward(modules) {
@@ -143,6 +157,7 @@ func stop() (stopped bool) {
 	if err := scc.Wait(0); err != nil {
 		logger.Warn("App Stop Error:%v", err)
 	}
+	phase.Set(phase.Closed)
 	return true
 }
 

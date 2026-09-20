@@ -30,7 +30,7 @@ const TokenSecretName = "_TS_"
 type Session struct {
 	*Data
 	dirty    map[string]struct{} //修改过的键
-	dirtyDel map[string]struct{} //删除过的键:与修改键分开记录,Storage 实现 StorageDeleter 时走真删除(HDEL)
+	dirtyDel map[string]struct{} //删除过的键:与修改键分开记录,Submit 经 Storage.Unset 真删除(HDEL)
 }
 
 func (this *Session) Refresh() (string, error) {
@@ -126,8 +126,8 @@ func (this *Session) Update(vs map[string]any) {
 	})
 }
 
-// Unset 删除会话键。删除与修改语义不同:Storage 实现 StorageDeleter 时走真删除
-// (Redis 后端为 HDEL);否则退化为写空串(与旧行为兼容)。
+// Unset 删除会话键。删除写穿存储走 Storage.Unset(接口强制方法,Redis 后端为
+// HDEL 真删除),不存在写空串的降级路径。
 // 🔴 旧版本没有任何键删除写穿路径——Data.Delete 只删内存,Redis 后端下次 Verify
 // 还原的副本会从存储读回旧值,删除操作等于没发生过。
 func (this *Session) Unset(keys ...string) {
@@ -215,22 +215,21 @@ func (this *Session) Submit() (err error) {
 	if this.Data == nil {
 		return
 	}
-	//删除键优先处理:走 StorageDeleter 真删除,未实现则退化为写空串
+	//删除键优先处理:Storage.Unset 真删除(接口强制方法,不再有写空串降级路径)
 	if len(this.dirtyDel) > 0 {
 		keys := make([]string, 0, len(this.dirtyDel))
 		for k := range this.dirtyDel {
 			keys = append(keys, k)
 		}
-		if sd, ok := Options.Storage.(StorageDeleter); ok {
-			if err = sd.DeleteKeys(this.Data, keys...); err == nil {
-				this.dirtyDel = nil
-			} else {
-				return
-			}
-		} else {
-			this.markDirty(keys...)
-			this.dirtyDel = nil
+		if err = Options.Storage.Unset(this.Data, keys...); err != nil {
+			return
 		}
+		//🔴 同请求 Set→Unset 同键:删除优先。dirty 里的残留会把删除键又以
+		//nil(空串)写回存储,Has(k) 恒真,与删除语义相悖
+		for _, k := range keys {
+			delete(this.dirty, k)
+		}
+		this.dirtyDel = nil
 	}
 	if len(this.dirty) == 0 {
 		return
@@ -259,7 +258,9 @@ func (this *Session) Release() {
 		if err = this.Submit(); err == nil {
 			break
 		}
-		time.Sleep(time.Duration(50*(i+1)) * time.Millisecond)
+		if i < 2 { //退避 50/100ms;末次失败不再空睡(退避表 0/50/150ms 时刻提交)
+			time.Sleep(time.Duration(50*(i+1)) * time.Millisecond)
+		}
 	}
 	if err != nil {
 		logger.Alert("session Submit error after retry, dropped keys: %v%v", this.dirty, this.dirtyDel)

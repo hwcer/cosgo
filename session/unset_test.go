@@ -8,28 +8,28 @@ import (
 	"github.com/hwcer/cosgo/values"
 )
 
-// deleterStorage 记录 DeleteKeys 调用的包装存储
-type deleterStorage struct {
+// unsetStorage 记录 Unset 调用的包装存储(Unset 已收编为 Storage 强制方法)
+type unsetStorage struct {
 	Storage
-	mu    sync.Mutex
+	mu      sync.Mutex
 	deleted [][]string
 }
 
-func (d *deleterStorage) DeleteKeys(p *Data, keys ...string) error {
+func (d *unsetStorage) Unset(p *Data, keys ...string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.deleted = append(d.deleted, keys)
 	return nil
 }
 
-// plainStorage 不实现 StorageDeleter:Unset 应退化为 Update 写空串
-type plainStorage struct {
+// spyUpdate 记录 Update 调用的存储,用于断言删除不再走 Update 降级
+type spyUpdate struct {
 	Storage
-	mu     sync.Mutex
+	mu      sync.Mutex
 	updates []map[string]any
 }
 
-func (p *plainStorage) Update(data *Data, value map[string]any) error {
+func (p *spyUpdate) Update(data *Data, value map[string]any) error {
 	cp := make(map[string]any, len(value))
 	for k, v := range value {
 		cp[k] = v
@@ -46,8 +46,8 @@ func TestSessionUnsetWritesThrough(t *testing.T) {
 	old := Options.Storage
 	defer func() { Options.Storage = old }()
 
-	ds := &deleterStorage{Storage: NewMemory(16)}
-	Options.Storage = ds
+	us := &unsetStorage{Storage: NewMemory(16)}
+	Options.Storage = us
 
 	ss := NewWithValues("u1", values.Values{"gold": 100, "vip": 1})
 	if _, err := ss.New(ss.Data); err != nil {
@@ -58,22 +58,23 @@ func TestSessionUnsetWritesThrough(t *testing.T) {
 	if err := ss.Submit(); err != nil {
 		t.Fatalf("submit: %v", err)
 	}
-	if len(ds.deleted) == 0 {
-		t.Fatal("StorageDeleter.DeleteKeys 应被调用")
+	if len(us.deleted) == 0 {
+		t.Fatal("Storage.Unset 应被调用")
 	}
-	joined := strings.Join(ds.deleted[len(ds.deleted)-1], ",")
+	joined := strings.Join(us.deleted[len(us.deleted)-1], ",")
 	if !strings.Contains(joined, "gold") || !strings.Contains(joined, "vip") {
-		t.Fatalf("删除键应为 gold,vip 实际: %v", ds.deleted)
+		t.Fatalf("删除键应为 gold,vip 实际: %v", us.deleted)
 	}
 }
 
-// 未实现 StorageDeleter 的存储:退化为写空串(与旧行为兼容,不丢语义)
-func TestSessionUnsetFallbackWritesEmpty(t *testing.T) {
+// 🔴 Unset 是 Storage 强制方法,不再有"未实现则退化为 Update 写空串"的降级路径:
+// 删除只走 Unset,不得把删除键转成 dirty 再写一遍(旧的空串覆盖会污染 Has 语义)
+func TestSessionUnsetNoFallbackToUpdate(t *testing.T) {
 	old := Options.Storage
 	defer func() { Options.Storage = old }()
 
-	ps := &plainStorage{Storage: NewMemory(16)}
-	Options.Storage = ps
+	sp := &spyUpdate{Storage: NewMemory(16)}
+	Options.Storage = sp
 
 	ss := NewWithValues("u2", values.Values{"gold": 100})
 	if _, err := ss.New(ss.Data); err != nil {
@@ -84,12 +85,26 @@ func TestSessionUnsetFallbackWritesEmpty(t *testing.T) {
 	if err := ss.Submit(); err != nil {
 		t.Fatalf("submit: %v", err)
 	}
-	if len(ps.updates) == 0 {
-		t.Fatal("退化为 Update 写空串,Update 应被调用")
+	//删除键不得经 Update 写回(空串或 nil 均不允许)
+	for _, u := range sp.updates {
+		if _, ok := u["gold"]; ok {
+			t.Fatalf("删除键不应经 Update 写回: %v", u)
+		}
 	}
-	last := ps.updates[len(ps.updates)-1]
-	if v, ok := last["gold"]; !ok || v != nil {
-		t.Fatalf("删除键应以 nil(空串)写入: %v", last)
+	//Set 与 Unset 同请求同键:删除优先,Set 的脏标记被 Unset 覆盖后不得回写
+	ss2 := NewWithValues("u3", values.Values{"gold": 100})
+	if _, err := ss2.New(ss2.Data); err != nil {
+		t.Fatalf("new: %v", err)
+	}
+	ss2.Set("gold", 200)
+	ss2.Unset("gold")
+	if err := ss2.Submit(); err != nil {
+		t.Fatalf("submit: %v", err)
+	}
+	for _, u := range sp.updates {
+		if _, ok := u["gold"]; ok {
+			t.Fatalf("同请求 Set 后 Unset,删除键不应经 Update 写回: %v", u)
+		}
 	}
 }
 

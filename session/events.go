@@ -1,9 +1,7 @@
 package session
 
 import (
-	"sync/atomic"
-
-	"github.com/hwcer/logger"
+	"github.com/hwcer/cosgo/phase"
 )
 
 type Event int8
@@ -18,29 +16,22 @@ const (
 )
 
 // listeners 事件订阅表:仅启动期注册(业务在包 init 或启动钩子里注册),
-// Cosgo.Start 完成后由根包调用 SealEvents 封板,封板后再 On 只提示不注册(见 On)。
+// 封板时钟由 phase 包统一承载(cosgo.Start 完成后推进至 Started),封板后再
+// On 只提示不注册(见 On)。本包不再持有独立的 Seal 函数,也不需要根包级联调用。
 // 🔴 契约化的理由同根 events:运行期注册会与 Emit 构成 concurrent map fatal
 // (不可恢复)故封板拦下;注册期单线程,裸 map 零成本
-var (
-	listeners       map[Event][]Listener
-	listenersSealed atomic.Bool
-)
+var listeners map[Event][]Listener
 
 func init() {
 	listeners = make(map[Event][]Listener)
-}
-
-// SealEvents 封板事件表(由 cosgo.Start 在启动完成后调用,业务无需手动调用)
-func SealEvents() {
-	listenersSealed.Store(true)
 }
 
 // On 注册事件监听器(仅启动期)。封板后调用只提示不注册——不崩进程:
 // 运行期注册会与 Emit 构成 concurrent map fatal,拦下即可;误用多来自
 // 重连/热更路径的旧代码,Alert 进日志留排查线索。
 func On(event Event, listener Listener) {
-	if listenersSealed.Load() {
-		logger.Alert("session.On(%v) after server started: 事件监听器仅允许在启动期注册,本次注册已忽略", event)
+	if phase.Sealed() {
+		phase.Alert("session.On(%v)", event)
 		return
 	}
 	listeners[event] = append(listeners[event], listener)

@@ -11,6 +11,8 @@ import (
 // 2. 内置心跳机制，自动清理过期会话
 // 3. 内存模式下，Data 已经在写操作时更新过，Update 方法不需要再次更新
 
+// NewMemory 内存存储。⚠️ 仅限启动期调用:构造函数里隐式注册了心跳过期清扫监听,
+// 封板后创建的实例会静默失去过期清扫(会话永不过期),只有一行 Alert 可查
 func NewMemory(cap ...int) *Memory {
 	var c int
 	if len(cap) > 0 && cap[0] > 0 {
@@ -68,9 +70,9 @@ func (this *Memory) Delete(d *Data) error {
 	return nil
 }
 
-// DeleteKeys 实现 StorageDeleter:内存后端的 Data 与存储共享同一实例,
+// Unset 实现 Storage 接口的强制方法:内存后端的 Data 与存储共享同一实例,
 // Session.Unset 已经删过,这里无事可做(与 Update 同口径)
-func (this *Memory) DeleteKeys(p *Data, keys ...string) error {
+func (this *Memory) Unset(p *Data, keys ...string) error {
 	return nil
 }
 

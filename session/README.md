@@ -103,11 +103,14 @@ session.On(session.EventSessionRelease, func(v any) { /* *Data */ })
 session.On(session.EventHeartbeat,      func(v any) { /* int32 */ })
 ```
 
-事件系统走 copy-on-write + `atomic.Pointer`:
-- 写路径(On):拷贝整张 listener map,原子发布新版本
-- 读路径(Emit):一次 atomic load,零锁,纳秒级
+事件系统走普通 map + 启动完成封板:
+- 写路径(On):仅启动期可用;封板后调用只 Alert 提示并忽略,不崩进程
+- 读路径(Emit):运行期零写入,裸 map 读取无竞争
+- 封板时钟统一由 `cosgo/phase` 包承载(`phase.Sealed()`),本包不再持有独立的
+  Seal 函数;其他模块需要"仅启动期注册"守卫时同样直接读 phase
 
-详见 `events.go`。
+🔴 监听器只允许在包 init 或 Module.Init 期注册;模块 Start 已开始受理请求,
+封板前的 Emit×On 并发写裸 map 是 fatal 竞争。详见 `events.go` 与 `phase` 包。
 
 ## 并发语义
 
@@ -165,7 +168,7 @@ session/
 ├── memory_setter.go  内存后端的 Setter 适配
 ├── redis.go          Redis 后端
 ├── heartbeat.go      心跳定时器
-├── events.go         事件订阅(CoW + atomic.Pointer)
+├── events.go         事件订阅(启动期注册 + 封板守卫)
 ├── options.go        全局配置
 ├── errors.go         错误常量
 └── README.md

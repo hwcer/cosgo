@@ -67,7 +67,7 @@ Modules may optionally implement the `Reload` interface (`Reload() error`) to re
 
 - **storage/**: Bucket-based object pool with O(1) get/set via 28-char hex tokens (2-byte bucket + 4-byte slot + 8-byte random). LIFO dirty index for slot recycling. `unsafe.Pointer` for values.
 
-- **session/**: HTTP session with memory and Redis backends. Uses Copy-on-Write + `atomic.Pointer` for event listeners. Constant-time token comparison.
+- **session/**: HTTP session with memory and Redis backends. Event listeners: register during init only, sealed (Alert-and-ignore) after startup. Constant-time token comparison.
 
 - **scc/**: Goroutine lifecycle manager. `GO()` (fire-and-forget), `CGO()` (with context), `SGO()` (with panic recovery). `Daemon()` for background goroutines that restart on panic. Global `Default` singleton. `Cancel()` + `Wait(timeout)` for graceful shutdown.
 
@@ -92,7 +92,7 @@ Modules may optionally implement the `Reload` interface (`Reload() error`) to re
 ### Concurrency Patterns
 
 The codebase consistently uses these patterns:
-- **Copy-on-Write + atomic.Pointer** for lock-free reads on rarely-mutated state (safety rules, session events)
+- **Copy-on-Write + atomic.Pointer** for lock-free reads on rarely-mutated state (safety rules); session event tables use plain maps sealed after startup via the `phase` package (On = Alert + ignore; modules needing init-only registries read `phase.Sealed()` directly)
 - **sync.Map** for schema caching (concurrent reads, infrequent writes)
 - **sync.RWMutex** for storage buckets and zset (concurrent readers, serialized writers)
 - **Channel-based init coordination** in schema (`initDone chan struct{}`) to avoid duplicate work

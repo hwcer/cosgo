@@ -4,11 +4,13 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/hwcer/cosgo/phase"
 )
 
 func resetEvents() {
 	events = make(map[EventType][]EventFunc)
-	eventsSealed.Store(false)
+	phase.Set(phase.Init) //封板时钟一并复位,防止本文件的封板用例污染其他用例
 }
 
 // TestEmitPanicKeepsStack panic 必须带出【原始堆栈】与【是哪个监听器】
@@ -110,7 +112,7 @@ func TestEventTypeString(t *testing.T) {
 // 🔴 封板契约:启动完成后 On 只提示不注册——运行期注册会与 emit 构成
 // concurrent map fatal,拦下即可;误用不崩进程(Alert 留排查线索)。
 // 断言两点:封板后注册被忽略(表不变),且调用方不 panic。
-func TestOnAfterSealPanics(t *testing.T) {
+func TestOnAfterSealIgnored(t *testing.T) {
 	resetEvents()
 	defer resetEvents()
 	On(EventTypLoaded, func() error { return nil })
@@ -118,7 +120,7 @@ func TestOnAfterSealPanics(t *testing.T) {
 	if sealed == 0 {
 		t.Fatal("前提:封板前注册应生效")
 	}
-	eventsSealed.Store(true)
+	phase.Set(phase.Started) //与 sealEvents() 同口径:封板时钟统一在 phase
 
 	On(EventTypLoaded, func() error { return nil }) //不得 panic
 

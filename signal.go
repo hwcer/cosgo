@@ -65,7 +65,7 @@ func signalNotify(sig os.Signal) (stopped bool) {
 // SIGHUP 关闭控制台
 func SIGHUP() {
 	logger.Info("停止控制台输出")
-	logger.Console.Disable = true
+	logger.Console.Disable.Store(true)
 }
 
 func gcSummaryLogs() {

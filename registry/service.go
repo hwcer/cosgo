@@ -1,6 +1,8 @@
 package registry
 
 import (
+	"github.com/hwcer/cosgo/phase"
+
 	"errors"
 	"fmt"
 	"path"
@@ -49,7 +51,13 @@ func (this *Service) SetHandler(h Handler) {
 	this.handler = h
 }
 
+// Register 🔴 仅启动期调用:router 树在服务期被 Search 并发读,守卫读 cosgo/phase
+//(公共启动阶段时钟),封板后调用只 Alert 提示并忽略
 func (this *Service) Register(i any, prefix ...string) error {
+	if phase.Sealed() {
+		phase.Alert("registry.Service.Register")
+		return nil
+	}
 	nodes, err := this.Parse(i, prefix...)
 	if err != nil {
 		return err
@@ -63,6 +71,10 @@ func (this *Service) Register(i any, prefix ...string) error {
 }
 
 func (this *Service) RegisterWithMethod(i any, method []string, prefix ...string) error {
+	if phase.Sealed() {
+		phase.Alert("registry.Service.RegisterWithMethod")
+		return nil
+	}
 	nodes, err := this.Parse(i, prefix...)
 	if err != nil {
 		return err
