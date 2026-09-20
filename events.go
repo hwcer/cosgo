@@ -39,10 +39,9 @@ func (e EventType) String() string {
 }
 
 // events 事件订阅表:本表只服务启停流程(Begin/Loaded/Started/Reload/Closing/Stopped),
-// 注册仅发生在启动期——Cosgo.Start 完成后封板,封板后再 On 直接 panic(fail-fast)。
+// 注册仅发生在启动期——Cosgo.Start 完成后封板,封板后再 On 只提示不注册(见 On)。
 // 🔴 契约化的理由:裸 map 下运行期注册会与 emit 构成 concurrent map fatal
-// (不可恢复);与其付 CoW 的写路径成本换取一个不该发生的场景,不如封板后
-// 用确定性 panic 替代随机崩溃
+// (不可恢复),故封板拦下;误用只 Alert 不崩进程——进程活着才能留现场
 var (
 	events       map[EventType][]EventFunc
 	eventsSealed atomic.Bool //启动完成标记:置位后禁止再注册
@@ -125,12 +124,13 @@ func emit(e EventType, breakOnError bool) (err error) {
 	return nil
 }
 
-// On 注册事件监听器(仅启动期)。启动完成后调用直接 panic:
-// 运行期注册会与 emit 构成 concurrent map fatal(不可恢复),
-// 确定性 panic 定位到调用方远好于随机的进程崩溃
+// On 注册事件监听器(仅启动期)。启动完成后调用只提示不注册——不崩进程:
+// 运行期注册会与 emit 构成 concurrent map fatal,拦下即可;误用多来自
+// 重连/热更路径的旧代码,进程活着才能留现场,Alert 进日志够排查用。
 func On(e EventType, f EventFunc) {
 	if eventsSealed.Load() {
-		panic(fmt.Sprintf("cosgo.On(%v) after server started: 事件监听器仅允许在启动期注册", e))
+		logger.Alert("cosgo.On(%v) after server started: 事件监听器仅允许在启动期注册,本次注册已忽略", e)
+		return
 	}
 	events[e] = append(events[e], f)
 }

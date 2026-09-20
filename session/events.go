@@ -1,8 +1,9 @@
 package session
 
 import (
-	"fmt"
 	"sync/atomic"
+
+	"github.com/hwcer/logger"
 )
 
 type Event int8
@@ -17,9 +18,9 @@ const (
 )
 
 // listeners 事件订阅表:仅启动期注册(业务在包 init 或启动钩子里注册),
-// Cosgo.Start 完成后由根包调用 SealEvents 封板,封板后再 On 直接 panic。
+// Cosgo.Start 完成后由根包调用 SealEvents 封板,封板后再 On 只提示不注册(见 On)。
 // 🔴 契约化的理由同根 events:运行期注册会与 Emit 构成 concurrent map fatal
-// (不可恢复),确定性 panic 优于随机崩溃;注册期单线程,裸 map 零成本
+// (不可恢复)故封板拦下;注册期单线程,裸 map 零成本
 var (
 	listeners       map[Event][]Listener
 	listenersSealed atomic.Bool
@@ -34,10 +35,13 @@ func SealEvents() {
 	listenersSealed.Store(true)
 }
 
-// On 注册事件监听器(仅启动期)。封板后调用直接 panic。
+// On 注册事件监听器(仅启动期)。封板后调用只提示不注册——不崩进程:
+// 运行期注册会与 Emit 构成 concurrent map fatal,拦下即可;误用多来自
+// 重连/热更路径的旧代码,Alert 进日志留排查线索。
 func On(event Event, listener Listener) {
 	if listenersSealed.Load() {
-		panic(fmt.Sprintf("session.On(%v) after server started: 事件监听器仅允许在启动期注册", event))
+		logger.Alert("session.On(%v) after server started: 事件监听器仅允许在启动期注册,本次注册已忽略", event)
+		return
 	}
 	listeners[event] = append(listeners[event], listener)
 }

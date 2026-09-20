@@ -44,18 +44,22 @@ func TestOnEmit_MultipleListeners(t *testing.T) {
 	}
 }
 
-// 🔴 封板契约:启动完成后 On 必须 panic——运行期注册会与 Emit 构成
-// concurrent map fatal(不可恢复),确定性 panic 优先于随机崩溃。
+// 🔴 封板契约:启动完成后 On 只提示不注册——运行期注册会与 Emit 构成
+// concurrent map fatal(不可恢复),拦下即可;误用不崩进程(Alert 留排查线索)。
 // 契约:监听器仅允许在启动期注册(包 init 或启动钩子),运行期注册属编程错误
 func TestOnAfterSealPanics(t *testing.T) {
 	resetListeners()
+	On(EventSessionRelease, func(v any) {})
+	sealed := len(listeners[EventSessionRelease])
+	if sealed == 0 {
+		t.Fatal("前提:封板前注册应生效")
+	}
 	listenersSealed.Store(true)
 	defer resetListeners()
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("封板后 On 应 panic")
-		}
-	}()
-	On(EventSessionRelease, func(v any) {})
+	On(EventSessionRelease, func(v any) {}) //不得 panic
+
+	if got := len(listeners[EventSessionRelease]); got != sealed {
+		t.Fatalf("封板后的注册必须被忽略: 表内监听器 %d, 期望仍为 %d", got, sealed)
+	}
 }

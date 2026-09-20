@@ -107,17 +107,22 @@ func TestEventTypeString(t *testing.T) {
 	}
 }
 
-// 🔴 封板契约:启动完成后 On 必须 panic——运行期注册会与 emit 构成
-// concurrent map fatal,确定性 panic 优先于随机崩溃
+// 🔴 封板契约:启动完成后 On 只提示不注册——运行期注册会与 emit 构成
+// concurrent map fatal,拦下即可;误用不崩进程(Alert 留排查线索)。
+// 断言两点:封板后注册被忽略(表不变),且调用方不 panic。
 func TestOnAfterSealPanics(t *testing.T) {
 	resetEvents()
 	defer resetEvents()
+	On(EventTypLoaded, func() error { return nil })
+	sealed := len(events[EventTypLoaded])
+	if sealed == 0 {
+		t.Fatal("前提:封板前注册应生效")
+	}
 	eventsSealed.Store(true)
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("封板后 On 应 panic")
-		}
-	}()
-	On(EventTypLoaded, func() error { return nil })
+	On(EventTypLoaded, func() error { return nil }) //不得 panic
+
+	if got := len(events[EventTypLoaded]); got != sealed {
+		t.Fatalf("封板后的注册必须被忽略: 表内监听器 %d, 期望仍为 %d", got, sealed)
+	}
 }
