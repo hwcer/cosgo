@@ -676,3 +676,75 @@ func TestGuardUpdateOnMemberScoreDrop(t *testing.T) {
 		t.Errorf("ZRank 误判：B 已跌出榜外，期望 -1，实际 %d", rank)
 	}
 }
+
+// 回归：删除与守门员同分的榜内成员后必须重算守门员。
+// 漏重算时守门员陈旧，导致新成员被误拒（丢写入）、CanEnter 假阴性。
+func TestZRemSameScoreTieUpdatesGuard(t *testing.T) {
+	s := NewWithMaxSize(3, 1) // 升序
+	s.ZAdd(20, "A")
+	s.ZAdd(20, "B")
+	s.ZAdd(30, "C") // 满员 A20 B20 C30，守门员 C30
+	s.ZAdd(10, "E") // 入榜 → E10 A20 B20 C30(冗余)，守门员 B20
+
+	// A 与守门员 B20 同分，删除后冗余成员 C30 顶位，真实守门员应为 C30
+	if !s.ZRem("A") {
+		t.Fatal("ZRem(A) 失败")
+	}
+
+	if !s.CanEnter(25) {
+		t.Error("CanEnter 假阴性：真实守门员 C30，25 应可入榜")
+	}
+	if r := s.ZAdd(25, "F"); r != 25 {
+		t.Errorf("ZAdd 被陈旧守门员拦截，期望 25，实际 %d", r)
+	}
+}
+
+// 回归：与守门员同分的冗余成员 ZRank 必须返回 -1，
+// 泄漏真实排名会造成与 ZCard 的矛盾（rank >= maxSize）
+func TestZRankGuardTieBoundary(t *testing.T) {
+	s := NewWithMaxSize(3)
+	s.ZAdd(100, "A")
+	s.ZAdd(90, "B")
+	s.ZAdd(90, "C") // 满员，守门员 C90
+	s.ZAdd(95, "E") // 入榜 → A100 E95 B90 C90(冗余)，守门员 B90
+
+	if rank, _ := s.ZRank("C"); rank != -1 {
+		t.Errorf("冗余成员同分边界：期望 ZRank(C)=-1，实际 %d（ZCard=%d）", rank, s.ZCard())
+	}
+	// 榜内同分成员不受影响
+	if rank, _ := s.ZRank("B"); rank != 2 {
+		t.Errorf("榜内成员：期望 ZRank(B)=2，实际 %d", rank)
+	}
+}
+
+// ZIncr(0) 对不存在的 key：无守门员时创建 0 分成员，有守门员时不创建
+func TestZIncrZeroRebuild(t *testing.T) {
+	s := New()
+	if r := s.ZIncr(0, "new"); r != 0 {
+		t.Errorf("期望返回 0，实际 %d", r)
+	}
+	if score, ok := s.ZScore("new"); !ok || score != 0 {
+		t.Errorf("无守门员时 ZIncr(0) 应创建成员，ZScore=(%d,%v)", score, ok)
+	}
+	if n := s.ZCard(); n != 1 {
+		t.Errorf("无守门员时成员数期望 1，实际 %d", n)
+	}
+	// 已存在成员仍是纯读
+	if r := s.ZIncr(0, "new"); r != 0 {
+		t.Errorf("已存在成员 ZIncr(0) 期望返回当前分 0，实际 %d", r)
+	}
+
+	g := NewWithMaxSize(3)
+	g.ZAdd(10, "a")
+	g.ZAdd(20, "b")
+	g.ZAdd(30, "c")
+	if r := g.ZIncr(0, "new"); r != 0 {
+		t.Errorf("期望返回 0，实际 %d", r)
+	}
+	if _, ok := g.ZScore("new"); ok {
+		t.Error("有守门员时 ZIncr(0) 不应创建成员")
+	}
+	if n := g.ZCard(); n != 3 {
+		t.Errorf("有守门员时成员数不应变化，期望 3，实际 %d", n)
+	}
+}

@@ -29,7 +29,7 @@ type ZSet struct {
 	// 守门员分数的原子副本，供 CanEnter 无锁预检使用
 	// 与 guard 字段保持同步，在 updateGuard 中同时写入
 	guardScore atomic.Int64
-	guardValid atomic.Int32 // 0=无效，1=有效（用 Int32 代替 atomic.Bool 以兼容旧版 Go）
+	guardValid atomic.Int32 // 守门员有效性副本：0=无效，1=有效（与 guard.valid 保持同步）
 }
 
 // ZNode 范围查询返回的节点
@@ -77,8 +77,9 @@ func NewWithMaxSize(maxSize int32, order ...int8) *ZSet {
 //	    z.ZAdd(score, key)
 //	}
 //
-// 注意：存在极小的竞态窗口（守门员刚被更新），可能出现假阳性（返回 true 但实际被拒）
-// 但不会出现假阴性（返回 false 但实际能入），因此是安全的预过滤
+// 注意：guardValid 与 guardScore 是两次独立的原子读，恰逢守门员更新时可能出现
+// 假阳性（返回 true 但实际被拒）或假阴性（返回 false 但实际能入），只适合做允许
+// 丢弃的预过滤，不能替代 ZAdd 的返回值判断
 func (z *ZSet) CanEnter(score int64) bool {
 	if z.maxSize <= 0 {
 		return true
@@ -159,6 +160,8 @@ func (z *ZSet) ZAdd(score int64, key string) int64 {
 }
 
 // ZIncr 对指定元素的分数加上增量
+// score=0 对已存在成员是纯读；对不存在的 key 仅在未设守门员时创建 0 分成员
+// （有守门员时不创建：重建须过守门员检查，被拒返回 0 与成功写入 0 分不可区分）
 func (z *ZSet) ZIncr(score int64, key string) int64 {
 	z.lock.Lock()
 	defer z.lock.Unlock()
@@ -166,7 +169,10 @@ func (z *ZSet) ZIncr(score int64, key string) int64 {
 		if currentScore, ok := z.dict[key]; ok {
 			return currentScore
 		}
-		return 0
+		if z.maxSize > 0 {
+			return 0
+		}
+		return z.upsert(key, 0, false, 0)
 	}
 	oldScore, exists := z.dict[key]
 	newScore := oldScore + score
@@ -185,10 +191,10 @@ func (z *ZSet) ZRem(key string) bool {
 	deleted := z.zsl.zslDelete(score, key)
 	delete(z.dict, key)
 
-	if deleted && z.guard.valid {
-		if key == z.guard.key || z.compareScores(score, z.guard.score) == 1 {
-			z.updateGuard()
-		}
+	// 删除后一律重算守门员：与守门员同分的成员被删也会使榜内排名整体前移（或冗余成员顶位），
+	// 按分数比较会漏掉 compareScores==0 的情形，陈旧守门员会导致新成员误拒和 ZRank 误判
+	if deleted && z.maxSize > 0 {
+		z.updateGuard()
 	}
 
 	return true
@@ -260,13 +266,13 @@ func (z *ZSet) ZRank(key string) (rank int64, score int64) {
 		return -1, 0
 	}
 
-	if z.guard.valid {
-		if z.compareScores(score, z.guard.score) < 0 {
-			return -1, 0
-		}
+	// 按真实排名截断而不是比较守门员分数：与守门员同分的冗余成员
+	// 按分数比较会漏进跳表查询，返回 >= maxSize 的排名，与 ZCard 矛盾
+	rank = z.zsl.zslRank(score, key)
+	if z.maxSize > 0 && rank >= int64(z.maxSize) {
+		return -1, 0
 	}
-
-	return z.zsl.zslRank(score, key), score
+	return rank, score
 }
 
 // ZScore 获取元素分数，即使未入榜也能查到

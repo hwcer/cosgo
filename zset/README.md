@@ -104,7 +104,7 @@ zset.NewWithMaxSize(maxSize int32, order ...int8) *ZSet // 带人数限制
 
 // 写入
 z.ZAdd(score int64, key string) int64      // 添加或更新，返回最终分数（被拒绝返回 0）
-z.ZIncr(score int64, key string) int64     // 增量更新
+z.ZIncr(score int64, key string) int64     // 增量更新（score=0 为纯读；key 不存在且未设守门员时创建 0 分成员）
 z.ZRem(key string) bool                    // 删除
 z.CanEnter(score int64) bool               // 无锁预检：分数是否有可能入榜
 
@@ -127,6 +127,8 @@ z.ZCount(min, max int64) int64                            // 分数区间计数�
 ## 分数为 0
 
 `0` 是有效分数，与其它分数同等处理。
+
+`ZIncr(0, key)` 对已存在的成员是纯读（返回当前分数）；对不存在的 key 仅在未设守门员时创建 0 分成员，有守门员时不创建（有守门员时重建须过守门员检查，被拒返回 0 与成功写入 0 分不可区分，故干脆不重建）。
 
 ## 并发
 
