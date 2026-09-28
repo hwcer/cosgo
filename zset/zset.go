@@ -160,8 +160,9 @@ func (z *ZSet) ZAdd(score int64, key string) int64 {
 }
 
 // ZIncr 对指定元素的分数加上增量
-// score=0 对已存在成员是纯读；对不存在的 key 仅在未设守门员时创建 0 分成员
-// （有守门员时不创建：重建须过守门员检查，被拒返回 0 与成功写入 0 分不可区分）
+// score=0 对已存在成员是纯读；对不存在的 key 仅在**无限榜**(未设 maxSize)时
+// 创建 0 分成员。设了 maxSize 则一律不创建——含榜未满(守门员无效)的情形:
+// 0 分成员对入榜没有意义,留待首个正增量经正常 upsert 带入
 func (z *ZSet) ZIncr(score int64, key string) int64 {
 	z.lock.Lock()
 	defer z.lock.Unlock()
