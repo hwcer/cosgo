@@ -2,13 +2,14 @@ package request
 
 import (
 	"bytes"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
 	"github.com/hwcer/cosgo/binder"
+	"github.com/hwcer/cosgo/values"
 )
 
 // httpClient 默认 HTTP 客户端，替代 http.DefaultClient
@@ -133,7 +134,16 @@ func (c *Client) Request(method, url string, data any, header ...map[string]stri
 	}
 	defer res.Body.Close()
 	if res.StatusCode != http.StatusOK {
-		return nil, errors.New(res.Status)
+		//平台的真实错误原因(OAuth 验签失败的具体原因、业务校验失败点等)在响应体里,
+		//只回状态行会把排查线索全吞掉。能按 Message 解出业务码/文案就原样返回;
+		//纯文本错误体:文案进 Data(业务层只关心原因),HTTP 状态码进 Args 供需要方自取。
+		b, _ := io.ReadAll(res.Body)
+		msg := &values.Message{}
+		if json.Unmarshal(b, msg) == nil && (msg.Code != 0 || msg.String() != "") {
+			return nil, msg
+		}
+		msg.Errorf(0, string(b), res.StatusCode)
+		return nil, msg
 	}
 	reply, err = io.ReadAll(res.Body)
 	return
