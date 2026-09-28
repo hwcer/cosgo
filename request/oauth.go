@@ -130,8 +130,12 @@ func (this *OAuth) Verify(req *http.Request, body *bytes.Buffer) (err error) {
 		if err != nil {
 			return err
 		}
+		//时钟差是双向的:NTP 正常同步的机器间误差 ±1 秒内任意方向都可能出现,
+		//单向窗口(requestTime < 0 即拒)会拒绝时钟稍快的合法客户端。
+		//改为 ±Timeout 双向窗口:防重放语义不变(超出窗口的时间戳照样拒),
+		//只是不再强制要求客户端时钟必须慢于服务端。
 		requestTime := time.Now().Unix() - oauthTimeStamp
-		if requestTime < 0 || requestTime > int64(this.Timeout) {
+		if requestTime < -int64(this.Timeout) || requestTime > int64(this.Timeout) {
 			return errors.New("OAuth timeout")
 		}
 	}
