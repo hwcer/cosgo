@@ -36,8 +36,11 @@ func (this *Cycle) Maybe() bool {
 
 // Start 当前届开始时间
 func (this *Cycle) Start() (r *Times, err error) {
+	//基础周期(v<=1)/不支持的类型一律回落 Times 语义——🔴 必须在 this.Times 上调：
+	//走全局 Default 会丢掉本 Cycle 绑定的时刻，非当前时间构造的 Cycle 会拿到
+	//"现在"所在周期的锚点（times.Weekly(-1).Cycle(Weekly,1).Start() 返回本周一）。
 	if this.v <= 1 || !this.Maybe() {
-		return Default.Start(this.t, this.v)
+		return this.Times.Start(this.t, this.v)
 	}
 	switch this.t {
 	case ExpireTypeDaily:
@@ -71,8 +74,8 @@ func (this *Cycle) Start() (r *Times, err error) {
 
 // Expire 本届结束时间
 func (this *Cycle) Expire() (r *Times, err error) {
-	if this.v <= 1 || !this.Maybe() {
-		return Default.Expire(this.t, this.v)
+	if this.v <= 1 || !this.Maybe() { //🔴 同 Start：绑定时刻生效，不走全局 Default
+		return this.Times.Expire(this.t, this.v)
 	}
 	switch this.t {
 	case ExpireTypeDaily:

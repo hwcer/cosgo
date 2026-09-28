@@ -79,3 +79,26 @@ func TestCycle_AllTypes(t *testing.T) {
 	eSecond, _ := cycleSecond.Expire()
 	t.Logf("本届开始: %v, 本届结束: %v", sSecond.String(), eSecond.String())
 }
+
+// TestCycleBoundTimesAnchoring 基础周期(v<=1)的 Start/Expire 必须锚定 Cycle 绑定的
+// 时刻——曾走全局 Default 丢绑定时刻：times.Weekly(-1).Cycle(Weekly,1).Start()
+// 返回的是本周一而非上周一（2026-09-28 修复）。
+func TestCycleBoundTimesAnchoring(t *testing.T) {
+	last := Unix(Weekly(-1).Now().Unix()) //上周一 00:00
+	c := last.Cycle(ExpireTypeWeekly, 1)
+
+	s, err := c.Start()
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if s.Now().Unix() != last.Now().Unix() {
+		t.Fatalf("Start = %v, want 绑定的上周一 %v", s.Now(), last.Now())
+	}
+	e, err := c.Expire()
+	if err != nil {
+		t.Fatalf("Expire: %v", err)
+	}
+	if e.Now().Unix() != Weekly(0).Now().Unix() {
+		t.Fatalf("Expire = %v, want 本周一(上周的下一届起点) %v", e.Now(), Weekly(0).Now())
+	}
+}
