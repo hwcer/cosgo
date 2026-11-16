@@ -95,7 +95,9 @@ cosgo.On(cosgo.EventTypStarted, func() error {
 - `EventTypStarted` — 所有 `Start` 完成(服务就绪)
 - `EventTypClosing` — 收到退出信号
 - `EventTypStopped` — 所有 `Close` 完成
-- `EventTypReload` — `SIGUSR1` 触发热重载
+- `EventTypReload` — `SIGUSR1` 触发热重载：**重载开始**，先于各模块 `Reload`（如 yyds options 在此重读配置文件，供模块重载使用）
+- `EventTypReloaded` — 热重载**完成**：全部模块 `Reload` 之后发出，监听者读到的是重载后的新状态（如按新配置表增量注册）。
+  ⚠ 某个模块 `Reload` 失败只记日志、不中断，本事件照常发出——监听者自己判断状态是否真的变了
 
 ## 配置
 
@@ -122,7 +124,7 @@ pprof: "127.0.0.1:6060"  # 通常仅监听本地
 |------|------|
 | `SIGINT` / `SIGQUIT` / `SIGTERM` | 触发优雅关闭 |
 | `SIGHUP` | 关闭控制台输出 |
-| `SIGUSR1` (0xa) | 配置热重载,发 `EventTypReload` |
+| `SIGUSR1` (0xa) | 配置热重载：发 `EventTypReload` → 各模块 `Reload` → 发 `EventTypReloaded` |
 
 `SIGKILL` 无法捕获(OS 直接杀进程),程序不感知。
 

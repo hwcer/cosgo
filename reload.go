@@ -19,7 +19,7 @@ func reload() {
 		logger.Info("Reload Config Finish\n")
 	}()
 	logger.Info("Start reload Config\n")
-	_ = emit(EventTypReload, false)
+	_ = emit(EventTypReload, false) //重载开始:先于各模块 Reload
 	for _, m := range modules {
 		if r, ok := m.(Reload); ok {
 			if err := r.Reload(); err != nil {
@@ -27,4 +27,5 @@ func reload() {
 			}
 		}
 	}
+	_ = emit(EventTypReloaded, false) //重载完成:监听者读到的是各模块重载后的新状态
 }

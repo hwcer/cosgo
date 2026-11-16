@@ -14,21 +14,23 @@ type EventType int32
 type EventFunc func() error
 
 const (
-	EventTypBegin   EventType = iota //开始启动
-	EventTypLoaded                   //(Init)加载完成
-	EventTypStarted                  //启动完成
-	EventTypClosing                  //开始关闭
-	EventTypStopped                  //停止之后
-	EventTypReload                   //reload
+	EventTypBegin    EventType = iota //开始启动
+	EventTypLoaded                    //(Init)加载完成
+	EventTypStarted                   //启动完成
+	EventTypClosing                   //开始关闭
+	EventTypStopped                   //停止之后
+	EventTypReload                    //reload 开始:先于各模块 Reload(如 yyds options 在此重读配置文件,供模块重载使用)
+	EventTypReloaded                  //reload 完成:全部模块 Reload 之后(读取重载后的新状态,如按新配置表增量注册)
 )
 
 var eventNames = map[EventType]string{
-	EventTypBegin:   "EventTypBegin",
-	EventTypLoaded:  "EventTypLoaded",
-	EventTypStarted: "EventTypStarted",
-	EventTypClosing: "EventTypClosing",
-	EventTypStopped: "EventTypStopped",
-	EventTypReload:  "EventTypReload",
+	EventTypBegin:    "EventTypBegin",
+	EventTypLoaded:   "EventTypLoaded",
+	EventTypStarted:  "EventTypStarted",
+	EventTypClosing:  "EventTypClosing",
+	EventTypStopped:  "EventTypStopped",
+	EventTypReload:   "EventTypReload",
+	EventTypReloaded: "EventTypReloaded",
 }
 
 func (e EventType) String() string {
@@ -103,7 +105,7 @@ func emit(e EventType, breakOnError bool) (err error) {
 		return
 	}
 	l := logger.LevelFatal
-	if e == EventTypReload {
+	if e == EventTypReload || e == EventTypReloaded {
 		l = logger.LevelError
 	}
 	for i, f := range hs {
