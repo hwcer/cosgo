@@ -23,6 +23,10 @@ func Add(d time.Duration) *Times {
 	return Default.Add(d)
 }
 
+func Since(t time.Time) time.Duration {
+	return Default.Since(t)
+}
+
 func AddDate(years int, months int, days int) *Times {
 	return Default.AddDate(years, months, days)
 }

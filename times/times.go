@@ -60,6 +60,11 @@ func (this *Times) Add(d time.Duration) *Times {
 	return this.New(t)
 }
 
+// Since 语义同 time.Since(t)=Now().Sub(t)，为读钟统一走 times 提供直写形态
+func (this *Times) Since(t time.Time) time.Duration {
+	return this.Now().Sub(t)
+}
+
 func (this *Times) AddDate(years int, months int, days int) *Times {
 	t := this.Now()
 	t = t.AddDate(years, months, days)

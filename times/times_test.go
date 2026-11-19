@@ -145,3 +145,21 @@ func TestSetTimeOffset(t *testing.T) {
 		t.Fatalf("绝对锚点 + 偏差 48h 下 Cycle=%d, 应为 3", r)
 	}
 }
+
+// TestSince Since 按偏差后的"现在"求差:零偏差与 time.Since 同值,偏差下叠加偏差量
+func TestSince(t *testing.T) {
+	SetTimeOffset(0)
+	begin := time.Now()
+	time.Sleep(20 * time.Millisecond)
+	if d := Since(begin); d < 20*time.Millisecond || d > 2*time.Second {
+		t.Fatalf("零偏差 Since=%v, 期望 20ms~2s", d)
+	}
+
+	if err := SetTimeOffset(time.Hour); err != nil {
+		t.Fatalf("SetTimeOffset(+1h): %v", err)
+	}
+	t.Cleanup(func() { SetTimeOffset(time.Duration(0)) })
+	if d := Since(begin); d < time.Hour+20*time.Millisecond {
+		t.Fatalf("+1h 偏差 Since=%v, 期望 ≥ 1h20ms", d)
+	}
+}
