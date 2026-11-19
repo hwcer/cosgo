@@ -15,10 +15,11 @@ const (
 )
 
 type Times struct {
-	time         time.Time     //时间
+	time         time.Time     //缓存时间,非零时 Now 直接返回(视为已做过偏差)
 	layout       string        //日期输入格式，必须带时区-0700,默认精确到秒
 	timeZone     string        //时区偏移量 -0700(仅全局设置,运行期不写,见 GetTimeZone)
 	timeReset    time.Duration //每日几点重置日(秒)
+	timeOffset   time.Duration //时间偏差,正=拨向未来,负=拨向过去;仅作用于系统时间路径,见 SetTimeOffset
 	WeekStartDay int           //每周开始时间,默认周一   1:周一，0:周日
 }
 
@@ -39,10 +40,19 @@ func (this *Times) Milli(v int64) *Times {
 
 func (this *Times) Now() time.Time {
 	if this.time.IsZero() {
-		return time.Now()
+		return this.offsetNow()
 	} else {
 		return this.time
 	}
+}
+
+// offsetNow 系统时间路径:系统时钟 + 偏差;偏差为零时保留单调时钟读数,不破坏 Sub/Since 的计时精度
+func (this *Times) offsetNow() time.Time {
+	t := time.Now()
+	if this.timeOffset != 0 {
+		t = t.Add(this.timeOffset)
+	}
+	return t
 }
 func (this *Times) Add(d time.Duration) *Times {
 	t := this.Now()
@@ -161,6 +171,25 @@ func (this *Times) Monthly(addMonth int) *Times {
 // SetTimeReset 每日凌晨偏移时间，6点重置 v=6*3600
 func (this *Times) SetTimeReset(v int64) {
 	this.timeReset = time.Duration(v) * time.Second
+}
+
+// SetTimeOffset 设置时间偏差，仅作用于系统时间路径(Now)，
+// 经 New/Unix/Milli/Parse 写入的缓存时间视为已偏移，不再叠加。支持三种入参：
+//   - time.Duration: 相对偏差，正=拨向未来，负=拨向过去
+//   - int64: Unix 秒级时间戳，把"现在"视为该时刻，偏差=该时刻-系统时钟
+//   - time.Time: 把"现在"视为该时刻，自动计算偏差
+func (this *Times) SetTimeOffset(v any) error {
+	switch t := v.(type) {
+	case time.Duration:
+		this.timeOffset = t
+	case int64:
+		this.timeOffset = time.Unix(t, 0).Sub(time.Now())
+	case time.Time:
+		this.timeOffset = t.Sub(time.Now())
+	default:
+		return values.Errorf(0, "unsupported offset type: %T", v)
+	}
+	return nil
 }
 
 //	func (this *Times) SetTimeZone(zone string) {

@@ -79,6 +79,10 @@ func SetTimeReset(v int64) {
 	Default.SetTimeReset(v)
 }
 
+func SetTimeOffset(v any) error {
+	return Default.SetTimeOffset(v)
+}
+
 func GetTimeZone() string {
 	return Default.GetTimeZone()
 }
