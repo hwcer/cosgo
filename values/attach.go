@@ -102,7 +102,8 @@ func (m Attach[K]) GetString(k K) string {
 	return ParseString(v)
 }
 
-// Unmarshal 将 key 对应的值反序列化到 i（必须是非空指针），返回深拷贝。
+// Unmarshal 把 key 对应的值反序列化到 i（必须是非空指针），返回深拷贝：读出的值可以随意修改。
+// 只读场景用 Borrow，不拷贝。
 //
 // 仅当值来自数据库或网络（bson.D/bson.A/[]byte）且需要反序列化为具体类型时才需要调用本方法。
 // 如果数据不涉及序列化（如纯内存中通过 Set 写入的 Go 对象），直接使用 Get/GetInt/GetString 等方法即可。
@@ -113,41 +114,94 @@ func (m Attach[K]) GetString(k K) string {
 //	m.Set(k, result) // 缓存反序列化结果
 //
 // 本方法因 Go 暂不支持方法级别的类型参数，无法避免反射开销，待语言支持后改进。
-func (m Attach[K]) Unmarshal(k K, i any) error {
+func (m Attach[K]) Unmarshal(k K, i any) error { return m.Load(k, i, true) }
+
+// Borrow 与 Unmarshal 同形，但不深拷贝：把 key 对应的值按原形交给 i 所指的变量，供只读场景使用。
+//
+// 读出的值与缓存共享内部引用——切片 / map / 指针就是缓存里那一份，结构体本身是浅拷贝。
+// 调用方不得修改读出的值及其内部引用，否则会污染内存里的缓存（请求回滚后内存与库不一致）；
+// 要改就用 Unmarshal 取深拷贝。标量读取两者没有区别。
+func (m Attach[K]) Borrow(k K, i any) error { return m.Load(k, i, false) }
+
+// Load 把 key 对应的值读进 i（必须是非空指针）；没有这个值时目标保持不变。
+//
+// deep 决定读出的值与缓存是否独立：true 深拷贝，读出的值可以修改（Unmarshal）；
+// false 不拷贝，切片 / map / 指针与缓存共享，只能读（Borrow）。
+//
+// 缓存里的值有两种形态：
+//
+//   - bson.D / bson.A、[]byte：刚从库里读出，还没解码（冷路径）。解码进 i，并把解码结果记入缓存，
+//     之后的读取走热路径。
+//   - Go 对象（热路径）：直接赋给 i。Set 原样保存调用方给的对象（业务侧通常持有 *T），
+//     冷路径记入的却是读入目标所指的类型，两者差一层指针时自动对齐。
+func (m Attach[K]) Load(k K, i any, deep bool) error {
 	v := m[k]
 	if v == nil {
-		return nil
+		return nil //没有这个值
 	}
 	rv := reflect.ValueOf(i)
 	if rv.Kind() != reflect.Pointer || rv.IsNil() {
-		return fmt.Errorf("values.Attach.Unmarshal: target must be a non-nil pointer, got %T", i)
+		return fmt.Errorf("values.Attach: target must be a non-nil pointer, got %T", i)
 	}
+	dst := rv.Elem()
 	switch raw := v.(type) {
 	case bson.D, bson.A:
-		// 冷路径：BSON 复合类型反序列化后缓存
-		t, data, err := bson.MarshalValue(raw)
-		if err != nil {
-			return err
-		}
-		if err = bson.UnmarshalValue(t, data, i); err != nil {
+		// 冷路径
+		if err := m.decodeBSON(raw, i); err != nil {
 			return err
 		}
 	case []byte:
-		// 冷路径：旧版 JSON 字节反序列化后缓存
+		// 冷路径：旧版 JSON 字节
 		if err := json.Unmarshal(raw, i); err != nil {
 			return err
 		}
 	default:
-		// 热路径：缓存命中，Go 对象深拷贝赋值
-		src := reflect.ValueOf(v)
-		if !src.Type().AssignableTo(rv.Type().Elem()) {
-			return fmt.Errorf("values.Attach.Unmarshal: cannot assign %T to %s", v, rv.Type().Elem())
-		}
-		rv.Elem().Set(Clone(src, true))
-		return nil
+		// 热路径
+		return m.assign(dst, reflect.ValueOf(v), deep)
 	}
-	// 冷路径：缓存反序列化结果，后续调用走 default 热路径
-	m[k] = Clone(rv.Elem(), true).Interface()
+	// 把解码结果记入缓存，之后的读取走热路径。
+	// deep：克隆一份与调用方目标独立的副本；否则直接存，缓存与这次读出的值共享——Borrow 的语义本就如此。
+	if deep {
+		m[k] = Clone(dst, true).Interface()
+	} else {
+		m[k] = dst.Interface()
+	}
+	return nil
+}
+
+// 以下是 Load 用到的内部步骤，只服务于 Attach，不进包命名空间。
+
+// decodeBSON 把缓存里的 BSON 复合值反序列化进 i。
+func (m Attach[K]) decodeBSON(raw any, i any) error {
+	t, data, err := bson.MarshalValue(raw)
+	if err != nil {
+		return err
+	}
+	return bson.UnmarshalValue(t, data, i)
+}
+
+// assign 热路径：把缓存里的 Go 对象 src 赋给目标 dst。deep 为 true 深拷贝，否则按原形浅赋值。
+// 类型对不上时兼容差一层指针（Set 原样保存调用方给的对象，业务侧通常持有 *T；冷路径记入的却是读入目标
+// 所指的类型）；各 case 的条件都是「这样对齐之后能否赋值」，全都不成立才报错。
+func (m Attach[K]) assign(dst, src reflect.Value, deep bool) error {
+	switch {
+	case src.Type().AssignableTo(dst.Type()): //同型
+	case src.Kind() == reflect.Pointer && src.IsNil():
+		return nil //存的是空指针 = 没有值，目标保持不变
+	case src.Kind() == reflect.Pointer && dst.Kind() != reflect.Pointer && src.Elem().Type().AssignableTo(dst.Type()):
+		src = src.Elem() //存指针、读值
+	case src.Kind() != reflect.Pointer && dst.Kind() == reflect.Pointer && reflect.PointerTo(src.Type()).AssignableTo(dst.Type()):
+		p := reflect.New(src.Type()) //存值、读指针：给出一份浅拷贝的地址
+		p.Elem().Set(src)
+		src = p
+	default:
+		return fmt.Errorf("values.Attach: cannot assign %s to %s", src.Type(), dst.Type())
+	}
+	if deep {
+		dst.Set(Clone(src, true))
+	} else {
+		dst.Set(src)
+	}
 	return nil
 }
 

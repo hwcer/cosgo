@@ -39,6 +39,7 @@ No Makefile, no linter config, no CI pipeline. Standard `go test` and `go vet` a
 - **No modern Go idioms on purpose**: The codebase deliberately avoids Go 1.22+ features like `range over int`, `slices.Contains`, etc. Do not introduce them.
 - **No `//nolint` or linter-driven changes**: Do not refactor to satisfy linters if it changes the existing style.
 - **Registration pattern**: Many subsystems (binder, registry) use `Register()` at startup, then lock-free reads at runtime. Respect this init-time-only mutation pattern.
+- **Type-specific helpers are unexported methods**: Logic used only by one type goes into that type's unexported methods, never into package-level functions (exported or not). Package-level names belong to the whole module; each free function is one more name every user has to route around. When splitting a long method into steps for readability, hang those steps on the type the method belongs to (see `values/attach.go`: `Load` plus `decodeBSON` / `assign`). Split by responsibility, not by line count: a step that only validates one argument or only picks one of two branches is too thin and stays inline.
 
 ## Architecture
 
@@ -75,7 +76,7 @@ Modules may optionally implement the `Reload` interface (`Reload() error`) to re
 
 - **binder/**: Multi-format serializer registry (JSON, XML, YAML, Form, Protobuf, Msgpack, Bytes). All registration at init time; reads are lock-free.
 
-- **values/**: Generic `Attach[K]` (map-like container, `Values` is `Attach[string]`), `*Message` (Code + Data for error propagation), `Bitwise` (dynamic bit array with O(1) set/has/delete), `Metadata` (string key-value with typed getters), `Unmarshal[V]` (generic BSON/JSON unmarshaling). `Bytes` (BSON-aware byte wrapper) is deprecated.
+- **values/**: Generic `Attach[K]` (map-like container, `Values` is `Attach[string]`), `*Message` (Code + Data for error propagation), `Bitwise` (dynamic bit array with O(1) set/has/delete), `Metadata` (string key-value with typed getters), `Unmarshal[V]` (generic BSON/JSON unmarshaling). `Bytes` (BSON-aware byte wrapper) is deprecated. Reading a cached value out of `Attach`: `Load(k, i, deep)`; `Unmarshal` (deep copy, the result may be modified) and `Borrow` (no copy, shares slices/maps/pointers with the cache, read-only) are its two front doors.
 
 - **times/**: Time helper built around `*Times` (extends `time.Time`). `Default` singleton with configurable layout and timezone. `Daily()`/`Weekly()`/`Monthly()` for boundary calculation. `ExpireType` enum with sign encoding (`ParseSign`/`ParseExpire`) for compact expiry timestamp transmission.
 
